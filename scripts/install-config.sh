@@ -50,6 +50,10 @@ if [ "$RESEED" = 1 ] || [ ! -s "$STATUS" ]; then
   cp -n /var/lib/dpkg/info/*.conffiles "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
 fi
 
+# Protect the seeded (system) packages: hold them so apt cannot accidentally
+# upgrade/remove them into/from the prefix. Our own installs stay upgradable.
+bash "$REPO/scripts/lock-seeded.sh" lock
+
 # Make installed packages runnable in new shells (unless opted out).
 if [ "$SHELL_PATH" = 1 ]; then
   bash "$REPO/scripts/install-shell-path.sh"

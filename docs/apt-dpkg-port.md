@@ -110,9 +110,11 @@ via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
 
 ## Caveats
 
-- **Seeded db is a footgun.** `apt upgrade` / `apt remove` will try to
-  "upgrade"/"remove" *system* packages into/from `~/.local`. Pin seeded packages
-  before relying on apt for anything other than new installs.
+- **The seeded db is locked by default.** `install-config.sh` runs
+  `scripts/lock-seeded.sh lock`, marking seeded (system) packages as dpkg
+  `hold` so apt cannot accidentally upgrade/remove them into/from `~/.local`;
+  packages you install yourself stay upgradable. `lock-seeded.sh unlock`
+  releases them (only if you know why).
 - **Maintainer scripts that need root** (`debconf`, `adduser`, `systemctl`,
   `ldconfig`) still fail. Good for leaf tools; not for system-level packages
   (do **not** install `libc6` this way).

@@ -148,7 +148,8 @@ Details and the `check-package.sh` predictor:
 ```
 docs/        methodology, porting, apt-dpkg-port, working-packages, polkit, roles, hardening
 scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
-             build-in-container, install-config, install-shell-path, check-package, test-packages
+             build-in-container, install-config, install-shell-path, lock-seeded,
+             check-package, test-packages
 patches/     apt/{termux,local}, dpkg/termux   (verbatim upstream patches + our fixes)
 config/      apt.conf.d template, sources.list
 tools/       deb2home.sh   (extract a .deb into $HOME without root)

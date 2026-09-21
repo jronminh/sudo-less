@@ -17,6 +17,13 @@
 > Keep the admin account (`mobian` here) and its recovery route healthy and
 > tested, and back up first. See `docs/hardening.md` and `docs/roles.md`.
 
+> [!CAUTION]
+> **AI-assisted and unaudited.** The scripts, patches, and docs here were
+> written with an AI pairing assistant ([opencode](https://opencode.ai) /
+> `deepseek-v4-flash`) — read the code, and don't treat it as a trusted or
+> security-reviewed artifact. Be especially careful with the root scripts under
+> `admin/` before running them.
+
 > Run, build, and install software on Debian **as an unprivileged user** — no
 > `sudo`, no root — including a **userspace `apt` + `dpkg`** that installs
 > `.deb` packages into `~/.local`.
@@ -295,7 +302,8 @@ Targets Debian-family systems. Nothing here is guaranteed — read it alongside
 provided **"as is", without warranty of any kind** (see [`LICENSE`](LICENSE)).
 It deliberately changes how privilege works on your machine and runs builds as
 *scoped* root; read `docs/methodology.md` and the scripts under `admin/` before
-running them. You are responsible for the state of your system and for keeping
+running them. Parts were written with AI assistance and may contain mistakes.
+You are responsible for the state of your system and for keeping
 a recoverable admin path (see [Caution](#caution)). Not affiliated with Debian
 or Termux.
 

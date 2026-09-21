@@ -31,6 +31,50 @@ ever escalating.
   setuid helper, network listener, or third-party runtime; the no-root path uses
   standard in-distro tools (`mmdebstrap`, `bwrap`). See *Why it's cheap* below.
 
+## On mobile & tablets (Mobian)
+
+[Mobian](https://mobian-project.org/) devices — **ARM64 phones** and **x86_64
+tablets** alike — are a **first-class target**, not a toy. It is exactly the
+case this repo is for: install tools and dev libraries without root, keep the
+system image pristine, and stay recoverable — a botched user-space install
+cannot brick the device.
+
+- **Architecture is auto-detected** (`amd64` or `arm64`), so both x86 tablets
+  and ARM phones work; the rootfs and container follow the host arch.
+- **x86_64 tablets are the fast case**: builds run natively (no ARM emulation),
+  so `build-on-host.sh` with `sudo` is quick — the best place to *produce*
+  artifacts for slower ARM phones.
+- **On ARM phones**, prefer the root path if you have `sudo`; bootstrapping a
+  rootfs on-device is heavier (~2 GB RAM, ~1.5 GB disk). Cross-built or
+  CI-built artifacts are the friendlier route.
+- Unprivileged user namespaces must be enabled; if `proot` fails, the repo
+  already uses `bwrap` (this host's `yama.ptrace_scope=2` breaks `proot`).
+- The reliability win is separation: the system apt (admin account) stays the
+  single source of truth for the OS, while everything you experiment with lives
+  in `~/.local` and is disposable.
+
+The build is **relocatable**: build once on a fast x86 tablet, copy the tarball
+to the phone, regenerate config, done. Recipes in
+[`docs/mobile.md`](docs/mobile.md).
+
+### Fun fact: the Termux loop
+
+This project is Termux's apt/dpkg, *de-Termuxed* for glibc Debian. So the
+tempting next move — "point it at the Termux repo on Mobian arm64" — closes the
+loop and eats its own tail:
+
+- You *can* add `packages.termux.dev` (with `arch=aarch64` and Termux's key) and
+  apt will happily download and extract the `.deb`s.
+- But nothing runs: Termux packages are **bionic** (Android) ELFs needing
+  Android's linker and libc, with hardcoded `/data/data/com.termux/...` paths.
+  `proot` doesn't help — it translates paths, it can't supply a missing libc.
+- To actually run Termux packages on a Mobian device, you need the Android
+  runtime — i.e. **Waydroid** (see `docs/waydroid.md`), not glibc.
+- The one exception: architecture-independent **data** (fonts, terminfo, icons)
+  extracts and is reusable; code is not.
+
+So: Termux is the *ancestor* of this repo, not a package source for it. 🐢
+
 ## Quick start
 
 ```sh
@@ -109,53 +153,19 @@ host stays *safe* (that root never reaches it).
 - **Shared multi-user hosts** — labs, jumphosts, CI sandboxes — where touching
   system packages is forbidden or antisocial.
 - **Hardened / minimal systems** that are deliberately root-free.
+- **Mobian phones and tablets** — see above.
 - Anyone who wants **Debian `.deb`s + apt/dpkg semantics** (a real package
   database, `remove`/`upgrade`/`list`) in their home — not Homebrew bottles or
   conda environments.
 - Security/DevOps folks interested in the **scoped-root pattern** itself.
 
-## On mobile & tablets (Mobian)
+## Who it is *not* for
 
-[Mobian](https://mobian-project.org/) devices — **ARM64 phones** and **x86_64
-tablets** alike — are a **first-class target**, not a toy. It is exactly the
-case this repo is for: install tools and dev libraries without root, keep the
-system image pristine, and stay recoverable — a botched user-space install
-cannot brick the device.
-
-- **Architecture is auto-detected** (`amd64` or `arm64`), so both x86 tablets
-  and ARM phones work; the rootfs and container follow the host arch.
-- **x86_64 tablets are the fast case**: builds run natively (no ARM emulation),
-  so `build-on-host.sh` with `sudo` is quick — the best place to *produce*
-  artifacts for slower ARM phones.
-- **On ARM phones**, prefer the root path if you have `sudo`; bootstrapping a
-  rootfs on-device is heavier (~2 GB RAM, ~1.5 GB disk). Cross-built or
-  CI-built artifacts are the friendlier route.
-- Unprivileged user namespaces must be enabled; if `proot` fails, the repo
-  already uses `bwrap` (this host's `yama.ptrace_scope=2` breaks `proot`).
-- The reliability win is separation: the system apt (admin account) stays the
-  single source of truth for the OS, while everything you experiment with lives
-  in `~/.local` and is disposable.
-
-Full recipes (build on-device, or build once and copy to the phone — the build
-is relocatable): [`docs/mobile.md`](docs/mobile.md).
-
-### Fun fact: the Termux loop
-
-This project is Termux's apt/dpkg, *de-Termuxed* for glibc Debian. So the
-tempting next move — "point it at the Termux repo on Mobian arm64" — closes the
-loop and eats its own tail:
-
-- You *can* add `packages.termux.dev` (with `arch=aarch64` and Termux's key) and
-  apt will happily download and extract the `.deb`s.
-- But nothing runs: Termux packages are **bionic** (Android) ELFs needing
-  Android's linker and libc, with hardcoded `/data/data/com.termux/...` paths.
-  `proot` doesn't help — it translates paths, it can't supply a missing libc.
-- To actually run Termux packages on a Mobian device, you need the Android
-  runtime — i.e. **Waydroid** (see `docs/waydroid.md`), not glibc.
-- The one exception: architecture-independent **data** (fonts, terminfo, icons)
-  extracts and is reusable; code is not.
-
-So: Termux is the *ancestor* of this repo, not a package source for it. 🐢
+- If you have `sudo`, just use `apt`.
+- For plain user-space CLI tools, **Homebrew/Linuxbrew** is more mature.
+- HPC/scientific stacks: **conda / spack / modules** already cover it.
+- Desktop isolation: **distrobox / toolbox / flatpak / nix**.
+- Immutable distros ship their own story.
 
 ## Use cases
 
@@ -165,21 +175,13 @@ So: Termux is the *ancestor* of this repo, not a package source for it. 🐢
   touching system packages or stepping on other users.
 - **Hardened desktop** — no `sudo` by design; user-space tools still work.
 - **Mobian phone or x86 tablet** — keep the OS image clean, install dev tools,
-  and stay recoverable (see above).
+  and stay recoverable.
 - **CI sandboxes / containers without root** — a package DB and resolver for a
   user you can't give root to.
 - **Rescue / repair** — a broken or locked system where you still need to fetch
   and run tools.
 - **Reproducible per-project environments** — install and pin versions in a
   prefix, throw it away, rebuild from scripts.
-
-## Who it is *not* for
-
-- If you have `sudo`, just use `apt`.
-- For plain user-space CLI tools, **Homebrew/Linuxbrew** is more mature.
-- HPC/scientific stacks: **conda / spack / modules** already cover it.
-- Desktop isolation: **distrobox / toolbox / flatpak / nix**.
-- Immutable distros ship their own story.
 
 ## Why it's cheap
 
@@ -227,10 +229,11 @@ Details and the `check-package.sh` predictor:
 ## Repository layout
 
 ```
-docs/        methodology, porting, mobile, apt-dpkg-port, working-packages, polkit, roles, hardening
+docs/        methodology, mobile, porting, apt-dpkg-port, working-packages,
+             polkit, roles, hardening, waydroid
 scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
              build-in-container, install-config, install-shell-path, lock-seeded,
-             check-package, test-packages
+             check-package, test-packages, fetch-sources, common
 patches/     apt/{termux,local}, dpkg/termux   (verbatim upstream patches + our fixes)
 config/      apt.conf.d template, sources.list
 tools/       deb2home.sh   (extract a .deb into $HOME without root)

@@ -5,13 +5,17 @@
 #   ./scripts/check-package.sh PKG [PKG...]
 #   ./scripts/check-package.sh --meta PKG      # index metadata only (no download)
 #
-# How: fetch the .deb from the repo (apt-get download), then read it offline
-# with dpkg-deb:
-#   * control scripts (preinst/postinst/prerm/postrm) -> root-only commands
-#   * file list -> system-integration paths (systemd, python dist-packages, ...)
-# plus the index metadata (Section/Priority/Essential/Depends).
+# Method (cache-only, nothing is executed or installed):
+#   * apt index metadata (Section/Priority/Essential/Depends) via apt-cache show
+#   * the .deb, fetched into apt's archive cache and read offline with dpkg-deb:
+#       - control scripts (preinst/postinst/prerm/postrm) -> root-only commands
+#       - file list -> system-integration paths
+#   Repeat runs reuse the cached .deb (no network).
 #
-# Verdicts: OK / RISKY / UNLIKELY, with the reasons.
+# Verdicts:
+#   OK        nothing that should stop it working in the prefix
+#   RISKY     installs, but ships/uses system integration (may partly misbehave)
+#   UNLIKELY  a hard blocker: root-only postinst step, python app, service deps
 set -uo pipefail
 source "$(dirname "$0")/common.sh"
 
@@ -22,67 +26,71 @@ META_ONLY=0
 APT="$PREFIX/bin/apt-get"
 APT_CACHE="$PREFIX/bin/apt-cache"
 DPKG_DEB="$(command -v dpkg-deb || echo "$PREFIX/bin/dpkg-deb")"
+ARCHIVES="$PREFIX/var/cache/apt/archives"
+
+# --- signals -----------------------------------------------------------------
+# HARD: a postinst/preinst step that needs root and will fail (or python apps
+# whose byte-compile/module paths are absolute).
+HARD_SCRIPT='systemctl|invoke-rc.d|update-rc.d|/etc/init.d|adduser|useradd|groupadd|debconf|ldconfig|chroot|py3compile|dpkg-statoverride|update-ca-certificates|update-crypto-policies'
+HARD_FILES='/usr/lib/python3/dist-packages/|/usr/lib/python3/|/etc/pam.d/|/usr/share/pam-configs/|/lib/modules/|/usr/lib/security/'
+HARD_DEPS='init-system-helpers|adduser|debconf|initramfs-tools|sysvinit-core|passwd|login'
+
+# SOFT: commonly non-fatal (Debian wraps these, or they only warn), or
+# system-integration artifacts that don't stop the binaries running.
+SOFT_SCRIPT='update-alternatives|update-menus|update-desktop-database|install-info|update-mime|update-mime-database|gtk-update-icon-cache|update-fonts|update-xmlcatalog|update-catalog|update-dictcommon|update-icon-caches'
+SOFT_FILES='/usr/lib/systemd/|/lib/systemd/|/etc/init.d/|/usr/libexec/|/usr/lib/udev/|/etc/dbus-1/|/usr/share/polkit-1/|/usr/lib/tmpfiles.d/|/etc/default/|/usr/share/dbus-1/|/etc/xdg/autostart/'
 
 # apt-cache/apt-get download need the package index; populate it if missing.
 if ! compgen -G "$PREFIX/var/lib/apt/lists/*_Packages*" >/dev/null; then
   log "no package lists; running apt-get update"
   "$APT" update
 fi
+mkdir -p "$ARCHIVES"
 
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
-
-# script commands that need root / system integration
-RISKY_SCRIPT='systemctl|invoke-rc.d|update-rc.d|/etc/init.d|adduser|useradd|groupadd|debconf|ldconfig|update-alternatives|dpkg-statoverride|chroot|py3compile|update-ca-certificates|update-fonts|pam-auth-update|update-menus|update-desktop-database|dpkg-trigger|/var/lib/dpkg/info'
-# file paths that indicate system integration
-RISKY_FILES='/lib/systemd/|/usr/lib/systemd/|/etc/init.d/|/usr/lib/python3/dist-packages/|/usr/libexec/|/usr/lib/udev/|/etc/dbus-1/|/usr/share/polkit-1/|/lib/modules/|/etc/pam.d/|/etc/ld.so.conf.d/|/usr/lib/tmpfiles.d/|/etc/default/|/usr/share/dbus-1/'
-# dependency names that pull in system plumbing
-RISKY_DEPS='init-system-helpers|systemd|adduser|debconf|libpam|passwd|login|initramfs-tools|ucf|lsb-base|sysvinit'
+matches() { { grep -Eoi "$1" <<<"$2" 2>/dev/null || true; } | sort -u | paste -sd, -; }
 
 check_one() {
-  local pkg="$1" reasons=() verdict="OK"
+  local pkg="$1" hard=() soft=()
   local meta section essential depends
   meta="$("$APT_CACHE" show "$pkg" 2>/dev/null)" || { echo "$pkg: NOT IN REPO"; return; }
   section="$(sed -n 's/^Section: //p' <<<"$meta" | head -1)"
   essential="$(sed -n 's/^Essential: //p' <<<"$meta" | head -1)"
   depends="$(sed -n 's/^\(Pre-\)\?Depends: //p' <<<"$meta" | paste -sd, -)"
 
-  [[ "$essential" == yes ]] && reasons+=("Essential package")
-  if grep -Eqi "$RISKY_DEPS" <<<"$depends"; then
-    reasons+=("deps pull system plumbing ($(grep -Eoi "$RISKY_DEPS" <<<"$depends" | sort -u | paste -sd, -))")
-  fi
+  [[ "$essential" == yes ]] && hard+=("Essential package") || true
+  local d; d="$(matches "$HARD_DEPS" "$depends")"
+  if [ -n "$d" ]; then hard+=("deps: $d"); fi
 
-  local scripts="" files=""
   if [ "$META_ONLY" -eq 0 ]; then
-    if ( cd "$WORK" && "$APT" download "$pkg" >/dev/null 2>&1 ); then
-      local deb; deb="$(ls "$WORK"/"${pkg}"_*.deb 2>/dev/null | head -1)"
-      if [ -n "$deb" ]; then
-        rm -rf "$WORK/ctrl"
-        "$DPKG_DEB" -e "$deb" "$WORK/ctrl" >/dev/null 2>&1
-        scripts="$(cat "$WORK"/ctrl/{preinst,postinst,prerm,postrm} 2>/dev/null || true)"
-        files="$("$DPKG_DEB" -c "$deb" 2>/dev/null || true)"
-        if grep -Eqi "$RISKY_SCRIPT" <<<"$scripts"; then
-          reasons+=("maintainer script: $(grep -Eoi "$RISKY_SCRIPT" <<<"$scripts" | sort -u | paste -sd, -)")
-        fi
-        if grep -Eqi "$RISKY_FILES" <<<"$files"; then
-          reasons+=("system paths: $(grep -Eoi "$RISKY_FILES" <<<"$files" | sort -u | paste -sd, -)")
-        fi
-        if grep -Eq '^[-r][-r]w[-r]x[-r]x' <<<"$files" && grep -Eq ' rws| rs' <<<"$files"; then
-          reasons+=("setuid/setgid files")
-        fi
-      else
-        reasons+=("download produced no .deb")
-      fi
+    local deb; deb="$(ls "$ARCHIVES/${pkg}"_*.deb 2>/dev/null | head -1 || true)"
+    if [ -z "$deb" ]; then
+      ( cd "$ARCHIVES" && "$APT" download "$pkg" >/dev/null 2>&1 ) || true
+      deb="$(ls "$ARCHIVES/${pkg}"_*.deb 2>/dev/null | head -1 || true)"
+    fi
+    if [ -n "$deb" ]; then
+      local scripts files
+      rm -rf "$WORK/ctrl"
+      "$DPKG_DEB" -e "$deb" "$WORK/ctrl" >/dev/null 2>&1
+      scripts="$(cat "$WORK"/ctrl/{preinst,postinst,prerm,postrm} 2>/dev/null || true)"
+      files="$("$DPKG_DEB" -c "$deb" 2>/dev/null || true)"
+      local s
+      s="$(matches "$HARD_SCRIPT" "$scripts")"; if [ -n "$s" ]; then hard+=("script: $s"); fi
+      s="$(matches "$SOFT_SCRIPT" "$scripts")"; if [ -n "$s" ]; then soft+=("script: $s"); fi
+      s="$(matches "$HARD_FILES" "$files")";   if [ -n "$s" ]; then hard+=("paths: $s"); fi
+      s="$(matches "$SOFT_FILES" "$files")";   if [ -n "$s" ]; then soft+=("paths: $s"); fi
     else
-      reasons+=("could not download")
+      soft+=("not downloadable")
     fi
   fi
 
-  # verdict
-  if [ "${#reasons[@]}" -eq 0 ]; then
-    printf '%-14s %-9s section=%s\n' "$pkg" "OK" "${section:-?}"
+  if [ "${#hard[@]}" -gt 0 ]; then
+    printf '%-16s %-9s %s\n' "$pkg" "UNLIKELY" "${hard[*]}"
+  elif [ "${#soft[@]}" -gt 0 ]; then
+    printf '%-16s %-9s %s\n' "$pkg" "RISKY" "${soft[*]}"
   else
-    printf '%-14s %-9s %s\n' "$pkg" "UNLIKELY" "${reasons[*]}"
+    printf '%-16s %-9s section=%s\n' "$pkg" "OK" "${section:-?}"
   fi
 }
 
+WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 for p in "$@"; do check_one "$p"; done

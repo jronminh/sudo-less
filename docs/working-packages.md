@@ -10,26 +10,32 @@ Fetch the `.deb` from the repo and read it offline with `dpkg-deb` — no instal
 no dpkg-db change:
 
 ```sh
-./scripts/check-package.sh tree nginx ranger libssl-dev
+./scripts/check-package.sh tree gcc nginx ranger libssl-dev
 #   tree        OK        section=utils
-#   nginx       UNLIKELY  maintainer script: /etc/init.d,invoke-rc.d
-#   ranger      UNLIKELY  maintainer script: py3compile system paths: /usr/lib/python3/dist-packages/
+#   gcc         RISKY     script: update-alternatives
+#   nginx       UNLIKELY  script: /etc/init.d,invoke-rc.d
+#   ranger      UNLIKELY  script: py3compile paths: /usr/lib/python3/dist-packages/
 #   libssl-dev  OK        section=libdevel
 
 ./scripts/check-package.sh --meta nginx     # index metadata only (no download)
 ```
 
-It flags exactly the failure modes we observed:
-- **maintainer scripts** containing root-only commands
-  (`systemctl`, `invoke-rc.d`, `update-rc.d`, `adduser`, `debconf`, `ldconfig`,
-  `update-alternatives`, `chroot`, `py3compile`, …);
-- **file lists** with system-integration paths (`/usr/lib/systemd/`,
-  `/etc/init.d/`, `/usr/lib/python3/dist-packages/`, `/usr/lib/udev/`, …);
-- **dependencies** that pull system plumbing (`systemd`, `adduser`, `debconf`,
-  `libpam`, `initramfs-tools`, …);
-- `Essential: yes` packages.
+Verdicts are split into **hard blockers** and **benign/soft** signals:
 
-Everything else is reported `OK`.
+- **UNLIKELY** — a hard blocker:
+  - maintainer script calls a root-only step that fails
+    (`systemctl`, `invoke-rc.d`, `update-rc.d`, `adduser`, `debconf`,
+    `ldconfig`, `chroot`, `py3compile`, `dpkg-statoverride`, …);
+  - file list has a hard path (`/usr/lib/python3/dist-packages/`, `/etc/pam.d/`,
+    `/lib/modules/`, …) → Python app / system module;
+  - deps pull plumbing (`init-system-helpers`, `adduser`, `debconf`,
+    `initramfs-tools`, …); or `Essential: yes`.
+- **RISKY** — installs and usually works, but touches system integration:
+  - `update-alternatives`, `update-menus`, `update-desktop-database`,
+    `install-info`, … (Debian tolerates these);
+  - ships systemd units / `init.d` / `udev` / dbus / polkit / `tmpfiles.d`,
+    or `/usr/libexec/`.
+- **OK** — none of the above.
 
 Remember the **seeded db**: packages already installed system-wide are treated
 as satisfied, so apt does *not* copy them into the prefix (they just run from

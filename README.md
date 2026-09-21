@@ -1,6 +1,6 @@
 # sudo-less
 
-## Caution
+<a id="caution"></a>
 
 > [!WARNING]
 > **Keep a way back in — this project removes standing root on purpose.**

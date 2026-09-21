@@ -9,6 +9,7 @@
 # apt will not duplicate them into the prefix).
 set -uo pipefail
 source "$(dirname "$0")/common.sh"
+set +e  # common.sh enables errexit; keep going so per-package status is reported
 
 export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
 APT="$PREFIX/bin/apt-get"

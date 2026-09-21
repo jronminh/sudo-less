@@ -18,6 +18,7 @@
 #   UNLIKELY  a hard blocker: root-only postinst step, python app, service deps
 set -uo pipefail
 source "$(dirname "$0")/common.sh"
+set +e  # common.sh enables errexit; this checker is deliberately lenient
 
 META_ONLY=0
 [ "${1:-}" = "--meta" ] && { META_ONLY=1; shift; }

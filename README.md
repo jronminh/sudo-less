@@ -238,7 +238,7 @@ host stays *safe* (that root never reaches it).
 ## How it works
 
 - **apt** is upstream Debian apt + Termux's 14 patches; **dpkg** is upstream
-  dpkg + Termux's 9 patches. Neither is a fork.
+  dpkg + Termux's 9 patches and `configure.diff`. Neither is a fork.
 - `@TERMUX_PREFIX@` (a self-contained Termux rootfs) is remapped: helper
   binaries → `/usr/bin`, `tmp` → `/tmp`, apt's own `etc/apt` → `$PREFIX`.
 - **dpkg is compiled with `-D__ANDROID__`** so Termux's patches activate and

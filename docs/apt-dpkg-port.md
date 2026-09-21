@@ -81,7 +81,7 @@ Two equivalent routes (see `../methodology.md`):
 # podman container as the build rootfs
 ./scripts/build-in-container.sh
 
-# podman-free: real rootfs via mmdebstrap, entered with proot
+# podman-free: real rootfs via mmdebstrap, entered with bwrap
 ./scripts/make-buildroot.sh
 ./scripts/build-in-rootfs.sh
 ```

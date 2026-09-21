@@ -11,7 +11,7 @@
 #     root-only bits (superuser check, chown) in #ifndef __ANDROID__. We compile
 #     with -D__ANDROID__ to activate them, i.e. this is "Termux dpkg".
 #   * configure.diff hardcodes the arch as TERMUX_ARCH; on a native build we
-#     substitute the real values (cpu=x86_64, arch=amd64).
+#     substitute the host's values (DEB_CPU / DEB_ARCH, auto-detected).
 #   * --without-libselinux (Termux's --without-selinux is an unrecognized no-op).
 #   * admindir defaults to $PREFIX/var/lib/dpkg via --with-admindir.
 source "$(dirname "$0")/common.sh"
@@ -31,8 +31,8 @@ log "autogen"
 ./autogen >/dev/null
 log "applying configure.diff"
 patch -p1 -F3 --no-backup-if-mismatch < "$REPO/patches/dpkg/termux/configure.diff"
-sed -i 's/cpu_type=TERMUX_ARCH/cpu_type=x86_64/' configure
-sed -i 's/dpkg_arch=TERMUX_ARCH/dpkg_arch=amd64/' configure
+sed -i "s/cpu_type=TERMUX_ARCH/cpu_type=$DEB_CPU/" configure
+sed -i "s/dpkg_arch=TERMUX_ARCH/dpkg_arch=$DEB_ARCH/" configure
 
 log "configuring"
 ./configure \

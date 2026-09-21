@@ -75,13 +75,14 @@ superset for the *current* suite, which is fine.
 | install prefix | `$HOME/.local` | `PREFIX=/somewhere` |
 | apt / dpkg version | `2.8.1` / `1.22.6` | `APT_VER`, `DPKG_VER` |
 | source cache dir | `<repo>/src` | `SRC=/path` |
-| architecture | `amd64` / `x86_64` | edit `build-apt.sh` (`-DCOMMON_ARCH`), `build-dpkg.sh` (`cpu_type`, `dpkg_arch`) |
+| architecture | auto-detected (`dpkg --print-architecture`, else `uname -m`) | `DEB_ARCH=`, `DEB_CPU=` |
 | dpkg tuple data | `/usr/share/dpkg` | `-DDPKG_DATADIR` in `build-apt.sh` |
 | apt suite/mirror | `sid`, `deb.debian.org` | `config/sources.list` |
 
 The prefix config is generated from `config/apt.conf.d/00local-prefix.in` by
 `install-config.sh`, substituting `@PREFIX@`, so the prefix is not hardcoded.
-The architecture is still baked in at build time (see the row above).
+The architecture is auto-detected at build time and can be overridden with
+`DEB_ARCH` / `DEB_CPU`.
 
 ## After building
 

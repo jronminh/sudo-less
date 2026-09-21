@@ -14,6 +14,27 @@ DPKG_VER="${DPKG_VER:-1.22.6}"
 APT_URL="${APT_URL:-https://github.com/Debian/apt/archive/refs/tags/$APT_VER.tar.gz}"
 DPKG_URL="${DPKG_URL:-https://github.com/guillemj/dpkg/archive/refs/tags/$DPKG_VER.tar.gz}"
 
+# Architecture (no hardcoding): prefer dpkg's answer, else map uname -m.
+# DEB_ARCH is apt's COMMON_ARCH / dpkg's DEB_HOST_ARCH; DEB_CPU is the CPU tuple.
+detect_deb_arch() {
+  if command -v dpkg >/dev/null 2>&1; then
+    dpkg --print-architecture && return
+  fi
+  case "$(uname -m)" in
+    x86_64) echo amd64 ;; aarch64) echo arm64 ;; armv7l) echo armhf ;;
+    armv6l) echo armel ;; i686|i386) echo i386 ;; riscv64) echo riscv64 ;;
+    ppc64le) echo ppc64el ;; s390x) echo s390x ;; *) echo "$(uname -m)" ;;
+  esac
+}
+DEB_ARCH="${DEB_ARCH:-$(detect_deb_arch)}"
+case "$DEB_ARCH" in
+  amd64)   DEB_CPU=x86_64 ;;
+  arm64)   DEB_CPU=aarch64 ;;
+  armhf|armel) DEB_CPU=arm ;;
+  ppc64el) DEB_CPU=powerpc64le ;;
+  *)       DEB_CPU="$DEB_ARCH" ;;
+esac
+
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 

@@ -122,5 +122,6 @@ via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
   for user `master` become these userspace builds. Use full paths if unsure.
 - `apt-key` verification needs a real `gpgv` binary on PATH (Debian ships it in
   its own `gpgv` package; this host had only `gpg`).
-- Hardcoded `amd64`/`x86_64` arch and prefix `$HOME/.local` in the
-  generated config; adjust `scripts/common.sh` / build args for another machine.
+- Architecture is auto-detected at build time (`scripts/common.sh`) and the
+  prefix is generated from `$PREFIX`, so both are portable; override with
+  `DEB_ARCH` / `DEB_CPU` / `PREFIX` if needed.

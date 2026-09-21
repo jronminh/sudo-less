@@ -49,6 +49,7 @@ ever escalating.
 - [Use cases](#use-cases)
 - [Why it's cheap](#why-its-cheap)
 - [How it works](#how-it-works)
+- [Prefixes & hardcoded paths](#prefixes--hardcoded-paths)
 - [What works](#what-works)
 - [Repository layout](#repository-layout)
 - [Scope & status](#scope--status)
@@ -245,6 +246,21 @@ host stays *safe* (that root never reaches it).
 Full write-up: [`docs/apt-dpkg-port.md`](docs/apt-dpkg-port.md). Methodology
 behind the no-root build paths: [`docs/methodology.md`](docs/methodology.md).
 
+## Prefixes & hardcoded paths
+
+Relocating a `.deb` does **not** rewrite paths compiled into it: a binary built
+for `/` still opens `/etc/...` and `/usr/share/...`, so the copies under
+`~/.local` are ignored. Termux and NixOS fix this by *rebuilding* with the
+target prefix; Flatpak and AppImage fix it by *mounting* the prefix where the
+binary expects it. sudo-less relocates without rebuilding, so on its own only
+relocatable packages work — [`docs/paths.md`](docs/paths.md) has the full model.
+
+For the rest, [`tools/prefix-run.sh`](tools/prefix-run.sh) runs a command with
+the prefix presented at `/`, using the strongest tier you have: a `bwrap`
+overlay of `~/.local` on `/usr`+`/etc` (no root), a complete rootfs via
+`bwrap`/`proot`/`chroot`, or a plain env-var fallback. `check-package.sh
+--runtime` says which class a package is in (`direct` / `overlay` / `never`).
+
 ## What works
 
 Great for **user-space tooling and dev libraries**: CLI tools, interpreters and
@@ -259,8 +275,8 @@ Details and the `check-package.sh` predictor:
 ## Repository layout
 
 ```
-docs/        methodology, mobile, porting, apt-dpkg-port, working-packages,
-             polkit, roles, hardening, waydroid
+docs/        methodology, mobile, porting, apt-dpkg-port, paths,
+             working-packages, polkit, roles, hardening, waydroid
 scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
              build-in-container, install-config, install-shell-path,
              install-session-env, lock-seeded, check-package, test-packages,
@@ -268,6 +284,7 @@ scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-root
 patches/     apt/{termux,local}, dpkg/termux   (verbatim upstream patches + our fixes)
 config/      apt.conf.d template, sources.list
 tools/       deb2home.sh   (extract a .deb into $HOME without root)
+             prefix-run.sh (run a command with the prefix presented at /)
 admin/       root-side scripts run by the admin account (example setup)
 ```
 

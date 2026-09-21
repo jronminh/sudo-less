@@ -13,6 +13,25 @@ Debian box, remove standing root from the daily user, and **still keep it fully
 usable** — you can build from source, install packages, and manage them, without
 ever escalating.
 
+## Contents
+
+- [Highlights](#highlights)
+- [On mobile & tablets (Mobian)](#on-mobile--tablets-mobian)
+  - [Fun fact: the Termux loop](#fun-fact-the-termux-loop)
+- [Quick start](#quick-start)
+- [Two package managers — don't mix them up](#two-package-managers--dont-mix-them-up)
+- [Why this exists](#why-this-exists)
+- [Who is this for](#who-is-this-for)
+- [Who it is *not* for](#who-it-is-not-for)
+- [Use cases](#use-cases)
+- [Why it's cheap](#why-its-cheap)
+- [How it works](#how-it-works)
+- [What works](#what-works)
+- [Repository layout](#repository-layout)
+- [Scope & status](#scope--status)
+- [Contributors](#contributors)
+- [License](#license)
+
 ## Highlights
 
 - **Userspace apt/dpkg.** Debian **apt 2.8.1** + **dpkg 1.22.6**, built from

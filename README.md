@@ -128,6 +128,11 @@ generated from `$PREFIX` rather than hardcoded.
 Targets Debian-family systems. Nothing here is guaranteed — read it alongside
 `docs/methodology.md`. Issues and PRs welcome.
 
+## Contributors
+
+See [`CONTRIBUTORS.md`](CONTRIBUTORS.md) — built by **jronminh** with
+**deepseek-v4-flash** ([opencode](https://opencode.ai)) as pairing assistant.
+
 ## License
 
 [GPL-3.0-or-later](LICENSE). The patches under `patches/apt/termux/` and

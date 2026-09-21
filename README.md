@@ -114,23 +114,43 @@ host stays *safe* (that root never reaches it).
   conda environments.
 - Security/DevOps folks interested in the **scoped-root pattern** itself.
 
-## On mobile (Mobian phones)
+## On mobile & tablets (Mobian)
 
-A phone running [Mobian](https://mobian-project.org/) (Debian on mobile) is a
-**first-class target**, not a toy. It is exactly the case this repo is for:
-install tools and dev libraries without root, keep the system image pristine,
-and stay recoverable — a botched user-space install cannot brick the phone.
+[Mobian](https://mobian-project.org/) devices — **ARM64 phones** and **x86_64
+tablets** alike — are a **first-class target**, not a toy. It is exactly the
+case this repo is for: install tools and dev libraries without root, keep the
+system image pristine, and stay recoverable — a botched user-space install
+cannot brick the device.
 
-- **arm64/aarch64 is auto-detected**; the rootfs and container follow the host
-  arch (`DEB_ARCH=arm64` works too).
-- **Prefer the root path** (`build-on-host.sh`) if you have `sudo` — it is far
-  lighter on RAM and battery than bootstrapping a rootfs on-device. The no-root
-  paths want ~2 GB RAM and ~1.5 GB disk.
+- **Architecture is auto-detected** (`amd64` or `arm64`), so both x86 tablets
+  and ARM phones work; the rootfs and container follow the host arch.
+- **x86_64 tablets are the fast case**: builds run natively (no ARM emulation),
+  so `build-on-host.sh` with `sudo` is quick — the best place to *produce*
+  artifacts for slower ARM phones.
+- **On ARM phones**, prefer the root path if you have `sudo`; bootstrapping a
+  rootfs on-device is heavier (~2 GB RAM, ~1.5 GB disk). Cross-built or
+  CI-built artifacts are the friendlier route.
 - Unprivileged user namespaces must be enabled; if `proot` fails, the repo
   already uses `bwrap` (this host's `yama.ptrace_scope=2` breaks `proot`).
 - The reliability win is separation: the system apt (admin account) stays the
   single source of truth for the OS, while everything you experiment with lives
   in `~/.local` and is disposable.
+
+## Use cases
+
+- **Locked-down work laptop** — no admin rights, but you still need `git`,
+  `ripgrep`, a compiler, `-dev` libraries. Install them into `~/.local`.
+- **Shared multi-user host / lab / jumphost** — per-user toolchains without
+  touching system packages or stepping on other users.
+- **Hardened desktop** — no `sudo` by design; user-space tools still work.
+- **Mobian phone or x86 tablet** — keep the OS image clean, install dev tools,
+  and stay recoverable (see above).
+- **CI sandboxes / containers without root** — a package DB and resolver for a
+  user you can't give root to.
+- **Rescue / repair** — a broken or locked system where you still need to fetch
+  and run tools.
+- **Reproducible per-project environments** — install and pin versions in a
+  prefix, throw it away, rebuild from scripts.
 
 ## Who it is *not* for
 

@@ -23,6 +23,12 @@ APT="$PREFIX/bin/apt-get"
 APT_CACHE="$PREFIX/bin/apt-cache"
 DPKG_DEB="$(command -v dpkg-deb || echo "$PREFIX/bin/dpkg-deb")"
 
+# apt-cache/apt-get download need the package index; populate it if missing.
+if ! compgen -G "$PREFIX/var/lib/apt/lists/*_Packages*" >/dev/null; then
+  log "no package lists; running apt-get update"
+  "$APT" update
+fi
+
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 
 # script commands that need root / system integration

@@ -27,6 +27,9 @@ ever escalating.
   `OK` / `RISKY` / `UNLIKELY` from its cached `.deb` — no install.
 - **It just runs.** After setup, `apt-get install foo` works and `foo` is on
   your PATH in a new shell.
+- **Cheap and dependency-light.** Nothing but this repo — no daemon, service,
+  setuid helper, network listener, or third-party runtime; the no-root path uses
+  standard in-distro tools (`mmdebstrap`, `bwrap`). See *Why it's cheap* below.
 
 ## Quick start
 
@@ -76,6 +79,38 @@ The key idea is that **root inside a sandbox is not root on the host**:
 
 The result: the transformation is *easy* (a real root to work with) and the
 host stays *safe* (that root never reaches it).
+
+## Who is this for
+
+- **Locked-down / managed Linux** where you have no admin rights but still need
+  CLI tools and dev libraries.
+- **Shared multi-user hosts** — labs, jumphosts, CI sandboxes — where touching
+  system packages is forbidden or antisocial.
+- **Hardened / minimal systems** that are deliberately root-free.
+- Anyone who wants **Debian `.deb`s + apt/dpkg semantics** (a real package
+  database, `remove`/`upgrade`/`list`) in their home — not Homebrew bottles or
+  conda environments.
+- Security/DevOps folks interested in the **scoped-root pattern** itself.
+
+## Who it is *not* for
+
+- If you have `sudo`, just use `apt`.
+- For plain user-space CLI tools, **Homebrew/Linuxbrew** is more mature.
+- HPC/scientific stacks: **conda / spack / modules** already cover it.
+- Desktop isolation: **distrobox / toolbox / flatpak / nix**.
+- Immutable distros ship their own story.
+
+## Why it's cheap
+
+- **Nothing but this repo.** No service, no daemon, no setuid helper, no network
+  listener, no third-party runtime, no proprietary installer, no `curl | bash`.
+- The **root path needs zero extra tooling** — just `apt` and these scripts.
+- The **no-root path uses standard Debian packages** (`mmdebstrap`, `bwrap`,
+  `proot`), in-distro and auditable — not exotic or questionable binaries.
+- The **build environment is disposable**: the scoped root/rootfs/container is
+  thrown away; only the finished artifacts stay.
+- Small on disk: scripts and patches. The rootfs is the largest cost and it is
+  optional.
 
 ## How it works
 

@@ -125,7 +125,8 @@ shopt -s nullglob
 echo "==> extracting"
 for d in *.deb; do
   n="${d%%_*}"
-  rm -rf "$OPT/$n"
+  [ -n "$n" ] || { echo "  !! skipping oddly-named file: $d" >&2; continue; }
+  rm -rf "${OPT:?}/$n"
   dpkg -x "$d" "$OPT/$n"
   echo "    $n -> $OPT/$n"
 done

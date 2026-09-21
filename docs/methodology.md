@@ -44,7 +44,7 @@ This is the primitive that every "rootless container" is built on.
 
 ---
 
-## 3. A real rootfs — `mmdebstrap` + `proot`
+## 3. A real rootfs — `mmdebstrap` + `bwrap`
 
 A **rootfs** is just a directory tree shaped like `/` (`usr/`, `etc/`, `var/`,
 device nodes, ownership). A kernel can make it the `/` for a process tree.
@@ -80,27 +80,27 @@ tar -xf ~/buildroot.tar -C ~/buildroot --no-same-owner --exclude='./dev/*'
 `./dev` is skipped: device nodes can't be created unprivileged, and we bind the
 host's `/dev` when entering anyway.
 
-### Entering the rootfs — `proot`
+### Entering the rootfs — `bwrap`
 
 ```sh
-proot -0 -r ~/buildroot \
-  -b /proc -b /dev -b /sys -b /tmp \
-  -b "$HOME:$HOME" -w "$HOME" \
-  /usr/bin/env HOME="$HOME" bash ~/sudo-less/scripts/build-apt.sh
+bwrap --bind ~/buildroot / \
+  --dev-bind /dev /dev --proc /proc --ro-bind /sys /sys --bind /tmp /tmp \
+  --bind "$HOME" "$HOME" --chdir "$HOME" --setenv HOME "$HOME" \
+  /usr/bin/env PREFIX="$HOME/.local" bash ~/sudo-less/scripts/build-apt.sh
 ```
 
-`proot` uses `ptrace` (no privileges) to present `~/buildroot` as `/`, `-0`
-fakes uid 0, and `-b` bind-mounts the host's `$HOME` back in so the source tree
-and `$PREFIX` stay on the host filesystem.
+`bwrap` uses unprivileged user namespaces (`clone`/`unshare`) to present
+`~/buildroot` as `/` and bind-mounts the host's `$HOME` back in, so the source
+tree and `$PREFIX` stay on the host filesystem. This is what
+`scripts/build-in-rootfs.sh` does.
 
-On recent kernels proot's seccomp accelerator fails with
-`can't chmod '/tmp/proot-*'`; disable it:
+`proot` is the older alternative: it uses `ptrace` (no privileges) instead of
+user namespaces, with `-0` faking uid 0. But on hosts that restrict ptrace
+(`kernel.yama.ptrace_scope=2`), `ptrace(PTRACE_TRACEME)` fails with `EPERM`, and
+on recent kernels its seccomp accelerator needs `PROOT_NO_SECCOMP=1`. Prefer
+`bwrap`.
 
-```sh
-export PROOT_NO_SECCOMP=1
-```
-
-`unshare -Ur -m chroot ~/buildroot` is the alternative (faster, no ptrace
+`unshare -Ur -m chroot ~/buildroot` is another alternative (faster, no ptrace
 overhead) but needs you to mount `/proc`, `/dev`, `/sys` yourself.
 
 ---

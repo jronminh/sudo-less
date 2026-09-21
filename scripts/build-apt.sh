@@ -30,6 +30,7 @@ log "retargeting @TERMUX_PREFIX@ -> $PREFIX"
 mapfile -t files < <(grep -rl '@TERMUX_PREFIX@' \
   --include='*.cc' --include='*.h' --include='*.in' . \
   | grep -v -e '^\./test/' -e '^\./doc/' -e '^\./debian/')
+[ "${#files[@]}" -gt 0 ] || die "no files containing @TERMUX_PREFIX@ found (apt layout changed?)"
 # helper programs apt shells out to live in the system, not in our prefix
 sed -i "s|@TERMUX_PREFIX@/bin/|/usr/bin/|g" "${files[@]}"
 sed -i "s|@TERMUX_PREFIX@/tmp|/tmp|g" "${files[@]}"

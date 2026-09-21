@@ -35,8 +35,11 @@ STATUS="$PREFIX/var/lib/dpkg/status"
 if [ "$RESEED" = 1 ] || [ ! -s "$STATUS" ]; then
   log "seeding dpkg status from /var/lib/dpkg/status"
   cp /var/lib/dpkg/status "$STATUS"
-  # files-list files quiet dpkg's "files list file missing" warnings
+  # copy the system's control-file lists so dpkg doesn't warn that seeded
+  # packages are "missing the list control file" / md5sums
   cp -n /var/lib/dpkg/info/*.list "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
+  cp -n /var/lib/dpkg/info/*.md5sums "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
+  cp -n /var/lib/dpkg/info/*.conffiles "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
 fi
 
 log "done. Add to PATH:"

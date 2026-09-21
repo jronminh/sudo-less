@@ -102,8 +102,11 @@ host stays *safe* (that root never reaches it).
 
 ## Why it's cheap
 
-- **Nothing but this repo.** No service, no daemon, no setuid helper, no network
-  listener, no third-party runtime, no proprietary installer, no `curl | bash`.
+- **Nothing but this repo.** All text — no binaries, no service, no daemon, no
+  network listener, no third-party runtime, no proprietary installer, no
+  `curl | bash`. (The optional *container* path relies on the distro's setuid
+  `newuidmap`/`newgidmap`, as every rootless container does; the rootfs path
+  needs no setuid at all.)
 - The **root path needs zero extra tooling** — just `apt` and these scripts.
 - The **no-root path uses standard Debian packages** (`mmdebstrap`, `bwrap`,
   `proot`), in-distro and auditable — not exotic or questionable binaries.

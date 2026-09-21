@@ -1,0 +1,38 @@
+# Build dependencies for apt 2.8.1 and dpkg 1.22.6.
+# Derived from both projects' debian/control Build-Depends, plus the autotools
+# we need because dpkg is built from a git archive (no pre-generated configure).
+# One package per line; blank lines and # comments ignored.
+build-essential
+cmake
+triehash
+ninja-build
+gettext
+po4a
+xsltproc
+docbook-xsl
+docbook-xml
+libtool
+autoconf
+automake
+autopoint
+pkg-config
+dpkg-dev
+fakeroot
+libgcrypt20-dev
+libgnutls28-dev
+libgpg-error-dev
+libcurl4-openssl-dev
+liblz4-dev
+liblzma-dev
+libbz2-dev
+zlib1g-dev
+libzstd-dev
+libxxhash-dev
+libdb-dev
+libseccomp-dev
+libmd-dev
+libudev-dev
+libsystemd-dev
+libperl-dev
+libncurses-dev
+libgtest-dev

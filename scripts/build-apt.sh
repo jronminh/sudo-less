@@ -9,7 +9,7 @@
 #   libdb-dev libseccomp-dev libmd-dev libudev-dev libperl-dev
 # (no libselinux1-dev needed)
 #
-# Key porting decisions (see README.md):
+# Key porting decisions (see docs/apt-dpkg-port.md):
 #   * @TERMUX_PREFIX@ is a self-contained Termux rootfs; on Debian the helper
 #     binaries live in /usr/bin, so map @TERMUX_PREFIX@/bin -> /usr/bin,
 #     @TERMUX_PREFIX@/tmp -> /tmp, and only apt's own etc/apt -> $PREFIX.

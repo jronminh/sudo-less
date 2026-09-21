@@ -6,7 +6,7 @@
 #   build-essential autoconf automake autopoint libtool pkg-config gettext po4a
 #   libmd-dev libncurses-dev zlib1g-dev libbz2-dev liblzma-dev libzstd-dev
 #
-# Key porting decisions (see README.md):
+# Key porting decisions (see docs/apt-dpkg-port.md):
 #   * Upstream dpkg has ZERO __ANDROID__ references; Termux's patches wrap the
 #     root-only bits (superuser check, chown) in #ifndef __ANDROID__. We compile
 #     with -D__ANDROID__ to activate them, i.e. this is "Termux dpkg".

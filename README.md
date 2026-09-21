@@ -1,138 +1,83 @@
-# apt-home — unprivileged apt + dpkg in `~/.local`
+# sudo-less
 
-A userspace port of **Termux's apt and dpkg** to a regular (rootless) Debian
-box. It installs Debian `.deb` packages into `~/.local` **without root**, with a
-real dependency resolver and a real dpkg database.
+How this box runs, builds and installs software **as an unprivileged user** —
+no `sudo`, no root, nothing setuid beyond what the distro already ships.
 
-Status: **working.** `apt-get update`, `apt-cache`, `apt-get download` and
-`apt-get install` (unpack + configure) all function; installed binaries run.
+Two personas share the machine:
 
-```
-$ ~/.local/bin/apt-get install -y hello
-...
-Unpacking hello (2.12.3-1) ...
-Setting up hello (2.12.3-1) ...
-$ ~/.local/usr/bin/hello
-Hello, world!
-```
-
-## What "Termux's apt/dpkg" actually is
-
-Neither is a fork. Both are the **upstream Debian projects plus a patch set**
-maintained in [`termux/termux-packages`](https://github.com/termux/termux-packages):
-
-| Tool | Base | Patches |
+| user | uid | role |
 |---|---|---|
-| apt  | Debian apt 2.8.1 | `packages/apt/*.patch` (14) |
-| dpkg | Debian dpkg 1.22.6 | `packages/dpkg/*.patch` (9) + `configure.diff` |
+| `mobian` | 1000 | admin / root delegate — sole `sudo` member; installs packages, systemd units, udev rules, polkit rules, hardening |
+| `master` | 1001 | unprivileged daily user — desktop session, all the no-root work in this repo |
 
-Termux builds these against `$PREFIX=/data/data/com.termux/files/usr` with the
-Android NDK (`__ANDROID__` defined). This repo retargets the same patches to
-`$PREFIX=$HOME/.local` on glibc.
+`master` never escalates. Instead it uses polkit grants, groups, udev `uaccess`,
+file capabilities, user namespaces, and userspace package extraction. The
+root-side counterpart (run once by `mobian`) is `admin/admin-prep.sh`.
 
-## Layout produced under `$PREFIX` (`~/.local`)
+## Contents
 
 ```
-bin/      apt apt-get apt-cache apt-config dpkg dpkg-deb dpkg-query update-alternatives
-sbin/     start-stop-daemon
-lib/      libapt-pkg.so.6.0, apt/methods/*, dpkg/...
-etc/apt/  sources.list, apt.conf.d/00local-prefix
-var/lib/apt/       apt lists/state
-var/lib/dpkg/      dpkg database (status, info, ...)
-var/cache/apt/     downloaded .debs
+README.md                     this file
+docs/
+  methodology.md              the no-root toolbox: how to install/build without root
+  apt-dpkg-port.md            the apt 2.8.1 + dpkg 1.22.6 userspace port (Termux patches)
+  roles.md                    mobian vs master, and what master may do
+  polkit.md                   polkit grants + doas default-deny note
+  hardening.md                host hardening record
+  waydroid.md, waydroid-mesa-debug.md
+tools/
+  deb2home.sh                 install Debian packages into $HOME without root
+build/
+  (see scripts/ + patches/ below)
+scripts/
+  common.sh                   shared vars (PREFIX=~/.local, versions, fetch helpers)
+  build-deps.list             one package list, shared by container + rootfs builds
+  install-build-deps.sh       install the toolchain (run inside build env)
+  build-apt.sh                fetch/patch/configure/build/install apt
+  build-dpkg.sh               fetch/patch/autogen/configure/build/install dpkg
+  make-buildroot.sh           create a real rootfs with mmdebstrap (no root, no podman)
+  build-in-rootfs.sh          build inside that rootfs via proot
+  build-in-container.sh       same, but inside a rootless podman container
+  install-config.sh           runtime config + dpkg status seeding
+patches/
+  apt/termux/, apt/local/     Termux's apt patches + our GCC-16 fixes
+  dpkg/termux/                Termux's dpkg patches + configure.diff
+admin/
+  admin-prep.sh               root-side prep (run as mobian) that enables the no-sudo env
+  verify-privs.sh             verify master's polkit/groups/userns/container setup
+  smart-install.sh, unlock.sh, desktop-fix.sh, waydroid-install.sh
+config/                       apt.conf.d/00local-prefix, sources.list
 ```
 
-## How the port works (the non-obvious bits)
+## The no-root toolbox (short version)
 
-1. **`@TERMUX_PREFIX@` is a self-contained rootfs.** Termux's prefix contains
-   its own `bin/sh`, `bin/gzip`, etc. `~/.local` does not. So the substitution
-   is split:
-   - `@TERMUX_PREFIX@/bin/` → `/usr/bin/` (helper programs apt shells out to)
-   - `@TERMUX_PREFIX@/tmp`  → `/tmp`
-   - remaining `@TERMUX_PREFIX@` (apt's own `etc/apt`, apt-key keyrings) → `$PREFIX`
-   - `DPkg::Path` → `$PREFIX/bin` + the system PATH
-2. **Isolated database.** `CMAKE_INSTALL_FULL_LOCALSTATEDIR=$PREFIX/var` makes
-   apt derive `Dir::State::status = $PREFIX/var/lib/dpkg/status`. It never reads
-   the system `/var/lib/dpkg/status`.
-3. **RPATH.** apt is installed with `RPATH=$PREFIX/lib` so it loads our
-   `libapt-pkg.so.6.0`, not the system `libapt-pkg.so.7.0`.
-4. **GCC 16 fixes** (`patches/apt/local/0001-gcc16-fixes.patch`): `<cstdint>`
-   for `uint8_t`, and a `RAMFS_MAGIC` fallback.
-5. **dpkg needs `__ANDROID__`.** Upstream dpkg has zero `__ANDROID__`
-   references; Termux's patches wrap the root-only bits (the superuser check in
-   `lib/dpkg/dbmodify.c`, `chown` in `src/main/archives.c`) in
-   `#ifndef __ANDROID__`. Compiling with `-D__ANDROID__` activates them —
-   otherwise dpkg dies with "requested operation requires superuser privilege".
-6. **Traditional alternate-root install.** dpkg is run with
-   `--instdir=$PREFIX`, so a package's `./usr/bin/foo` lands in
-   `~/.local/usr/bin/foo` (a real rootfs layout). `--force-script-chrootless`
-   is required because dpkg would otherwise `chroot()` into the instdir (needs
-   root). `--force-not-root` covers remaining permission errors.
-7. **Dependency seeding.** Because our dpkg db starts empty, apt would try to
-   install the whole `libc6` chain into the prefix. We seed
-   `$PREFIX/var/lib/dpkg/status` from the system's, so apt sees system libraries
-   as already installed and only installs leaf packages.
+Full detail in `docs/methodology.md`. Four ways to get software without root,
+roughly in order of weight:
 
-## Build
+1. **`deb2home`** — resolve deps with `apt-cache`, `apt-get download`, `dpkg -x`
+   into `~/.local/opt/<pkg>`, link binaries. Fast, no maintainer scripts.
+2. **user namespace** — `unshare -Ur` gives you root *inside a namespace*;
+   enough to `chown`/`mknod`/`chroot` for a rootfs, nothing on the host.
+3. **mmdebstrap + proot** — build a real Debian rootfs unprivileged, then run
+   inside it with `proot` (ptrace, no privileges). This is how we build apt/dpkg
+   with the full toolchain. No podman required.
+4. **rootless podman / distrobox** — a container when you want a persistent
+   environment; same user-namespace machinery, more moving parts.
 
-Requires a Debian sid environment with the build deps listed in the two build
-scripts. On this host that is a rootless `podman` container (distrobox's
-first-enter integration is flaky here):
+## Build & use the userspace apt/dpkg
 
 ```sh
-podman run -d --name aptbuild -v "$HOME:$HOME:rw" debian:sid sleep infinity
-podman exec -it aptbuild apt-get update
-podman exec -it aptbuild apt-get install -y build-essential cmake xsltproc \
-  docbook-xsl gettext po4a libtool autoconf automake autopoint pkg-config \
-  libgcrypt20-dev libgnutls28-dev libgpg-error-dev libcurl4-openssl-dev \
-  liblz4-dev liblzma-dev libbz2-dev zlib1g-dev libzstd-dev libxxhash-dev \
-  libdb-dev libseccomp-dev libmd-dev libudev-dev libperl-dev libncurses-dev
-podman exec -it aptbuild bash /home/master/apt-home/scripts/build-apt.sh
-podman exec -it aptbuild bash /home/master/apt-home/scripts/build-dpkg.sh
-```
+# podman route (uses a rootless container as the build rootfs)
+./scripts/build-in-container.sh
 
-Then install the runtime config (on the host):
+# podman-free route (real rootfs via mmdebstrap, entered with proot)
+./scripts/make-buildroot.sh
+./scripts/build-in-rootfs.sh
 
-```sh
-./scripts/install-config.sh
-```
-
-## Usage
-
-```sh
 export PATH="$HOME/.local/sbin:$HOME/.local/bin:$HOME/.local/usr/bin:$PATH"
 apt-get update
-apt-get install -y <package>     # installs into ~/.local/usr, ~/.local/lib, ...
-dpkg -l                          # our database, not the system's
+apt-get install -y <package>
 ```
 
-apt calls dpkg with `--instdir=$HOME/.local` and `--force-script-chrootless`
-via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
-
-## Caveats
-
-- **Seeded db is a footgun.** `apt upgrade` / `apt remove` will try to
-  "upgrade"/"remove" *system* packages into/from `~/.local`. Pin seeded packages
-  before relying on apt for anything other than new installs.
-- **Maintainer scripts that need root** (`debconf`, `adduser`, `systemctl`,
-  `ldconfig`) still fail. Good for leaf tools; not for system-level packages
-  (do **not** install `libc6` this way).
-- **PATH shadowing:** with `~/.local/bin` early in `PATH`, the bare `apt`/`dpkg`
-  for user `master` become these userspace builds. Use full paths if unsure.
-- `apt-key` verification needs a real `gpgv` binary on PATH (Debian ships it in
-  its own `gpgv` package; the host had only `gpg`).
-- Hardcoded `amd64`/`x86_64` arch and prefix `/home/master/.local` in the
-  generated config; adjust `common.sh` / build args for another machine.
-
-## File map
-
-```
-scripts/common.sh        shared vars, fetch/apply_patches helpers
-scripts/build-apt.sh     fetch apt 2.8.1, patch, retarget, cmake, install
-scripts/build-dpkg.sh    fetch dpkg 1.22.6, patch, autogen, configure, install
-scripts/install-config.sh  runtime config + dpkg status seeding
-patches/apt/termux/      Termux's 14 apt patches (verbatim)
-patches/apt/local/       our GCC-16 fixes
-patches/dpkg/termux/     Termux's 9 dpkg patches + configure.diff (verbatim)
-config/                  sources.list, apt.conf.d/00local-prefix
-```
+See `docs/apt-dpkg-port.md` for how the Termux patches are retargeted and the
+caveats (seeded db, root-only maintainer scripts, PATH shadowing).

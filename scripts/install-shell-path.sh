@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Add the userspace apt/dpkg prefix dirs to the shell PATH, idempotently, so
+# packages installed into $PREFIX/usr/bin are runnable in new shells.
+#
+#   ./scripts/install-shell-path.sh
+#
+# Without this, `apt-get install foo` puts the binary in $PREFIX/usr/bin but a
+# fresh terminal can't find it. The block is guarded and marked, so re-running
+# is a no-op. Called automatically by install-config.sh (skip with --no-shell).
+set -euo pipefail
+source "$(dirname "$0")/common.sh"
+
+MARK="# >>> sudo-less PATH >>>"
+END="# <<< sudo-less PATH <<<"
+
+read -r -d '' BLOCK <<EOF || true
+$MARK
+# userspace apt/dpkg prefix (installed by $REPO)
+if [ -d "$PREFIX/usr/bin" ]; then
+    case ":\$PATH:" in
+        *":$PREFIX/usr/bin:"*) ;;
+        *) PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:\$PATH" ;;
+    esac
+fi
+export PATH
+$END
+EOF
+
+updated=0
+for rc in "$HOME/.bashrc" "$HOME/.profile"; do
+  [ -e "$rc" ] || continue
+  if grep -qF "$MARK" "$rc"; then
+    log "already present in $rc"
+    continue
+  fi
+  printf '\n%s\n' "$BLOCK" >> "$rc"
+  log "updated $rc"
+  updated=$((updated + 1))
+done
+
+[ "$updated" -gt 0 ] && log "open a new shell (or 'source ~/.bashrc') to pick it up"
+log "prefix dirs: $PREFIX/sbin, $PREFIX/bin, $PREFIX/usr/bin"

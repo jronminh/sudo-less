@@ -72,6 +72,7 @@ scripts/
   build-in-rootfs.sh          build inside that rootfs via proot
   build-in-container.sh       same, but inside a rootless podman container
   install-config.sh           runtime config + dpkg status seeding
+  install-shell-path.sh       add the prefix dirs to ~/.bashrc / ~/.profile
 patches/
   apt/termux/, apt/local/     Termux's apt patches + our GCC-16 fixes
   dpkg/termux/                Termux's dpkg patches + configure.diff

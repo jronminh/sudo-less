@@ -94,6 +94,10 @@ Then install the runtime config (done automatically by the two scripts above):
 
 ## Usage
 
+`install-config.sh` (run by every build path) adds the prefix dirs to your
+shell PATH automatically via `install-shell-path.sh`, so a new shell can run
+installed packages directly. To do it by hand:
+
 ```sh
 export PATH="$HOME/.local/sbin:$HOME/.local/bin:$HOME/.local/usr/bin:$PATH"
 apt-get update

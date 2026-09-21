@@ -3,11 +3,19 @@
 # database from the system so apt treats already-installed libraries as
 # satisfied (and only installs the leaf packages you ask for).
 #
-# Re-running is safe. Pass --reseed to refresh the seeded status from the system.
+# Re-running is safe. Options:
+#   --reseed      refresh the seeded status from the system
+#   --no-shell    do not touch ~/.bashrc / ~/.profile
 source "$(dirname "$0")/common.sh"
 
 RESEED=0
-[ "${1:-}" = "--reseed" ] && RESEED=1
+SHELL_PATH=1
+for arg in "$@"; do
+  case "$arg" in
+    --reseed)   RESEED=1 ;;
+    --no-shell) SHELL_PATH=0 ;;
+  esac
+done
 
 log "prefix: $PREFIX"
 
@@ -42,5 +50,12 @@ if [ "$RESEED" = 1 ] || [ ! -s "$STATUS" ]; then
   cp -n /var/lib/dpkg/info/*.conffiles "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
 fi
 
-log "done. Add to PATH:"
-printf '  export PATH="%s/sbin:%s/bin:%s/usr/bin:$PATH"\n' "$PREFIX" "$PREFIX" "$PREFIX"
+# Make installed packages runnable in new shells (unless opted out).
+if [ "$SHELL_PATH" = 1 ]; then
+  bash "$REPO/scripts/install-shell-path.sh"
+else
+  log "skipping shell PATH setup (--no-shell). Add manually:"
+  printf '  export PATH="%s/sbin:%s/bin:%s/usr/bin:$PATH"\n' "$PREFIX" "$PREFIX" "$PREFIX"
+fi
+
+log "done."

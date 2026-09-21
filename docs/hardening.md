@@ -9,7 +9,7 @@ Packages installed: `ufw fail2ban apparmor apparmor-utils unattended-upgrades`
 
 1. Firewall (ufw) — active
    - default deny incoming, allow outgoing
-   - allow `192.168.1.0/24` -> tcp/22 (SSH from LAN)
+   - allow `192.168.0.0/24` -> tcp/22 (SSH from LAN)
    - revert: `sudo ufw disable && sudo ufw reset`
 2. sshd — `/etc/ssh/sshd_config.d/99-hardening.conf`
    - `PermitRootLogin no`, `PasswordAuthentication no`,
@@ -18,7 +18,7 @@ Packages installed: `ufw fail2ban apparmor apparmor-utils unattended-upgrades`
      `X11Forwarding no`
    - backup: `~/hardening-backup/sshd_config.orig` (+ `.conf` copy)
    - revert: remove `99-hardening.conf`, `sudo systemctl restart ssh`
-   - NOTE: only key `opencode-termux-q509` (phone) is in `~/.ssh/authorized_keys`.
+   - NOTE: only key `phone-key` (phone) is in `~/.ssh/authorized_keys`.
      Add another key with `ssh-copy-id` before relying on it.
 3. sysctl — `/etc/sysctl.d/99-hardening.conf`
    - `kptr_restrict=2`, `dmesg_restrict=1`, `yama.ptrace_scope=2`,
@@ -38,9 +38,9 @@ Packages installed: `ufw fail2ban apparmor apparmor-utils unattended-upgrades`
    - `getty@tty2` disabled, `getty@tty12` enabled
    - revert: `sudo systemctl disable --now getty@tty12 && sudo systemctl enable --now getty@tty2`
 
-## Phone (Termux, `u0_a663@192.168.1.228:8022`)
+## Phone (Termux, `u0_aXXX@192.168.0.10:8022`)
 
-1. Added this box's public key (`mobian-q509`) to phone
+1. Added this box's public key (`admin-key`) to phone
    `~/.ssh/authorized_keys` (dir 700, file 600). Key login works both ways.
 2. sshd — `$PREFIX/etc/ssh/sshd_config` (appended)
    - `PasswordAuthentication no`, `KbdInteractiveAuthentication no`,

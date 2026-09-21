@@ -79,9 +79,9 @@ superset for the *current* suite, which is fine.
 | dpkg tuple data | `/usr/share/dpkg` | `-DDPKG_DATADIR` in `build-apt.sh` |
 | apt suite/mirror | `sid`, `deb.debian.org` | `config/sources.list` |
 
-`config/apt.conf.d/00local-prefix` currently hardcodes `/home/master/.local`
-and should be regenerated from `$PREFIX` — a known rough edge (see the
-"generalization" notes in the issue tracker / README).
+The prefix config is generated from `config/apt.conf.d/00local-prefix.in` by
+`install-config.sh`, substituting `@PREFIX@`, so the prefix is not hardcoded.
+The architecture is still baked in at build time (see the row above).
 
 ## After building
 

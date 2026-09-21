@@ -58,12 +58,12 @@ printf '%s\n' \
 sudo chmod 644 /etc/profile.d/50-local-bin.sh
 
 echo "==> preparing master's userspace dirs"
-sudo -u master mkdir -p /home/master/.local/bin /home/master/.local/lib /home/master/.local/share/rootfs
+sudo -u master mkdir -p ~master/.local/bin ~master/.local/lib ~master/.local/share/rootfs
 
 echo "==> linking fd -> fdfind for master"
 FDFIND="$(command -v fdfind || true)"
 if [ -n "$FDFIND" ]; then
-  sudo -u master ln -sf "$FDFIND" /home/master/.local/bin/fd
+  sudo -u master ln -sf "$FDFIND" ~master/.local/bin/fd
 fi
 
 echo

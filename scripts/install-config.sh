@@ -19,7 +19,11 @@ mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/apt.conf.d" \
          "$PREFIX/var/log/apt"
 
 install -m 0644 "$REPO/config/sources.list"                  "$PREFIX/etc/apt/sources.list"
-install -m 0644 "$REPO/config/apt.conf.d/00local-prefix"     "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
+# generate the dpkg/apt prefix config from the template, so the prefix is not
+# hardcoded (see config/apt.conf.d/00local-prefix.in)
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/00local-prefix.in" \
+  > "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
+chmod 0644 "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
 
 # apt's gpgv verifier needs a gpgv binary (Debian ships gpgv in its own package)
 if ! command -v gpgv >/dev/null; then

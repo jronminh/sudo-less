@@ -1,0 +1,4 @@
+DPkg::Path "@PREFIX@/sbin:@PREFIX@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+DPkg::Options:: "--instdir=@PREFIX@";
+DPkg::Options:: "--force-script-chrootless";
+DPkg::Options:: "--force-not-root";

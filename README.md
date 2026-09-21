@@ -79,7 +79,7 @@ admin/
   admin-prep.sh               root-side prep (run as mobian) that enables the no-sudo env
   verify-privs.sh             verify master's polkit/groups/userns/container setup
   smart-install.sh, unlock.sh, desktop-fix.sh, waydroid-install.sh
-config/                       apt.conf.d/00local-prefix, sources.list
+config/                       apt.conf.d/00local-prefix.in, sources.list
 ```
 
 ## The no-root toolbox (short version)
@@ -117,6 +117,25 @@ apt-get install -y <package>
 
 Porting to another machine (dependencies, prerequisites, overrides):
 `docs/porting.md`.
+
+## Scope & status
+
+A **personal experiment** recorded as a reusable toolkit. The user names
+`mobian` (admin) and `master` (unprivileged) are **example personas** for a
+two-user split; substitute your own. Host-specific details (network ranges, SSH
+key names, absolute home paths) are genericised, and the prefix config is
+generated from `$PREFIX` rather than hardcoded.
+
+Nothing here is guaranteed; it targets Debian-family systems and is meant to be
+read alongside `docs/methodology.md`. Contributions/issues welcome.
+
+## License
+
+GPL-2.0-or-later (see `LICENSE`). The patches under `patches/apt/termux/` and
+`patches/dpkg/termux/` are taken verbatim from
+[`termux/termux-packages`](https://github.com/termux/termux-packages) and remain
+under their original GPL-2.0 terms; the apt and dpkg sources they apply to are
+GPL-2.0 as well.
 
 See `docs/apt-dpkg-port.md` for how the Termux patches are retargeted and the
 caveats (seeded db, root-only maintainer scripts, PATH shadowing).

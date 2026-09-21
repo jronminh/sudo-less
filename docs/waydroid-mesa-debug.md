@@ -41,10 +41,10 @@ container), which caused:
 
 ## 4. master Waydroid integration — KEEP
 
-- `/home/master/.local/bin/waydroid-smart`  (on-demand start/stop, frees RAM)
-- `/home/master/.local/bin/waydroid-nested` (cage+pixman attempt; did not work)
-- `/home/master/.config/systemd/user/waydroid-session.service` (installed, DISABLED)
-- `/home/master/.local/share/applications/waydroid-smart.desktop`
+- `$HOME/.local/bin/waydroid-smart`  (on-demand start/stop, frees RAM)
+- `$HOME/.local/bin/waydroid-nested` (cage+pixman attempt; did not work)
+- `$HOME/.config/systemd/user/waydroid-session.service` (installed, DISABLED)
+- `$HOME/.local/share/applications/waydroid-smart.desktop`
 
 ## 5. Mesa experiment — FULLY REVERTED
 

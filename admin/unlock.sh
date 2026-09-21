@@ -32,7 +32,7 @@ show_status() {
   echo "-- /etc/sudoers.d:";  ls -la /etc/sudoers.d/ 2>&1 || true
   echo "-- sshd hardening:";  cat /etc/ssh/sshd_config.d/99-hardening.conf 2>&1 || true
   echo "-- authorized_keys (mobian):"
-  ls -la /home/mobian/.ssh/ 2>&1 || true
+  ls -la ~mobian/.ssh/ 2>&1 || true
   echo "=================="
   echo
 }

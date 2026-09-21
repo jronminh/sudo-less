@@ -1,5 +1,22 @@
 # sudo-less
 
+## Caution
+
+> [!WARNING]
+> **Keep a way back in — this project removes standing root on purpose.**
+>
+> Before you apply it, make sure at least one account still has a working
+> privileged path: a `sudo`-capable account with a password you know, or a key
+> you can log in with.
+>
+> On a **single-user device**, de-privileging the only user and stripping that
+> last path **soft-locks you out of `sudo`/root**. It is recoverable, not a
+> brick — boot a GRUB `init=/bin/bash` shell and use `admin/unlock.sh`
+> (`passwd`, `usermod -aG sudo`) — but that needs physical access.
+>
+> Keep the admin account (`mobian` here) and its recovery route healthy and
+> tested, and back up first. See `docs/hardening.md` and `docs/roles.md`.
+
 > Run, build, and install software on Debian **as an unprivileged user** — no
 > `sudo`, no root — including a **userspace `apt` + `dpkg`** that installs
 > `.deb` packages into `~/.local`.
@@ -21,7 +38,6 @@ ever escalating.
 - [Quick start](#quick-start)
 - [Two package managers — don't mix them up](#two-package-managers--dont-mix-them-up)
 - [Why this exists](#why-this-exists)
-- [Caution](#caution)
 - [Who is this for](#who-is-this-for)
 - [Who it is *not* for](#who-it-is-not-for)
 - [Use cases](#use-cases)
@@ -166,22 +182,6 @@ The key idea is that **root inside a sandbox is not root on the host**:
 
 The result: the transformation is *easy* (a real root to work with) and the
 host stays *safe* (that root never reaches it).
-
-## Caution
-
-This project removes standing root from the daily user **on purpose**. Before
-you apply it, make sure at least one account still has a working privileged
-path — a `sudo`-capable account with a password you know, or a key you can log
-in with.
-
-- **Single-user devices are the risk.** If the only user is the one you
-  de-privilege and you strip that last path, you are **soft-locked out of
-  `sudo`/root**. It is recoverable, not a brick: boot a GRUB `init=/bin/bash`
-  shell and use `admin/unlock.sh` (`passwd`, `usermod -aG sudo`) — but that
-  needs physical access.
-- Keep the admin account (`mobian` here) and its recovery route healthy, and
-  test it *before* you rely on it.
-- Back up first. See `docs/hardening.md` and `docs/roles.md`.
 
 ## Who is this for
 

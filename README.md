@@ -41,7 +41,6 @@ ever escalating.
 
 - [Highlights](#highlights)
 - [On mobile & tablets (Mobian)](#on-mobile--tablets-mobian)
-  - [Fun fact: the Termux loop](#fun-fact-the-termux-loop)
 - [Quick start](#quick-start)
 - [Two package managers — don't mix them up](#two-package-managers--dont-mix-them-up)
 - [Why this exists](#why-this-exists)
@@ -96,28 +95,15 @@ cannot brick the device.
 - The reliability win is separation: the system apt (admin account) stays the
   single source of truth for the OS, while everything you experiment with lives
   in `~/.local` and is disposable.
+- **Termux is the ancestor, not a source.** You *can* add `packages.termux.dev`
+  and apt will download/extract the `.deb`s — but nothing runs: Termux packages
+  are **bionic** (Android) ELFs with hardcoded `/data/data/com.termux/...`
+  paths, and `proot` can't supply the missing libc. Running them needs the
+  Android runtime (**Waydroid**, see `docs/waydroid.md`), not glibc.
 
 The build is **relocatable**: build once on a fast x86 tablet, copy the tarball
 to the phone, regenerate config, done. Recipes in
 [`docs/mobile.md`](docs/mobile.md).
-
-### Fun fact: the Termux loop
-
-This project is Termux's apt/dpkg, *de-Termuxed* for glibc Debian. So the
-tempting next move — "point it at the Termux repo on Mobian arm64" — closes the
-loop and eats its own tail:
-
-- You *can* add `packages.termux.dev` (with `arch=aarch64` and Termux's key) and
-  apt will happily download and extract the `.deb`s.
-- But nothing runs: Termux packages are **bionic** (Android) ELFs needing
-  Android's linker and libc, with hardcoded `/data/data/com.termux/...` paths.
-  `proot` doesn't help — it translates paths, it can't supply a missing libc.
-- To actually run Termux packages on a Mobian device, you need the Android
-  runtime — i.e. **Waydroid** (see `docs/waydroid.md`), not glibc.
-- The one exception: architecture-independent **data** (fonts, terminfo, icons)
-  extracts and is reusable; code is not.
-
-So: Termux is the *ancestor* of this repo, not a package source for it. 🐢
 
 ## Quick start
 

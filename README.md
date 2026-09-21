@@ -139,6 +139,24 @@ cannot brick the device.
 Full recipes (build on-device, or build once and copy to the phone — the build
 is relocatable): [`docs/mobile.md`](docs/mobile.md).
 
+### Fun fact: the Termux loop
+
+This project is Termux's apt/dpkg, *de-Termuxed* for glibc Debian. So the
+tempting next move — "point it at the Termux repo on Mobian arm64" — closes the
+loop and eats its own tail:
+
+- You *can* add `packages.termux.dev` (with `arch=aarch64` and Termux's key) and
+  apt will happily download and extract the `.deb`s.
+- But nothing runs: Termux packages are **bionic** (Android) ELFs needing
+  Android's linker and libc, with hardcoded `/data/data/com.termux/...` paths.
+  `proot` doesn't help — it translates paths, it can't supply a missing libc.
+- To actually run Termux packages on a Mobian device, you need the Android
+  runtime — i.e. **Waydroid** (see `docs/waydroid.md`), not glibc.
+- The one exception: architecture-independent **data** (fonts, terminfo, icons)
+  extracts and is reusable; code is not.
+
+So: Termux is the *ancestor* of this repo, not a package source for it. 🐢
+
 ## Use cases
 
 - **Locked-down work laptop** — no admin rights, but you still need `git`,

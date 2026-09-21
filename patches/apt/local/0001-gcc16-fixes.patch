@@ -1,0 +1,23 @@
+--- a/apt-pkg/contrib/strutl.cc
++++ b/apt-pkg/contrib/strutl.cc
+@@ -38,6 +38,7 @@
+ #include <cctype>
+ #include <cerrno>
+ #include <cstdarg>
++#include <cstdint>
+ #include <cstddef>
+ #include <cstdio>
+ #include <cstdlib>
+--- a/apt-private/private-download.cc
++++ b/apt-private/private-download.cc
+@@ -37,6 +37,10 @@
+ #include <sys/stat.h>
+ #include <sys/statvfs.h>
+ 
++#ifndef RAMFS_MAGIC
++#define RAMFS_MAGIC 0x858458f6
++#endif
++
+ #include <apti18n.h>
+ 									/*}}}*/
+ 

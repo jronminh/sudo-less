@@ -35,11 +35,15 @@ podman exec -e DEBIAN_FRONTEND=noninteractive "$CONTAINER" \
 # fetch sources on the host so the container needs no curl/wget
 "$REPO/scripts/fetch-sources.sh"
 
+# Build as the host user's HOME/PREFIX: podman exec defaults to root with
+# HOME=/root, which would install into /root/.local instead of $HOME/.local.
+build_env=(-e HOME="$HOME" -e PREFIX="$PREFIX" -e REPO="$REPO")
+
 log "building apt"
-podman exec "$CONTAINER" bash "$REPO/scripts/build-apt.sh"
+podman exec "${build_env[@]}" "$CONTAINER" bash "$REPO/scripts/build-apt.sh"
 
 log "building dpkg"
-podman exec "$CONTAINER" bash "$REPO/scripts/build-dpkg.sh"
+podman exec "${build_env[@]}" "$CONTAINER" bash "$REPO/scripts/build-dpkg.sh"
 
 log "installing runtime config into $PREFIX"
 PREFIX="$PREFIX" "$REPO/scripts/install-config.sh"

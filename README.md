@@ -136,6 +136,9 @@ cannot brick the device.
   single source of truth for the OS, while everything you experiment with lives
   in `~/.local` and is disposable.
 
+Full recipes (build on-device, or build once and copy to the phone — the build
+is relocatable): [`docs/mobile.md`](docs/mobile.md).
+
 ## Use cases
 
 - **Locked-down work laptop** — no admin rights, but you still need `git`,
@@ -206,7 +209,7 @@ Details and the `check-package.sh` predictor:
 ## Repository layout
 
 ```
-docs/        methodology, porting, apt-dpkg-port, working-packages, polkit, roles, hardening
+docs/        methodology, porting, mobile, apt-dpkg-port, working-packages, polkit, roles, hardening
 scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
              build-in-container, install-config, install-shell-path, lock-seeded,
              check-package, test-packages

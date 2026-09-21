@@ -23,6 +23,11 @@ if [ -d "$PREFIX/usr/bin" ]; then
     esac
 fi
 export PATH
+# point apt at the prefix's own config (keeps a built prefix relocatable)
+if [ -f "$PREFIX/etc/apt/apt.conf.d/00local-prefix" ]; then
+    APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
+    export APT_CONFIG
+fi
 $END
 EOF
 
@@ -30,11 +35,13 @@ updated=0
 for rc in "$HOME/.bashrc" "$HOME/.profile"; do
   [ -e "$rc" ] || continue
   if grep -qF "$MARK" "$rc"; then
-    log "already present in $rc"
-    continue
+    sed -i "\|$MARK|,\|$END|d" "$rc"   # drop the old block, then re-add
+    printf '\n%s\n' "$BLOCK" >> "$rc"
+    log "refreshed $rc"
+  else
+    printf '\n%s\n' "$BLOCK" >> "$rc"
+    log "updated $rc"
   fi
-  printf '\n%s\n' "$BLOCK" >> "$rc"
-  log "updated $rc"
   updated=$((updated + 1))
 done
 

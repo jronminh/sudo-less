@@ -114,6 +114,24 @@ host stays *safe* (that root never reaches it).
   conda environments.
 - Security/DevOps folks interested in the **scoped-root pattern** itself.
 
+## On mobile (Mobian phones)
+
+A phone running [Mobian](https://mobian-project.org/) (Debian on mobile) is a
+**first-class target**, not a toy. It is exactly the case this repo is for:
+install tools and dev libraries without root, keep the system image pristine,
+and stay recoverable — a botched user-space install cannot brick the phone.
+
+- **arm64/aarch64 is auto-detected**; the rootfs and container follow the host
+  arch (`DEB_ARCH=arm64` works too).
+- **Prefer the root path** (`build-on-host.sh`) if you have `sudo` — it is far
+  lighter on RAM and battery than bootstrapping a rootfs on-device. The no-root
+  paths want ~2 GB RAM and ~1.5 GB disk.
+- Unprivileged user namespaces must be enabled; if `proot` fails, the repo
+  already uses `bwrap` (this host's `yama.ptrace_scope=2` breaks `proot`).
+- The reliability win is separation: the system apt (admin account) stays the
+  single source of truth for the OS, while everything you experiment with lives
+  in `~/.local` and is disposable.
+
 ## Who it is *not* for
 
 - If you have `sudo`, just use `apt`.

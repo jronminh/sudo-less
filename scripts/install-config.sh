@@ -57,6 +57,7 @@ bash "$REPO/scripts/lock-seeded.sh" lock
 # Make installed packages runnable in new shells (unless opted out).
 if [ "$SHELL_PATH" = 1 ]; then
   bash "$REPO/scripts/install-shell-path.sh"
+  bash "$REPO/scripts/install-session-env.sh"
 else
   log "skipping shell PATH setup (--no-shell). Add manually:"
   printf '  export PATH="%s/sbin:%s/bin:%s/usr/bin:$PATH"\n' "$PREFIX" "$PREFIX" "$PREFIX"

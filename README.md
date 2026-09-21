@@ -232,8 +232,9 @@ Details and the `check-package.sh` predictor:
 docs/        methodology, mobile, porting, apt-dpkg-port, working-packages,
              polkit, roles, hardening, waydroid
 scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
-             build-in-container, install-config, install-shell-path, lock-seeded,
-             check-package, test-packages, fetch-sources, common
+             build-in-container, install-config, install-shell-path,
+             install-session-env, lock-seeded, check-package, test-packages,
+             fetch-sources, common
 patches/     apt/{termux,local}, dpkg/termux   (verbatim upstream patches + our fixes)
 config/      apt.conf.d template, sources.list
 tools/       deb2home.sh   (extract a .deb into $HOME without root)

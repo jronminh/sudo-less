@@ -65,6 +65,26 @@ apt-get install -y ripgrep
 - **dpkg** — is passed `--admindir` / `--instdir` explicitly (apt does not do
   this itself), so its database and install root follow the config too.
 
+## GUI apps in the launcher (Phosh)
+
+Phosh/GNOME discovers launchers by scanning `$XDG_DATA_DIRS/*/applications`,
+and that comes from the **session** environment — a shell rc is not enough.
+`install-config.sh` runs `install-session-env.sh`, which writes:
+
+```
+~/.config/environment.d/50-sudo-less.conf
+```
+
+with `PATH` and `XDG_DATA_DIRS` pointing at the prefix, so packages installed
+into `~/.local/usr/share/applications` appear in the launcher (and their icons
+resolve). **Re-login** for the session to pick it up.
+
+Caveats:
+- `.desktop` files that use a bare `Exec=foo` resolve via the session `PATH` ✅;
+  those using an absolute `Exec=/usr/bin/foo` point at the system path ❌.
+- GSettings schemas, D-Bus services and MIME entries under `XDG_DATA_DIRS` can
+  work; **systemd user units do not** register.
+
 ## Caveats
 
 - **Same architecture required** — an `arm64` tarball only runs on `arm64`.

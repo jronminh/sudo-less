@@ -4,6 +4,33 @@ Empirically tested against the ported `apt 2.8.1` + `dpkg 1.22.6` on this box
 (`apt-get install` into `~/.local`). Reproduce with
 `scripts/test-packages.sh [PKG...]`.
 
+## Predict without installing: `scripts/check-package.sh`
+
+Fetch the `.deb` from the repo and read it offline with `dpkg-deb` — no install,
+no dpkg-db change:
+
+```sh
+./scripts/check-package.sh tree nginx ranger libssl-dev
+#   tree        OK        section=utils
+#   nginx       UNLIKELY  maintainer script: /etc/init.d,invoke-rc.d
+#   ranger      UNLIKELY  maintainer script: py3compile system paths: /usr/lib/python3/dist-packages/
+#   libssl-dev  OK        section=libdevel
+
+./scripts/check-package.sh --meta nginx     # index metadata only (no download)
+```
+
+It flags exactly the failure modes we observed:
+- **maintainer scripts** containing root-only commands
+  (`systemctl`, `invoke-rc.d`, `update-rc.d`, `adduser`, `debconf`, `ldconfig`,
+  `update-alternatives`, `chroot`, `py3compile`, …);
+- **file lists** with system-integration paths (`/usr/lib/systemd/`,
+  `/etc/init.d/`, `/usr/lib/python3/dist-packages/`, `/usr/lib/udev/`, …);
+- **dependencies** that pull system plumbing (`systemd`, `adduser`, `debconf`,
+  `libpam`, `initramfs-tools`, …);
+- `Essential: yes` packages.
+
+Everything else is reported `OK`.
+
 Remember the **seeded db**: packages already installed system-wide are treated
 as satisfied, so apt does *not* copy them into the prefix (they just run from
 the system). Only packages the system lacks are actually installed into

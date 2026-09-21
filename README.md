@@ -57,6 +57,28 @@ dpkg -l                                    # your own database
 See [`docs/porting.md`](docs/porting.md) for prerequisites and overrides, and
 [`docs/working-packages.md`](docs/working-packages.md) for what installs well.
 
+## Two package managers — don't mix them up
+
+There are deliberately **two separate apt/dpkg setups** on the machine. Know
+which one you're using:
+
+| | system | user-space (this repo) |
+|---|---|---|
+| run as | `mobian` (admin) | `master` (daily user) |
+| command | `sudo apt update && sudo apt upgrade` | `apt-get update && apt-get upgrade` |
+| installs to | `/usr`, `/etc`, `/var` | `~/.local` |
+| database | `/var/lib/dpkg` | `~/.local/var/lib/dpkg` |
+
+- **To update the system**, log in as **`mobian`** and use the system `apt`.
+  That is the only account that can — and should — touch system packages.
+- **To update your own tooling**, as **`master`** use the user-space apt (the
+  bare `apt`/`apt-get` in your shell *is* the user-space one). It only ever
+  writes to `~/.local`.
+- The two share **no** state: separate databases, config, caches and locks.
+  Seeded system packages are held, so the user-space apt cannot change them.
+- The userspace `apt` refuses to run as root, so it can't be used to touch the
+  system by accident.
+
 ## Why this exists
 
 The usual way to harden a box is to take capabilities away — and then it stops

@@ -41,6 +41,15 @@ Two-persona split on this box (Debian forky/sid, host `mobian`, x86_64).
 Everything else (`apt install`, other units, arbitrary `pkexec`) is denied or
 would require `mobian`'s password. Do not rely on it.
 
+## Package management (two lanes)
+
+- **System packages** — `mobian` only: `sudo apt update && sudo apt upgrade`,
+  writing `/usr`, `/etc`, `/var`, db `/var/lib/dpkg`.
+- **User-space packages** — `master`: the userspace apt from this repo
+  (`apt-get ...` into `~/.local`, db `~/.local/var/lib/dpkg`). Seeded system
+  packages are held and the userspace apt refuses to run as root, so the two
+  lanes never cross.
+
 ## Hard rules
 
 - Never `sudo`/`su` as `master` (always fails: "not in the sudoers file").

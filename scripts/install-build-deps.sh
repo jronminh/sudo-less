@@ -4,7 +4,7 @@
 # mmdebstrap rootfs). Idempotent.
 #
 #   podman exec -e DEBIAN_FRONTEND=noninteractive aptbuild \
-#     bash /home/master/apt-home/scripts/install-build-deps.sh
+#     bash ~/sudo-less/scripts/install-build-deps.sh
 #
 # The package list lives in build-deps.list so the container build, the
 # mmdebstrap rootfs, and the docs all agree.
@@ -17,11 +17,9 @@
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$(dirname "$0")/common.sh"
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
-
-pkgs() { grep -vE '^\s*(#|$)' "$REPO/scripts/build-deps.list"; }
 
 # deb-src is not required for this explicit list, but harmless to have.
 if [ ! -e /etc/apt/sources.list.d/src.sources ]; then
@@ -39,7 +37,7 @@ apt-get update -qq
 
 log "installing build dependencies"
 # shellcheck disable=SC2046
-apt-get install -y -qq $(pkgs)
+apt-get install -y -qq $(build_pkgs)
 
 log "build deps ready:"
 cmake --version | head -1

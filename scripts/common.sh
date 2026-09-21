@@ -28,6 +28,9 @@ fetch() { # fetch URL FILE
   fi
 }
 
+# The build dependency package list (one per line, comments/blank ignored).
+build_pkgs() { grep -vE '^\s*(#|$)' "$REPO/scripts/build-deps.list"; }
+
 apply_patches() { # apply_patches DIR
   local dir="$1" p
   shopt -s nullglob

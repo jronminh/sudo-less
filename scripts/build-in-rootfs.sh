@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
-# Build apt + dpkg inside a real rootfs created by make-buildroot.sh, using
-# `proot` so no root and no podman are involved.
+# Build apt + dpkg inside a real rootfs created by make-buildroot.sh, with no
+# root and no podman.
 #
 #   ./scripts/build-in-rootfs.sh
 #   ROOTFS=~/buildroot PREFIX=~/.local ./scripts/build-in-rootfs.sh
 #
-# How it works: `proot -r ROOTFS` makes ROOTFS the filesystem root for the
-# process tree using ptrace (no privileges needed), and `-0` fakes uid 0 so
-# tools that check for root are satisfied. Host paths are bind-mounted back in
-# with -b, so the source tree and $PREFIX stay on the host filesystem.
+# How it works
+# ------------
+# bubblewrap (bwrap) makes $ROOTFS the filesystem root using unprivileged user
+# namespaces, and bind-mounts the host's $HOME back in so the source tree and
+# $PREFIX stay on the host filesystem.
+#
+# Why not proot: proot needs ptrace, and this host sets
+# kernel.yama.ptrace_scope=2 (ptrace restricted to CAP_SYS_PTRACE), so
+# ptrace(PTRACE_TRACEME) fails with EPERM. bwrap uses clone/unshare instead,
+# which is permitted. (`unshare -Ur -m chroot $ROOTFS` is an equivalent
+# alternative, but bwrap handles /proc, /dev and /sys for us.)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -18,19 +25,28 @@ PREFIX="${PREFIX:-$HOME/.local}"
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 
 [ -x "$ROOTFS/bin/sh" ] || { echo "no rootfs at $ROOTFS (run make-buildroot.sh)" >&2; exit 1; }
-command -v proot >/dev/null || { echo "proot not found" >&2; exit 1; }
-
-# On recent kernels proot's seccomp accelerator fails ("can't chmod
-# /tmp/proot-*"); disabling it falls back to the portable ptrace path.
-export PROOT_NO_SECCOMP=1
+command -v bwrap >/dev/null || { echo "bwrap not found" >&2; exit 1; }
 
 run_in_rootfs() {
-  proot -0 -r "$ROOTFS" \
-    -b /proc -b /dev -b /sys -b /tmp \
-    -b "$HOME:$HOME" \
-    -w "$HOME" \
-    /usr/bin/env HOME="$HOME" PREFIX="$PREFIX" REPO="$REPO" "$@"
+  bwrap \
+    --bind "$ROOTFS" / \
+    --dev-bind /dev /dev \
+    --proc /proc \
+    --ro-bind /sys /sys \
+    --bind /tmp /tmp \
+    --bind "$HOME" "$HOME" \
+    --chdir "$HOME" \
+    --setenv HOME "$HOME" \
+    --setenv PREFIX "$PREFIX" \
+    --setenv REPO "$REPO" \
+    "$@"
 }
+
+# fetch sources on the host so the rootfs needs no curl/wget
+"$REPO/scripts/fetch-sources.sh"
+
+log "smoke test: $ROOTFS as /"
+run_in_rootfs /bin/sh -c 'echo "rootfs uid=$(id -u) cmake=$(command -v cmake) gcc=$(command -v gcc)"'
 
 log "building apt inside $ROOTFS"
 run_in_rootfs bash "$REPO/scripts/build-apt.sh"

@@ -32,6 +32,9 @@ log "installing build tools into the rootfs"
 podman exec -e DEBIAN_FRONTEND=noninteractive "$CONTAINER" \
   bash "$REPO/scripts/install-build-deps.sh"
 
+# fetch sources on the host so the container needs no curl/wget
+"$REPO/scripts/fetch-sources.sh"
+
 log "building apt"
 podman exec "$CONTAINER" bash "$REPO/scripts/build-apt.sh"
 

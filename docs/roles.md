@@ -53,5 +53,8 @@ would require `mobian`'s password. Do not rely on it.
 ## Hard rules
 
 - Never `sudo`/`su` as `master` (always fails: "not in the sudoers file").
+- **Keep at least one working privileged path.** On a single-user device,
+  de-privileging the only user can soft-lock you out of `sudo`/root; recover
+  with a GRUB `init=/bin/bash` shell + `../admin/unlock.sh`.
 - Never weaken host hardening.
 - Root/admin changes go through `mobian`, ideally via a script in `../admin/`.

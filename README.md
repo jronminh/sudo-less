@@ -21,6 +21,7 @@ ever escalating.
 - [Quick start](#quick-start)
 - [Two package managers — don't mix them up](#two-package-managers--dont-mix-them-up)
 - [Why this exists](#why-this-exists)
+- [Caution](#caution)
 - [Who is this for](#who-is-this-for)
 - [Who it is *not* for](#who-it-is-not-for)
 - [Use cases](#use-cases)
@@ -29,6 +30,7 @@ ever escalating.
 - [What works](#what-works)
 - [Repository layout](#repository-layout)
 - [Scope & status](#scope--status)
+- [Disclaimer](#disclaimer)
 - [Contributors](#contributors)
 - [License](#license)
 
@@ -165,6 +167,22 @@ The key idea is that **root inside a sandbox is not root on the host**:
 The result: the transformation is *easy* (a real root to work with) and the
 host stays *safe* (that root never reaches it).
 
+## Caution
+
+This project removes standing root from the daily user **on purpose**. Before
+you apply it, make sure at least one account still has a working privileged
+path — a `sudo`-capable account with a password you know, or a key you can log
+in with.
+
+- **Single-user devices are the risk.** If the only user is the one you
+  de-privilege and you strip that last path, you are **soft-locked out of
+  `sudo`/root**. It is recoverable, not a brick: boot a GRUB `init=/bin/bash`
+  shell and use `admin/unlock.sh` (`passwd`, `usermod -aG sudo`) — but that
+  needs physical access.
+- Keep the admin account (`mobian` here) and its recovery route healthy, and
+  test it *before* you rely on it.
+- Back up first. See `docs/hardening.md` and `docs/roles.md`.
+
 ## Who is this for
 
 - **Locked-down / managed Linux** where you have no admin rights but still need
@@ -269,6 +287,16 @@ generated from `$PREFIX` rather than hardcoded.
 
 Targets Debian-family systems. Nothing here is guaranteed — read it alongside
 `docs/methodology.md`. Issues and PRs welcome.
+
+## Disclaimer
+
+`sudo-less` is a **personal experiment recorded as a reusable toolkit**,
+provided **"as is", without warranty of any kind** (see [`LICENSE`](LICENSE)).
+It deliberately changes how privilege works on your machine and runs builds as
+*scoped* root; read `docs/methodology.md` and the scripts under `admin/` before
+running them. You are responsible for the state of your system and for keeping
+a recoverable admin path (see [Caution](#caution)). Not affiliated with Debian
+or Termux.
 
 ## Contributors
 

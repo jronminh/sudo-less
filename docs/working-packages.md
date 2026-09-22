@@ -65,6 +65,7 @@ the system). Only packages the system lacks are actually installed into
 | `ranger` | pure-Python app — was "usually broken" (see below); fixed by `shims/py3compile` + `install-config.sh`'s `.pth`, see `recipes/ranger.recipe` and #5 |
 | `pmarkdown` | pure-Perl CLI — `PERL5LIB`, see `recipes/pmarkdown.recipe` and #7 |
 | `yard` | Ruby (pulls in a fresh interpreter) — run via `tools/prefix-run.sh --mode overlay`, see `recipes/yard.recipe` and #7 |
+| `openjdk-25-jre-headless` | Java — apt install is a **dead end** (root-only `/etc/.java` postinst, no safe shim target); extracted with `tools/deb2home.sh` instead (bypasses maintainer scripts entirely), then `JAVA_HOME`. See `recipes/openjdk-25-jre-headless.recipe` and #7 |
 
 General rule: **leaf, user-space binaries with no root-needing maintainer
 script** install and run. A postinst blocker or interpreter search-path gap
@@ -95,9 +96,20 @@ isn't necessarily fatal — check `recipes/` first (see
   path (`sys.path`/`@INC`/`$LOAD_PATH`) doesn't reach `$PREFIX`, or (Python)
   postinst `py3compile` writes to the absolute `/usr/lib/python3`. See
   [*Prefer `pip`/`pipx` for pure Python*](#prefer-pippipx-for-pure-python-apps)
-  below and #7 for Perl/Ruby/Java. `check-package.sh --runtime` reports the
+  below and #7 for Perl/Ruby. `check-package.sh --runtime` reports the
   gap as `env interp=...` or `overlay shebang:...` rather than a hard
   blocker — check `recipes/` before assuming it's broken.
+- **Java is a different shape**: `openjdk-*-jre-headless` and `java-common`
+  both do an unguarded `mkdir -m 755 /etc/.java` in postinst — genuinely
+  root-only, and there's no safe shim target (unlike `py3compile`, shimming
+  bare `mkdir`/`touch` globally would intercept every unrelated script). The
+  apt route is a dead end; `tools/deb2home.sh <pkg>` (extracts with
+  `dpkg -x`, no maintainer scripts) plus `JAVA_HOME` is the actual fix —
+  verified `java` runs fine with no `/etc/.java` on the host at all (the JVM
+  creates it lazily if missing). See `recipes/openjdk-25-jre-headless.recipe`
+  and #7. `check-package.sh` doesn't yet detect this postinst shape
+  (`mkdir`/`chmod`/`touch` against an absolute `/etc` path isn't a signal it
+  checks) — a known gap, not fixed here.
 
 **Usually broken**
 - Anything with **systemd units**, `adduser`, `systemctl`, `ldconfig`, `debconf`

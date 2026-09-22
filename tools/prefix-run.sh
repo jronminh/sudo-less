@@ -13,7 +13,7 @@
 # Modes (auto = first available):
 #   overlay  bwrap overlay of $PREFIX/{usr,etc} on the host's /usr,/etc.
 #            Needs bwrap + unprivileged userns + overlayfs (kernel >= 5.11).
-#   rootfs   run inside a complete rootfs ($ROOTFS, from make-buildroot.sh) as
+#   rootfs   run inside a complete rootfs ($ROOTFS, from scripts/env/make-buildroot.sh) as
 #            "/" — via bwrap --bind, else proot -R, else chroot when root.
 #   env      no namespaces: export LD_LIBRARY_PATH/XDG_DATA_DIRS/PATH, exec.
 #

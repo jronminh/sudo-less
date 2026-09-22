@@ -19,8 +19,6 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 source "$(dirname "$0")/../common.sh"
 
-log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
-
 # deb-src is not required for this explicit list, but harmless to have.
 if [ ! -e /etc/apt/sources.list.d/src.sources ]; then
   cat > /etc/apt/sources.list.d/src.sources <<'EOF'

@@ -16,18 +16,16 @@
 # it ourselves as the normal user. Device nodes can't be created unprivileged,
 # so we skip ./dev and let proot bind-mount the host's /dev at build time.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOTFS="${ROOTFS:-$HOME/buildroot}"
 TARBALL="${TARBALL:-$HOME/buildroot.tar}"
 SUITE="${SUITE:-sid}"
 MIRROR="${MIRROR:-http://deb.debian.org/debian}"
 
-log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+command -v mmdebstrap >/dev/null || die "mmdebstrap not found"
 
-command -v mmdebstrap >/dev/null || { echo "mmdebstrap not found" >&2; exit 1; }
-
-INCLUDE="$(grep -vE '^\s*(#|$)' "$REPO/scripts/build-deps.list" | paste -sd,)"
+INCLUDE="$(build_pkgs | paste -sd,)"
 log "rootfs:  $ROOTFS"
 log "suite:   $SUITE"
 log "packages: $(echo "$INCLUDE" | tr ',' ' ' | wc -w)"

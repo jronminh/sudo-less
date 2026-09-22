@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify-master-privs.sh
+# verify-privs.sh
 # Verify the full "master" setup: polkit grants, groups, SMART, userland
 # tools, and the rootless container/rootfs stack.
 #

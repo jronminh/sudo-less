@@ -17,15 +17,12 @@
 # which is permitted. (`unshare -Ur -m chroot $ROOTFS` is an equivalent
 # alternative, but bwrap handles /proc, /dev and /sys for us.)
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOTFS="${ROOTFS:-$HOME/buildroot}"
-PREFIX="${PREFIX:-$HOME/.local}"
 
-log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
-
-[ -x "$ROOTFS/bin/sh" ] || { echo "no rootfs at $ROOTFS (run scripts/env/make-buildroot.sh)" >&2; exit 1; }
-command -v bwrap >/dev/null || { echo "bwrap not found" >&2; exit 1; }
+[ -x "$ROOTFS/bin/sh" ] || die "no rootfs at $ROOTFS (run scripts/env/make-buildroot.sh)"
+command -v bwrap >/dev/null || die "bwrap not found"
 
 run_in_rootfs() {
   bwrap \

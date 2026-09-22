@@ -6,15 +6,12 @@
 #
 # Overridable: CONTAINER, IMAGE, PREFIX, APT_VER, DPKG_VER.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONTAINER="${CONTAINER:-aptbuild}"
 IMAGE="${IMAGE:-debian:sid}"
-PREFIX="${PREFIX:-$HOME/.local}"
 
-log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
-
-command -v podman >/dev/null || { echo "podman not found" >&2; exit 1; }
+command -v podman >/dev/null || die "podman not found"
 
 if podman container exists "$CONTAINER"; then
   log "container '$CONTAINER' exists; starting it"

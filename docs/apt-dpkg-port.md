@@ -79,17 +79,17 @@ Two equivalent routes (see `../methodology.md`):
 
 ```sh
 # podman container as the build rootfs
-./scripts/build-in-container.sh
+./scripts/env/build-in-container.sh
 
 # podman-free: real rootfs via mmdebstrap, entered with bwrap
-./scripts/make-buildroot.sh
-./scripts/build-in-rootfs.sh
+./scripts/env/make-buildroot.sh
+./scripts/env/build-in-rootfs.sh
 ```
 
 Then install the runtime config (done automatically by the two scripts above):
 
 ```sh
-./scripts/install-config.sh [--reseed]
+./scripts/setup/install-config.sh [--reseed]
 ```
 
 ## Usage
@@ -111,7 +111,7 @@ via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
 ## Caveats
 
 - **The seeded db is locked by default.** `install-config.sh` runs
-  `scripts/lock-seeded.sh lock`, marking seeded (system) packages as dpkg
+  `scripts/setup/lock-seeded.sh lock`, marking seeded (system) packages as dpkg
   `hold` so apt cannot accidentally upgrade/remove them into/from `~/.local`;
   packages you install yourself stay upgradable. `lock-seeded.sh unlock`
   releases them (only if you know why).

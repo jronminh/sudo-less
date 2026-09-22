@@ -113,7 +113,7 @@ app fail deep inside its own Wayland/Qt init with a cryptic error. It's
 incompatible with `--mode env`: without an overlay or rootfs, the app's own
 `/usr/lib` paths won't resolve either, session or not.
 
-`scripts/recipes.sh`'s `gui` tier mirrors this: `tier_ok` checks for both
+`scripts/catalog/recipes.sh`'s `gui` tier mirrors this: `tier_ok` checks for both
 `bwrap` and a live session, so `verify` reports `SKIP` (not a false `FAIL`)
 when run from a session-less shell.
 
@@ -163,10 +163,10 @@ either way. Interpreted-language apps (Python, Perl, Ruby) are a narrower
 case: the *interpreter's own* default module search path
 (`sys.path`/`@INC`/`$LOAD_PATH`) misses `$PREFIX`, fixed with an env var (or,
 for Python, a `.pth` `install-config.sh` writes globally — see #5) rather
-than a full overlay/rootfs. `scripts/check-package.sh --runtime` reports
+than a full overlay/rootfs. `scripts/catalog/check-package.sh --runtime` reports
 which class a package is in (`direct` / `env` / `overlay` / `never`), with an
 `interp=`/`shebang:` hint for the env/overlay cases.
 
 The tiers above are a **standard**: each package declares its minimum tier and
 the mechanism that gets it there in a `recipes/<pkg>.recipe`, verified by
-`scripts/recipes.sh`. The normative contract is [`standard.md`](standard.md).
+`scripts/catalog/recipes.sh`. The normative contract is [`standard.md`](standard.md).

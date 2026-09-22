@@ -10,8 +10,8 @@ If you have `sudo` on the device:
 
 ```sh
 git clone <repo> ~/sudo-less && cd ~/sudo-less
-sudo bash scripts/install-build-deps.sh
-./scripts/build-on-host.sh
+sudo bash scripts/bootstrap/install-build-deps.sh
+./scripts/env/build-on-host.sh
 ```
 
 This is lighter than bootstrapping a rootfs. On an x86 tablet it is fast
@@ -31,7 +31,7 @@ So a prefix built on one machine runs from any path on another (same arch).
 **On the builder** (e.g., a fast x86 tablet — build for the target's arch):
 
 ```sh
-./scripts/build-on-host.sh            # installs into ~/.local
+./scripts/env/build-on-host.sh            # installs into ~/.local
 ARCH="$(dpkg --print-architecture)"
 tar -C ~/.local -czf "apt-home-$ARCH.tar.gz" bin sbin lib share
 ```
@@ -43,7 +43,7 @@ mkdir -p ~/.local
 tar -xzf "apt-home-<arch>.tar.gz" -C ~/.local
 # regenerate config for THIS prefix, seed the db from the phone's system,
 # and add the prefix to the shell PATH
-PREFIX="$HOME/.local" bash ~/sudo-less/scripts/install-config.sh
+PREFIX="$HOME/.local" bash ~/sudo-less/scripts/setup/install-config.sh
 ```
 
 Open a new shell, then:
@@ -58,16 +58,17 @@ apt-get install -y ripgrep
 - **RPATH** — apt binaries and methods are linked with
   `$ORIGIN/../lib;$ORIGIN/../..`, so `libapt-pkg.so.6.0` is found relative to
   wherever the prefix lives.
-- **Config** — `$PREFIX/etc/apt/apt.conf.d/00local-prefix` is generated with
-  every `Dir::` path (state, cache, etc, methods, dpkg, **apt-key, solvers,
-  planners**) and is exported as `APT_CONFIG` by the shell setup, so apt
-  follows the prefix regardless of the paths baked in at compile time. The
-  last three were missing until a genuinely fresh test (a different user, a
-  container with no bind-mounted `$HOME`) surfaced `apt-get update` failing
-  with `Couldn't execute /home/<builder>/.local/bin/apt-key` — a
-  `CMAKE_INSTALL_FULL_BINDIR`-derived compile-time default that nothing
-  overrode, invisible as long as testing only ever happened on the same
-  user/path that built the prefix. See [*Testing a fresh
+- **Config** — `$PREFIX/etc/apt/apt.conf.d/00local-prefix` is generated
+  with every `Dir::` path (state, cache, etc, methods, dpkg, apt-key,
+  solvers, planners) and exported as `APT_CONFIG` by the shell setup, so
+  apt follows the prefix regardless of what's baked in at compile time.
+  The last three (`apt-key`, solvers, planners) were missing until a
+  genuinely fresh test — a different user, a container with no
+  bind-mounted `$HOME` — caught it: `apt-get update` failed with
+  `Couldn't execute /home/<builder>/.local/bin/apt-key`, a
+  `CMAKE_INSTALL_FULL_BINDIR`-derived compile-time default nothing had
+  overridden, invisible as long as testing happened on the same user/path
+  that built the prefix. See [*Testing a fresh
   install*](#testing-a-fresh-install) below.
 - **dpkg** — is passed `--admindir` / `--instdir` explicitly (apt does not do
   this itself), so its database and install root follow the config too.
@@ -82,14 +83,14 @@ path, or both — reusing Option B's tarball:
 
 ```sh
 # on the builder
-./scripts/build-on-host.sh
+./scripts/env/build-on-host.sh
 ARCH="$(dpkg --print-architecture)"
 tar -C ~/.local -czf "apt-home-$ARCH.tar.gz" bin sbin lib share
 ```
 
-An isolated container (no bind-mounted `$HOME` — that would just be testing
-the same paths again) as an unprivileged user with no `sudo`, the actual
-target scenario:
+The actual target scenario: an isolated container (no bind-mounted `$HOME`
+— that would just retest the same paths) running as an unprivileged user
+with no `sudo`.
 
 ```sh
 podman run -d --name freshtest debian:sid sleep infinity
@@ -101,10 +102,10 @@ podman exec freshtest chown tester:tester /tmp/apt-home-$ARCH.tar.gz
 podman exec --user tester -w /home/tester freshtest bash -c '
   git clone --depth 1 https://github.com/<you>/sudo-less
   mkdir -p ~/.local && tar -xzf /tmp/apt-home-*.tar.gz -C ~/.local
-  cd sudo-less && PREFIX=$HOME/.local bash scripts/install-config.sh
+  cd sudo-less && PREFIX=$HOME/.local bash scripts/setup/install-config.sh
   export PATH="$HOME/.local/sbin:$HOME/.local/bin:$HOME/.local/usr/bin:$PATH"
   export APT_CONFIG="$HOME/.local/etc/apt/apt.conf.d/00local-prefix"
-  apt-get update && apt-get install -y jq && bash scripts/recipes.sh verify
+  apt-get update && apt-get install -y jq && bash scripts/catalog/recipes.sh verify
 '
 ```
 
@@ -114,11 +115,11 @@ podman exec --user tester -w /home/tester freshtest bash -c '
 gigabytes of unrelated content. Exclude what you know isn't apt/dpkg's own
 before copying it into the container.
 
-A package already seeded on the builder but not on the fresh target (most
-commonly `python3` itself, if the target is more minimal than the builder)
-will actually attempt a real install there instead of being skipped —
-exposing failures the builder's seeded db was hiding. This is expected, not
-a bug: see `docs/working-packages.md`'s "seeded db" note.
+If a package is seeded on the builder but not on the fresh target — most
+commonly `python3` itself, when the target is more minimal — it actually
+gets installed there instead of skipped, exposing failures the builder's
+seeded db was hiding. This is expected, not a bug: see
+`docs/working-packages.md`'s "seeded db" note.
 
 ## GUI apps in the launcher (Phosh)
 

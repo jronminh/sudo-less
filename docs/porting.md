@@ -7,9 +7,9 @@ you own (`~/.local` by default), with a real dependency resolver and database.
 
 | you have | path | extra tooling needed |
 |---|---|---|
-| **root / sudo** (Debian-family) | `scripts/build-on-host.sh` | **none** beyond the build packages |
-| no root, but user namespaces + subuid | `scripts/make-buildroot.sh` + `scripts/build-in-rootfs.sh` | `mmdebstrap`, `bwrap` |
-| no root, but rootless containers | `scripts/build-in-container.sh` | rootless `podman` |
+| **root / sudo** (Debian-family) | `scripts/env/build-on-host.sh` | **none** beyond the build packages |
+| no root, but user namespaces + subuid | `scripts/env/make-buildroot.sh` + `scripts/env/build-in-rootfs.sh` | `mmdebstrap`, `bwrap` |
+| no root, but rootless containers | `scripts/env/build-in-container.sh` | rootless `podman` |
 
 The **root path is by far the lightest**: no user namespace, no subuid, no
 `podman`, no `mmdebstrap`, no `bwrap`. If you have sudo, use it.
@@ -18,7 +18,7 @@ The **root path is by far the lightest**: no user namespace, no subuid, no
 
 ```sh
 git clone <this repo> ~/sudo-less && cd ~/sudo-less
-./scripts/build-on-host.sh
+./scripts/env/build-on-host.sh
 ```
 
 That installs the build packages with `apt`, fetches the sources, builds apt
@@ -30,14 +30,14 @@ Requires your admin to enable user namespaces and give you subuid/subgid
 (see `../admin/admin-prep.sh` for what that entails). Then:
 
 ```sh
-./scripts/make-buildroot.sh        # builds a real Debian rootfs, no root
-./scripts/build-in-rootfs.sh       # builds inside it via bwrap
+./scripts/env/make-buildroot.sh        # builds a real Debian rootfs, no root
+./scripts/env/build-in-rootfs.sh       # builds inside it via bwrap
 ```
 
 ### No-root path (rootless podman)
 
 ```sh
-./scripts/build-in-container.sh
+./scripts/env/build-in-container.sh
 ```
 
 ## Prerequisites in detail

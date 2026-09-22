@@ -3,7 +3,7 @@
 This is the contract that package **recipes** conform to. Its point is to make
 fixes comparable and *proven*, not anecdotal: a recipe declares the **minimum
 tier** a package needs and the mechanism that gets it there, and
-`scripts/recipes.sh` verifies the claim. See [`paths.md`](paths.md) for why the
+`scripts/catalog/recipes.sh` verifies the claim. See [`paths.md`](paths.md) for why the
 tiers exist.
 
 ## Design principle: triage, not universal support
@@ -78,9 +78,9 @@ Rules:
 ## Verification
 
 ```sh
-scripts/recipes.sh list              # package, raw verdict, tier
-scripts/recipes.sh show ranger       # the recipe
-scripts/recipes.sh verify [PKG...]   # default: every recipe
+scripts/catalog/recipes.sh list              # package, raw verdict, tier
+scripts/catalog/recipes.sh show ranger       # the recipe
+scripts/catalog/recipes.sh verify [PKG...]   # default: every recipe
 ```
 
 `verify` checks the tier's prerequisites are present, that each declared `shim`

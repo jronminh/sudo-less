@@ -64,8 +64,9 @@ namespace, **not** your real uid. So inside, files owned by `1001` (your whole
 home, mode `0700`) are *unmapped* → `Permission denied` when mmdebstrap tries to
 write the rootfs into `~`.
 
-Workaround: have mmdebstrap stream a tarball to **stdout** — a file descriptor
-we already opened, which bypasses path permissions — and extract it ourselves:
+Workaround: have mmdebstrap stream a tarball to **stdout** instead — a file
+descriptor we already opened, which bypasses path permissions. Extract it
+ourselves:
 
 ```sh
 export TMPDIR=/tmp          # the mapped root must be able to write its tempdir
@@ -86,13 +87,13 @@ host's `/dev` when entering anyway.
 bwrap --bind ~/buildroot / \
   --dev-bind /dev /dev --proc /proc --ro-bind /sys /sys --bind /tmp /tmp \
   --bind "$HOME" "$HOME" --chdir "$HOME" --setenv HOME "$HOME" \
-  /usr/bin/env PREFIX="$HOME/.local" bash ~/sudo-less/scripts/build-apt.sh
+  /usr/bin/env PREFIX="$HOME/.local" bash ~/sudo-less/scripts/bootstrap/build-apt.sh
 ```
 
 `bwrap` uses unprivileged user namespaces (`clone`/`unshare`) to present
 `~/buildroot` as `/` and bind-mounts the host's `$HOME` back in, so the source
 tree and `$PREFIX` stay on the host filesystem. This is what
-`scripts/build-in-rootfs.sh` does.
+`scripts/env/build-in-rootfs.sh` does.
 
 `proot` is the older alternative: it uses `ptrace` (no privileges) instead of
 user namespaces, with `-0` faking uid 0. But on hosts that restrict ptrace
@@ -112,8 +113,8 @@ Same user-namespace machinery, packaged:
 ```sh
 podman run -d --name build -v "$HOME:$HOME:rw" debian:sid sleep infinity
 podman exec -e DEBIAN_FRONTEND=noninteractive build apt-get update
-podman exec build bash ~/sudo-less/scripts/install-build-deps.sh
-podman exec build bash ~/sudo-less/scripts/build-apt.sh
+podman exec build bash ~/sudo-less/scripts/bootstrap/install-build-deps.sh
+podman exec build bash ~/sudo-less/scripts/bootstrap/build-apt.sh
 ```
 
 Notes:
@@ -132,10 +133,10 @@ Notes:
 
 Goal: run `apt-get install` as `master`, installing `.deb`s into `~/.local`.
 
-1. Build env: `scripts/make-buildroot.sh` (or `build-in-container.sh`).
+1. Build env: `scripts/env/make-buildroot.sh` (or `scripts/env/build-in-container.sh`).
 2. apt 2.8.1 + dpkg 1.22.6 built with Termux's patches → `~/.local`.
    Details and the exact retargeting in `docs/apt-dpkg-port.md`.
-3. Runtime config: `scripts/install-config.sh` (sources.list, `apt.conf.d`,
+3. Runtime config: `scripts/setup/install-config.sh` (sources.list, `apt.conf.d`,
    seeded dpkg status, PATH).
 
 ---

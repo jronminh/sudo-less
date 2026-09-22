@@ -2,29 +2,29 @@
 
 Empirically tested against the ported `apt 2.8.1` + `dpkg 1.22.6` on this box
 (`apt-get install` into `~/.local`). Reproduce with
-`scripts/test-packages.sh [PKG...]`.
+`scripts/catalog/test-packages.sh [PKG...]`.
 
 The reason a package can install cleanly and still fail is that relocating a
 `.deb` does not rewrite paths compiled into its binaries; see
 [`paths.md`](paths.md) for the model and [`tools/prefix-run.sh`](../tools/prefix-run.sh)
-for the runtime fix. `scripts/check-package.sh --runtime` labels each package
+for the runtime fix. `scripts/catalog/check-package.sh --runtime` labels each package
 `direct`, `env`, `overlay`, or `never` (an `interp=`/`shebang:` hint on `env`
 and `overlay` says which gap — see [`standard.md`](standard.md) and #7).
 
-## Predict without installing: `scripts/check-package.sh`
+## Predict without installing: `scripts/catalog/check-package.sh`
 
 Fetch the `.deb` from the repo and read it offline with `dpkg-deb` — no install,
 no dpkg-db change:
 
 ```sh
-./scripts/check-package.sh tree gcc nginx ranger libssl-dev
+./scripts/catalog/check-package.sh tree gcc nginx ranger libssl-dev
 #   tree        OK        section=utils
 #   gcc         RISKY     script: update-alternatives
 #   nginx       UNLIKELY  script: /etc/init.d,invoke-rc.d
 #   ranger      RISKY     script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
 #   libssl-dev  OK        section=libdevel
 
-./scripts/check-package.sh --meta nginx     # index metadata only (no download)
+./scripts/catalog/check-package.sh --meta nginx     # index metadata only (no download)
 ```
 
 Verdicts are split into **hard blockers** and **benign/soft (incl. shipped
@@ -106,10 +106,10 @@ isn't necessarily fatal — check `recipes/` first (see
   both do an unguarded `mkdir -m 755 /etc/.java` in postinst — genuinely
   root-only, and there's no safe shim target (unlike `py3compile`, shimming
   bare `mkdir`/`touch` globally would intercept every unrelated script). The
-  apt route is a dead end; `tools/deb2home.sh <pkg>` (extracts with
-  `dpkg -x`, no maintainer scripts) plus `JAVA_HOME` is the actual fix —
-  verified `java` runs fine with no `/etc/.java` on the host at all (the JVM
-  creates it lazily if missing). See `recipes/openjdk-25-jre-headless.recipe`
+  apt route is a dead end. `tools/deb2home.sh <pkg>` (extracts with
+  `dpkg -x`, no maintainer scripts) plus `JAVA_HOME` is the actual fix.
+  Verified: `java` runs fine with no `/etc/.java` on the host at all — the
+  JVM creates it lazily if missing. See `recipes/openjdk-25-jre-headless.recipe`
   and #7. `check-package.sh` doesn't yet detect this postinst shape
   (`mkdir`/`chmod`/`touch` against an absolute `/etc` path isn't a signal it
   checks) — a known gap, not fixed here.

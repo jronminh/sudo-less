@@ -114,13 +114,13 @@ to the phone, regenerate config, done. Recipes in
 git clone https://github.com/jronminh/sudo-less && cd sudo-less
 
 # 1. Have root/sudo on Debian? lightest path (no sandbox at all):
-./scripts/build-on-host.sh
+./scripts/env/build-on-host.sh
 
 # 2. No root, but user namespaces + subuid: real rootfs, entered with bwrap
-./scripts/make-buildroot.sh && ./scripts/build-in-rootfs.sh
+./scripts/env/make-buildroot.sh && ./scripts/env/build-in-rootfs.sh
 
 # 3. No root, rootless podman available:
-./scripts/build-in-container.sh
+./scripts/env/build-in-container.sh
 ```
 
 Then, in a new shell:
@@ -168,13 +168,13 @@ The key idea is that **root inside a sandbox is not root on the host**:
   session owns only its own files.
 - When real privileges are needed, they are obtained *scoped and disposable*:
   a user namespace (`unshare -Ur`), a real rootfs (`mmdebstrap`), or a rootless
-  container (`podman`) is a full, normal Debian where you are root *inside it* —
-  while the host's `/usr`, `/etc`, `/var` are untouched.
+  container (`podman`) — each a full, normal Debian where you're root *inside
+  it*. The host's `/usr`, `/etc`, `/var` stay untouched.
 - A few narrowly-scoped **polkit** actions cover genuinely privileged runtime
   needs (power, network, storage, a small service allowlist).
-- The heavy lifting (retargeting and building apt/dpkg) happens in that scoped
-  root; only the finished artifacts land in `~/.local`, and the build
-  environment is thrown away and rebuilt from scripts.
+- The heavy lifting — retargeting and building apt/dpkg — happens in that
+  scoped root. Only the finished artifacts land in `~/.local`; the build
+  environment itself is thrown away and rebuilt from scripts each time.
 
 The result: the transformation is *easy* (a real root to work with) and the
 host stays *safe* (that root never reaches it).
@@ -184,7 +184,7 @@ approach to which packages work, and how — are useful with or without `sudo`.
 What changes is only *which* build path and runtime tier are reachable, not
 whether the toolkit is worth using. Run it **sudo-ful** and you still get a
 clean `~/.local` prefix, a pristine `/usr`, and disposable per-project
-toolchains; you additionally get the lighter `build-on-host` path and the
+toolchains. You additionally get the lighter `build-on-host` path and the
 strongest tiers for free. sudo-less is the extreme end of a spectrum, not the
 only mode.
 
@@ -286,12 +286,12 @@ the gap.
 
 The tier ladder is a **standard**, not a pile of hacks. Each package is described
 by a plain-text **recipe** (`recipes/<pkg>.recipe`) declaring the minimum tier it
-needs and the mechanism that gets it there, and `scripts/recipes.sh` verifies the
+needs and the mechanism that gets it there, and `scripts/catalog/recipes.sh` verifies the
 claim on a real host:
 
 ```sh
-scripts/recipes.sh list      # package, raw verdict, tier
-scripts/recipes.sh verify    # prove every recipe still works
+scripts/catalog/recipes.sh list      # package, raw verdict, tier
+scripts/catalog/recipes.sh verify    # prove every recipe still works
 ```
 
 ```sh
@@ -344,7 +344,7 @@ Great for **user-space tooling and dev libraries**: CLI tools, interpreters and
 toolchains, `-dev` packages, fonts, single-binary apps. Python, Perl, Ruby
 and Java applications work too now (#5, #7), and so do GUI apps with a live
 desktop session (#8) — each via its own `recipes/<pkg>.recipe`, not a
-blanket claim. `scripts/recipes.sh list` shows the current catalog.
+blanket claim. `scripts/catalog/recipes.sh list` shows the current catalog.
 
 Not a system package manager: packages that need root in their maintainer
 scripts (services, `systemd`, `adduser`, `debconf`) or setuid/PAM/kernel bits
@@ -359,11 +359,13 @@ Details and the `check-package.sh` predictor:
 docs/        methodology, mobile, porting, apt-dpkg-port, paths, standard,
              working-packages, polkit, roles, hardening, waydroid,
              flatpak-bridge
-scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
-             build-in-container, install-config (orchestrator: calls
-             apt-dpkg/install.sh then each ecosystem's), install-shell-path,
-             install-session-env, lock-seeded, check-package, test-packages,
-             recipes, fetch-sources, common
+scripts/     common.sh, build-deps.list, grouped by lifecycle:
+             bootstrap/ fetch-sources, install-build-deps, build-apt, build-dpkg
+             env/       build-on-host, make-buildroot, build-in-rootfs, build-in-container
+             setup/     install-config (orchestrator: calls apt-dpkg/install.sh
+                        then each ecosystem's), install-shell-path,
+                        install-session-env, lock-seeded
+             catalog/   check-package, recipes, test-packages
 apt-dpkg/    install.sh — apt/dpkg config, dpkg-db seeding, shims, shell PATH
 python/      install.sh — .pth into the system python3's user site (see #5)
 patches/     apt/{termux,local}, dpkg/termux   (verbatim upstream patches + our fixes)
@@ -380,7 +382,7 @@ admin/       root-side scripts run by the admin account (example setup)
 ```
 
 Ecosystem-specific install-time hooks live outside `apt-dpkg/`, which stays
-scoped to the apt/dpkg port itself. `scripts/install-config.sh` is the one
+scoped to the apt/dpkg port itself. `scripts/setup/install-config.sh` is the one
 stable entrypoint — it calls each folder's `install.sh` in turn, so callers
 never need to know the split happened. Turned out only Python needed one so
 far: Perl and Ruby's fixes are per-recipe (`env`/`overlay`), not a global

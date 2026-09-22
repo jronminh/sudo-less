@@ -4,6 +4,12 @@ Empirically tested against the ported `apt 2.8.1` + `dpkg 1.22.6` on this box
 (`apt-get install` into `~/.local`). Reproduce with
 `scripts/test-packages.sh [PKG...]`.
 
+The reason a package can install cleanly and still fail is that relocating a
+`.deb` does not rewrite paths compiled into its binaries; see
+[`paths.md`](paths.md) for the model and [`tools/prefix-run.sh`](../tools/prefix-run.sh)
+for the runtime fix. `scripts/check-package.sh --runtime` labels each package
+`direct`, `overlay`, or `never`.
+
 ## Predict without installing: `scripts/check-package.sh`
 
 Fetch the `.deb` from the repo and read it offline with `dpkg-deb` — no install,

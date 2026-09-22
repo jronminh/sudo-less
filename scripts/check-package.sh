@@ -4,6 +4,7 @@
 #
 #   ./scripts/check-package.sh PKG [PKG...]
 #   ./scripts/check-package.sh --meta PKG      # index metadata only (no download)
+#   ./scripts/check-package.sh --runtime PKG   # also classify the runtime tier
 #
 # Method (cache-only, nothing is executed or installed):
 #   * apt index metadata (Section/Priority/Essential/Depends) via apt-cache show
@@ -16,13 +17,27 @@
 #   OK        nothing that should stop it working in the prefix
 #   RISKY     installs, but ships/uses system integration (may partly misbehave)
 #   UNLIKELY  a hard blocker: root-only postinst step, python app, service deps
+#
+# --runtime adds a line per package saying how it must be run (see docs/paths.md):
+#   direct    relocatable: PATH (+ LD_LIBRARY_PATH) is enough
+#   overlay   binaries reference /etc or /usr/share by absolute path; run it
+#             through tools/prefix-run.sh (or a complete rootfs)
+#   never     a hard blocker above; not runnable this way
+#   unknown   no .deb available to scan (--meta, or download failed)
 set -uo pipefail
 source "$(dirname "$0")/common.sh"
 set +e  # common.sh enables errexit; this checker is deliberately lenient
 
 META_ONLY=0
-[ "${1:-}" = "--meta" ] && { META_ONLY=1; shift; }
-[ $# -gt 0 ] || { echo "usage: $0 [--meta] PKG..." >&2; exit 2; }
+RUNTIME=0
+while :; do
+  case "${1:-}" in
+    --meta)    META_ONLY=1; shift ;;
+    --runtime) RUNTIME=1; shift ;;
+    *)         break ;;
+  esac
+done
+[ $# -gt 0 ] || { echo "usage: $0 [--meta] [--runtime] PKG..." >&2; exit 2; }
 
 APT="$PREFIX/bin/apt-get"
 APT_CACHE="$PREFIX/bin/apt-cache"
@@ -51,7 +66,7 @@ mkdir -p "$ARCHIVES"
 matches() { { grep -Eoi "$1" <<<"$2" 2>/dev/null || true; } | sort -u | paste -sd, -; }
 
 check_one() {
-  local pkg="$1" hard=() soft=()
+  local pkg="$1" hard=() soft=() deb=""
   local meta section essential depends
   meta="$("$APT_CACHE" show "$pkg" 2>/dev/null)" || { echo "$pkg: NOT IN REPO"; return; }
   section="$(sed -n 's/^Section: //p' <<<"$meta" | head -1)"
@@ -63,7 +78,7 @@ check_one() {
   if [ -n "$d" ]; then hard+=("deps: $d"); fi
 
   if [ "$META_ONLY" -eq 0 ]; then
-    local deb; deb="$(ls "$ARCHIVES/${pkg}"_*.deb 2>/dev/null | head -1 || true)"
+    deb="$(ls "$ARCHIVES/${pkg}"_*.deb 2>/dev/null | head -1 || true)"
     if [ -z "$deb" ]; then
       ( cd "$ARCHIVES" && "$APT" download "$pkg" >/dev/null 2>&1 ) || true
       deb="$(ls "$ARCHIVES/${pkg}"_*.deb 2>/dev/null | head -1 || true)"
@@ -90,6 +105,29 @@ check_one() {
     printf '%-16s %-9s %s\n' "$pkg" "RISKY" "${soft[*]}"
   else
     printf '%-16s %-9s section=%s\n' "$pkg" "OK" "${section:-?}"
+  fi
+
+  if [ "$RUNTIME" -eq 1 ]; then
+    local rt="" ev=""
+    if [ "${#hard[@]}" -gt 0 ]; then
+      rt="never"
+    elif [ -z "$deb" ]; then
+      rt="unknown"   # --meta, or the .deb could not be fetched
+    else
+      # Absolute /etc or /usr/share paths compiled into the package's binaries.
+      ev="$("$DPKG_DEB" --fsys-tarfile "$deb" 2>/dev/null \
+        | tar -xO --wildcards './usr/bin/*' './usr/sbin/*' './usr/libexec/*' 2>/dev/null \
+        | head -c 20000000 \
+        | grep -aoE '/(usr/(share|lib|libexec)|etc)/[A-Za-z0-9._+-]+' \
+        | sort -u | head -20 || true)"
+      if [ -n "$ev" ]; then
+        rt="overlay"
+        ev="$(tr '\n' ' ' <<<"$ev" | sed 's/ *$//')"
+      else
+        rt="direct"
+      fi
+    fi
+    printf '%-16s runtime=%-8s %s\n' "$pkg" "$rt" "$ev"
   fi
 }
 

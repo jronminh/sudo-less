@@ -1,5 +1,15 @@
-# jq — relocatable binary; runs with PATH alone (no prefix paths baked in).
+# jq — was documented as tier=direct, but that was never actually verified:
+# jq is seeded/held on most desktops already, so `verify jq --version` was
+# silently passing via the *system* jq on PATH, never the relocated copy.
+# Found by testing a genuinely fresh, unseeded container (jq isn't part of a
+# minimal Debian base): the relocated $PREFIX/usr/bin/jq fails outright —
+# `libjq.so.1: cannot open shared object file` — it's a plain DT_NEEDED
+# lookup via the default linker search path, not RPATH, so relocating
+# breaks it exactly like any other baked-in-path case. LD_LIBRARY_PATH
+# fixes it; confirmed against the actual relocated binary, not a fallback.
 package  jq
 install  ok
-tier     direct
+tier     env
+env      LD_LIBRARY_PATH=$PREFIX/usr/lib/x86_64-linux-gnu
 verify   jq --version
+note     arch-pinned LD_LIBRARY_PATH; regenerate the triplet per host (same caveat as pmarkdown.recipe)

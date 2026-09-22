@@ -95,6 +95,32 @@ verify_one() { # PKG -> 0 pass, 1 fail, 2 skip
     printf '%-16s PASS  (no verify command)\n' "$pkg"
     return 0
   fi
+
+  # tier=direct claims PATH alone is enough — a real risk on a desktop
+  # where the same tool is already seeded/on the system: verify would then
+  # silently pass via the *system* copy on PATH, never the prefix's own,
+  # and the claim goes unproven (this is exactly how jq.recipe's tier was
+  # wrong for a whole release — the fix was LD_LIBRARY_PATH, tier env).
+  # Catch it: for a bare command name (no $VAR, no explicit path), confirm
+  # it resolves under $PREFIX before trusting the verify result.
+  if [ "$tier" = direct ]; then
+    local cmd="${vcmd%% *}"
+    case "$cmd" in
+      */*|'$'*) ;; # explicit path or $VAR-prefixed: trust it, resolves itself
+      *)
+        local resolved; resolved="$(command -v "$cmd" 2>/dev/null || true)"
+        case "$resolved" in
+          "$PREFIX"/*) ;; # genuinely the prefix's own copy
+          *)
+            printf '%-16s FAIL  tier=direct but "%s" resolves to %s, not under %s (seeded/system fallback, not actually relocated — see docs/standard.md)\n' \
+              "$pkg" "$cmd" "${resolved:-<not found>}" "$PREFIX"
+            return 1
+            ;;
+        esac
+        ;;
+    esac
+  fi
+
   if bash -c "$vcmd" >/dev/null 2>&1; then
     printf '%-16s PASS  %s\n' "$pkg" "$vcmd"
     return 0

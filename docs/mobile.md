@@ -59,11 +59,66 @@ apt-get install -y ripgrep
   `$ORIGIN/../lib;$ORIGIN/../..`, so `libapt-pkg.so.6.0` is found relative to
   wherever the prefix lives.
 - **Config** — `$PREFIX/etc/apt/apt.conf.d/00local-prefix` is generated with
-  every `Dir::` path (state, cache, etc, methods, dpkg) and is exported as
-  `APT_CONFIG` by the shell setup, so apt follows the prefix regardless of the
-  paths baked in at compile time.
+  every `Dir::` path (state, cache, etc, methods, dpkg, **apt-key, solvers,
+  planners**) and is exported as `APT_CONFIG` by the shell setup, so apt
+  follows the prefix regardless of the paths baked in at compile time. The
+  last three were missing until a genuinely fresh test (a different user, a
+  container with no bind-mounted `$HOME`) surfaced `apt-get update` failing
+  with `Couldn't execute /home/<builder>/.local/bin/apt-key` — a
+  `CMAKE_INSTALL_FULL_BINDIR`-derived compile-time default that nothing
+  overrode, invisible as long as testing only ever happened on the same
+  user/path that built the prefix. See [*Testing a fresh
+  install*](#testing-a-fresh-install) below.
 - **dpkg** — is passed `--admindir` / `--instdir` explicitly (apt does not do
   this itself), so its database and install root follow the config too.
+
+## Testing a fresh install
+
+Testing relocatability on the *same* machine that built the prefix hides
+bugs: paths baked in at build time (like the `apt-key` one above) happen to
+still be correct there, since the builder's own username/path is still the
+one in `$PREFIX`. A genuinely fresh test needs a different user, a different
+path, or both — reusing Option B's tarball:
+
+```sh
+# on the builder
+./scripts/build-on-host.sh
+ARCH="$(dpkg --print-architecture)"
+tar -C ~/.local -czf "apt-home-$ARCH.tar.gz" bin sbin lib share
+```
+
+An isolated container (no bind-mounted `$HOME` — that would just be testing
+the same paths again) as an unprivileged user with no `sudo`, the actual
+target scenario:
+
+```sh
+podman run -d --name freshtest debian:sid sleep infinity
+podman exec freshtest bash -c 'apt-get update -qq && apt-get install -y -qq git gpgv ca-certificates'
+podman exec freshtest useradd -m -s /bin/bash tester
+podman cp "apt-home-$ARCH.tar.gz" freshtest:/tmp/
+podman exec freshtest chown tester:tester /tmp/apt-home-$ARCH.tar.gz
+
+podman exec --user tester -w /home/tester freshtest bash -c '
+  git clone --depth 1 https://github.com/<you>/sudo-less
+  mkdir -p ~/.local && tar -xzf /tmp/apt-home-*.tar.gz -C ~/.local
+  cd sudo-less && PREFIX=$HOME/.local bash scripts/install-config.sh
+  export PATH="$HOME/.local/sbin:$HOME/.local/bin:$HOME/.local/usr/bin:$PATH"
+  export APT_CONFIG="$HOME/.local/etc/apt/apt.conf.d/00local-prefix"
+  apt-get update && apt-get install -y jq && bash scripts/recipes.sh verify
+'
+```
+
+`~/.local/share` on a real desktop often holds unrelated large data too
+(rootless podman's own storage lives under `share/containers`; Flatpak under
+`share/flatpak`) — `tar` the whole `share/` naively and you may tar
+gigabytes of unrelated content. Exclude what you know isn't apt/dpkg's own
+before copying it into the container.
+
+A package already seeded on the builder but not on the fresh target (most
+commonly `python3` itself, if the target is more minimal than the builder)
+will actually attempt a real install there instead of being skipped —
+exposing failures the builder's seeded db was hiding. This is expected, not
+a bug: see `docs/working-packages.md`'s "seeded db" note.
 
 ## GUI apps in the launcher (Phosh)
 

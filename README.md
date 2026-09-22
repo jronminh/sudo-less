@@ -40,6 +40,7 @@ ever escalating.
 ## Contents
 
 - [Highlights](#highlights)
+- [Support status](#support-status)
 - [On mobile & tablets (Mobian)](#on-mobile--tablets-mobian)
 - [Quick start](#quick-start)
 - [Two package managers — don't mix them up](#two-package-managers--dont-mix-them-up)
@@ -77,6 +78,29 @@ ever escalating.
   setuid helper, network listener, or third-party runtime; the no-root path uses
   standard in-distro tools (`mmdebstrap`, `bwrap`). See *Why it's cheap* below.
 
+## Support status
+
+One tier is supported at a time, deliberately — with one maintainer, only one
+tier can be *vouched for*.
+
+- **Supported — the default route.** `bootstrap.sh` fetches a prebuilt, patched
+  apt/dpkg, verifies its hash, unpacks it into `~/.local` and configures it.
+  Needs nothing beyond `curl`/`wget`, `tar` and a writable `$PREFIX`: no root,
+  no namespaces, no build. That reaches the **floor tier** (`direct`/`env`).
+
+  ```sh
+  curl -fsSL https://raw.githubusercontent.com/jronminh/sudo-less/main/bootstrap.sh | bash
+  ```
+
+- **Experimental.** Building from source (the three paths below) and the
+  `overlay` / `rootfs` / `gui` tiers — kept and documented, but not promised.
+- **Out of scope.** `tier never` packages (32-bit-only, self-updating,
+  services, PAM/setuid) — see [`docs/standard.md`](docs/standard.md).
+
+A tier graduates from experimental to supported only when it is verified and
+stable. Trust model, baseline and release process:
+[`docs/release.md`](docs/release.md).
+
 ## On mobile & tablets (Mobian)
 
 [Mobian](https://mobian-project.org/) devices — **ARM64 phones** and **x86_64
@@ -110,6 +134,23 @@ to the phone, regenerate config, done. Recipes in
 
 ## Quick start
 
+**The supported route — no root, no build:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/jronminh/sudo-less/main/bootstrap.sh | bash
+```
+
+Then, in a new shell:
+
+```sh
+apt-get update
+apt-get install -y ripgrep htop jq        # into ~/.local
+dpkg -l                                    # your own database
+```
+
+**Experimental — build from source** (to verify, or on an arch with no published
+artifact). Clone first, then pick a path:
+
 ```sh
 git clone https://github.com/jronminh/sudo-less && cd sudo-less
 
@@ -123,15 +164,8 @@ git clone https://github.com/jronminh/sudo-less && cd sudo-less
 ./scripts/env/build-in-container.sh
 ```
 
-Then, in a new shell:
-
-```sh
-apt-get update
-apt-get install -y ripgrep htop jq        # into ~/.local
-dpkg -l                                    # your own database
-```
-
-See [`docs/porting.md`](docs/porting.md) for prerequisites and overrides, and
+See [`docs/release.md`](docs/release.md) for the default route's trust model,
+[`docs/porting.md`](docs/porting.md) for build prerequisites and overrides, and
 [`docs/working-packages.md`](docs/working-packages.md) for what installs well.
 
 ## Two package managers — don't mix them up
@@ -369,11 +403,13 @@ Details and the `check-package.sh` predictor:
 ## Repository layout
 
 ```
+bootstrap.sh  the supported route: fetch prebuilt apt/dpkg, verify, unpack, set up
 docs/        methodology, mobile, porting, apt-dpkg-port, paths, standard,
-             working-packages, polkit, roles, hardening, waydroid,
+             release, working-packages, polkit, roles, hardening, waydroid,
              flatpak-bridge
 scripts/     common.sh, build-deps.list, grouped by lifecycle:
-             bootstrap/ fetch-sources, install-build-deps, build-apt, build-dpkg
+             bootstrap/ fetch-sources, install-build-deps, build-apt, build-dpkg,
+                        package-prebuilt (build -> release tarball)
              env/       build-on-host, make-buildroot, build-in-rootfs, build-in-container
              setup/     install-config (orchestrator: calls apt-dpkg/install.sh
                         then each ecosystem's), install-shell-path,

@@ -311,6 +311,8 @@ scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-root
 patches/     apt/{termux,local}, dpkg/termux   (verbatim upstream patches + our fixes)
 config/      apt.conf.d template, sources.list
 recipes/     one <pkg>.recipe per package (tier + mechanism; see docs/standard.md)
+shims/       PATH shims a recipe's `shim` key requires, installed to $PREFIX/bin
+             by install-config.sh (e.g. py3compile, for pure-Python postinst)
 tools/       deb2home.sh   (extract a .deb into $HOME without root)
              prefix-run.sh (run a command with the prefix presented at /)
 admin/       root-side scripts run by the admin account (example setup)

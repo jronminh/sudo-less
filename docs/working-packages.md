@@ -40,8 +40,16 @@ fixes)** signals:
     `initramfs-tools`, …); or `Essential: yes`.
 - **RISKY** — installs and usually works, but touches system integration, or
   hits a blocker this repo already ships a fix for:
-  - `update-alternatives`, `update-menus`, `update-desktop-database`,
-    `install-info`, … (Debian tolerates these);
+  - `update-alternatives`, `update-menus`, `install-info`, … (Debian
+    tolerates these);
+  - **`update-desktop-database` postinst** — tolerated by Debian, but not
+    guaranteed to rebuild the right cache under `--force-script-chrootless`.
+    A GUI package's `.desktop` file can land correctly in
+    `~/.local/share/applications` and still never appear in an app grid
+    until something rebuilds `mimeinfo.cache`. Fixed generically: a
+    `DPkg::Post-Invoke` hook (`config/apt.conf.d/01update-desktop-database.in`,
+    installed by `install-config.sh`) runs `update-desktop-database` on the
+    prefix's `applications` dir after every install/upgrade.
   - ships systemd units / `init.d` / `udev` / dbus / polkit / `tmpfiles.d`,
     or `/usr/libexec/`;
   - **`py3compile` postinst / `/usr/lib/python3/dist-packages/` files** — pure

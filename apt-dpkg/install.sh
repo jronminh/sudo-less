@@ -34,6 +34,13 @@ sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/00local-prefix.in" \
   > "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
 
+# refresh the desktop-entry cache after installs so GUI packages' .desktop
+# files actually show up in app grids, not just on disk (see
+# config/apt.conf.d/01update-desktop-database.in and docs/working-packages.md)
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/01update-desktop-database.in" \
+  > "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
+chmod 0644 "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
+
 # apt's gpgv verifier needs a gpgv binary (Debian ships gpgv in its own package)
 if ! command -v gpgv >/dev/null; then
   log "note: gpgv not found on PATH; apt-key verification will fail"

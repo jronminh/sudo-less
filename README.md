@@ -395,9 +395,13 @@ flatpak/     bridge.sh (substitute a userspace daemon's path into a Flatpak
 waydroid/    waydroid-fix-desktop-entries + systemd/ (auto-fix Waydroid's
              NoDisplay=true on its own app launchers — see docs/waydroid-
              mesa-debug.md §12), fetch-old-mesa.sh (rebuild the isolated old
-             Mesa Waydroid's hwcomposer needs — §9); the large binaries
-             these produce are deliberately not in this repo, see §13
-admin/       root-side scripts run by the admin account (example setup)
+             Mesa Waydroid's hwcomposer needs — §9), patch-services-jar.sh +
+             patches/ (build a services.jar with the multi-window freeform
+             divide-by-zero guard — §15); the large binaries these produce
+             are deliberately not in this repo, see §13
+admin/       root-side scripts run by the admin account (example setup);
+             waydroid-install-framework-overlay.sh is the one root drop that
+             deploys the §15 patched jar
 ```
 
 Ecosystem-specific install-time hooks live outside `apt-dpkg/`, which stays

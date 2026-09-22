@@ -129,6 +129,31 @@ Notes:
 
 ---
 
+## Overlaying a fix into a read-only image (Waydroid)
+
+When the thing that needs fixing lives *inside* an image you can't rebuild,
+don't rebuild it — **build the replacement unprivileged, then drop it into an
+overlay the image already reads.**
+
+Waydroid merges `/var/lib/waydroid/overlay` over the Android image
+(`lowerdir=/var/lib/waydroid/overlay:/var/lib/waydroid/rootfs`), so a file at
+`overlay/system/framework/services.jar` shadows the image's own copy — the
+image stays untouched and `rm` of that one file reverts it. Same idea as
+`deb2home`/`bwrap` in spirit: work in a place you control, don't escalate to
+change the original.
+
+The catch here is that the file is **compiled** (dex inside a jar), so the
+"build" is disassemble → patch → reassemble rather than a text edit. That is
+pure Java and needs **no root** — on this box it ran on the phone
+(`ssh fe2`, Termux + openjdk) with the standalone `baksmali`/`smali` fat jars.
+Only the final `install` into the root-owned overlay needs the admin account,
+and that is a single `cp`. Worked example (a one-line divide-by-zero guard in
+`services.jar`): `docs/waydroid-mesa-debug.md` §15, with
+`waydroid/patch-services-jar.sh` (unprivileged build) and
+`admin/waydroid-install-framework-overlay.sh` (the one root drop).
+
+---
+
 ## Worked example: userspace apt + dpkg
 
 Goal: run `apt-get install` as `master`, installing `.deb`s into `~/.local`.

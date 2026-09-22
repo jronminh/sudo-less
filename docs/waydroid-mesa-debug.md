@@ -126,6 +126,9 @@ Waydroid talks to on Mesa 25.0.7 instead of system Mesa 26.1.x.**
   for ~35s (`system_server`/`zygote`/`webview_zygote` all alive). Not fully
   characterized — don't assume the upstream bug is simply gone, retest
   deliberately before relying on multi-window.
+  **Resolved in §15**: the divide-by-zero is patched out of `services.jar`
+  (and the half-height sizing symptom with it). A separate, pre-existing
+  SystemUI NPE still crash-loops, also noted in §15.
 - Whoever removed the `waydroid` apt package (apt history:
   `apt-get -y remove thunar thunar-data thunar-volman waydroid nautilus
   nautilus-data gnome-sushi` at 2026-09-21 13:59:26, batched with two file
@@ -271,8 +274,13 @@ documented here so nothing is orphaned:
   `~mobian/phoc-backup/`, given this exact file's history of causing a
   stuck-DRM-master crash loop requiring a reboot (§6 above). Not currently
   planned to be touched.
+- `~/waydroid-work-backup/patched-services/` — the patched `services.jar`
+  from §15 (19MB) plus its `classes2.patched.dex`, the edited
+  `LaunchParamsUtil.smali`, and the `.diff`; reproducible with
+  [`../waydroid/patch-services-jar.sh`](../waydroid/patch-services-jar.sh).
+  (The live copy is the overlay file, not this backup.)
 
-## 14. Multi-window: root cause pinned down exactly (2026-09-22, not yet fixed)
+## 14. Multi-window: root cause pinned down exactly (2026-09-22) — fixed in §15
 
 Retesting multi-window (§9, §11) surfaced a *second* symptom beyond the
 known crash — booted fine, but a floating app window filled only about
@@ -329,3 +337,72 @@ single-window as the stable daily state** — this is a real, understood,
 fixable bug, just not worth the effort right now for a "nice to have"
 (simultaneous floating app windows) when single-window already works
 crisply.
+
+**Update (later 2026-09-22): it was fixed after all** — the smali-level
+patch turned out to be cheap (no LineageOS rebuild, no smali install: the
+`baksmali`/`smali` jars exist as standalone fat jars). See §15.
+
+## 15. Multi-window freeform crash — FIXED (2026-09-22)
+
+The §14 divide-by-zero is fixed by patching `services.jar` in place — the
+same overlay mechanism Waydroid uses for any system-file override.
+
+**The patch** ([`../waydroid/patches/LaunchParamsUtil-freeform-divzero.diff`](../waydroid/patches/LaunchParamsUtil-freeform-divzero.diff)):
+one guard around the division in `getDefaultFreeformSize()`:
+
+```smali
+    mul-int v4, p2, p2
+
+    if-eqz p4, :cond_divzero_guard   # skip the divide when otherDimension == 0
+
+    div-int/2addr v4, p4
+
+    :cond_divzero_guard
+```
+
+When `stableBounds` is 0x0, `portraitHeight` *and* `otherDimension` are both
+0, so the numerator is already 0 — skipping the divide yields exactly what
+the intended guard (`? portraitHeight : …`) would, with no
+`ArithmeticException`.
+
+**Build — unprivileged.** `services.jar`'s code is compiled into dex, so a
+`.java` edit can't just be dropped in: it has to be disassembled, patched,
+and reassembled. [`../waydroid/patch-services-jar.sh`](../waydroid/patch-services-jar.sh)
+does that with `baksmali`/`smali` 2.5.2 (the standalone fat jars from
+JesusFreke's bitbucket — apktool ships smali classes but no CLI entry, so
+`apktool` alone can't do it). The image's dex is v039 (LineageOS 20 / Android
+13), so assemble with `-a 33` and repack with the dex **stored**
+(uncompressed) to match the image's own layout. It needs only Java, so the
+build was offloaded to the phone (`ssh fe2`; Termux has openjdk 21) — **no
+root needed for the build itself.**
+
+**Deploy — one root drop.** `/var/lib/waydroid/overlay` is root-owned, so the
+copy is the single privileged step:
+[`../admin/waydroid-install-framework-overlay.sh`](../admin/waydroid-install-framework-overlay.sh)
+(as `mobian`) installs the jar to
+`/var/lib/waydroid/overlay/system/framework/services.jar`, where it shadows
+the image's copy via the rootfs overlay
+(`lowerdir=/var/lib/waydroid/overlay:/var/lib/waydroid/rootfs`). Then restart
+the container to remount: `waydroid session stop` (master) →
+`systemctl restart waydroid-container` (root) → `waydroid session start`
+(master). Reverting is just `rm` of that one file. **No image or base
+`services.jar` is modified** — remove the overlay file and the original
+returns.
+
+**Verified.** With `persist.waydroid.multi_windows=true` the patched build
+boots: `sys.boot_completed=1`, `system_server` stays up (it used to die right
+here), and the Files app renders full-height — the §14 half-height symptom is
+gone (screenshot-checked). A round-trip diff of the reassembled dex against
+the original showed only the guard plus label renumbering (offsets shift by 2
+bytes); an independent `jadx` decompile confirms `if (iMax != 0) i6 /= iMax;`.
+That jadx check earned its keep: the first attempt wrote `if-nez` — the
+*inverted* test, which would have divided only when zero — and it was caught
+there, not at boot.
+
+**Still open: SystemUI crash-loops** on a pre-existing NPE
+(`AppOpsControllerImpl.setListening` → `List.iterator()` on null, reached
+from `ImageWallpaper_Factory`), unrelated to this patch — a control run with
+the *original* `services.jar` crash-loops identically. So the freeform
+divide-by-zero is gone, but multi-window isn't fully clean until that is
+chased; single-window remains the stable daily state
+(`persist.waydroid.multi_windows=false`, set back after testing).

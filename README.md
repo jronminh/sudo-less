@@ -51,6 +51,7 @@ ever escalating.
 - [How it works](#how-it-works)
 - [Prefixes & hardcoded paths](#prefixes--hardcoded-paths)
 - [Standard & recipes](#standard--recipes)
+- [Bridging Flatpak apps to userspace daemons](#bridging-flatpak-apps-to-userspace-daemons)
 - [What works](#what-works)
 - [Repository layout](#repository-layout)
 - [Scope & status](#scope--status)
@@ -307,6 +308,36 @@ The tier contract, the recipe schema and the verification rules are normative in
 [`docs/standard.md`](docs/standard.md). A recipe is a claim until `verify`
 passes.
 
+## Bridging Flatpak apps to userspace daemons
+
+A different problem from anything `recipes/` handles: a sandboxed Flatpak
+app that's a pure client of a system daemon (printing, a VPN mesh client,
+anything with a `system.slice` service and a thin GUI) over a Unix socket
+at a *fixed* host path, with no override anywhere in the app or its client
+library. Flatpak's own `--filesystem` permission can only mount a host path
+at the identical path inside the sandbox — it can't remap — so a userspace
+daemon (whose socket necessarily lives somewhere you can actually write,
+like `$XDG_RUNTIME_DIR`) is invisible to the app no matter what you grant.
+
+`flatpak/bridge.sh` fixes this with an unprivileged `bwrap` wrapper around
+`flatpak run` that substitutes your userspace path for the fixed one
+*before* Flatpak's own sandbox is built — no root, no Flatpak-side change:
+
+```sh
+flatpak/bridge.sh dev.deedles.Trayscale \
+  /run/tailscale=/run/user/"$(id -u)"/tailscale
+```
+
+Verified for real against Trayscale (an unofficial Tailscale GUI) and a
+userspace `tailscaled`: before the bridge, its log showed `dial unix
+.../tailscaled.sock: no such file or directory`; after, real answers from
+the daemon. See [`docs/flatpak-bridge.md`](docs/flatpak-bridge.md) for the
+mechanism, the tiers (this is the no-root one; a one-time-root `tmpfiles.d`
+fix and rebuilding the app from source are the other two), and the
+`flatpak/fixes/<app-id>.fix` recording format —
+[`flatpak/fixes/dev.deedles.Trayscale.fix`](flatpak/fixes/dev.deedles.Trayscale.fix)
+is the worked example.
+
 ## What works
 
 Great for **user-space tooling and dev libraries**: CLI tools, interpreters and
@@ -326,7 +357,8 @@ Details and the `check-package.sh` predictor:
 
 ```
 docs/        methodology, mobile, porting, apt-dpkg-port, paths, standard,
-             working-packages, polkit, roles, hardening, waydroid
+             working-packages, polkit, roles, hardening, waydroid,
+             flatpak-bridge
 scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
              build-in-container, install-config (orchestrator: calls
              apt-dpkg/install.sh then each ecosystem's), install-shell-path,
@@ -341,6 +373,9 @@ shims/       PATH shims a recipe's `shim` key requires, installed to $PREFIX/bin
              by apt-dpkg/install.sh (e.g. py3compile, for pure-Python postinst)
 tools/       deb2home.sh   (extract a .deb into $HOME without root)
              prefix-run.sh (run a command with the prefix presented at /)
+flatpak/     bridge.sh (substitute a userspace daemon's path into a Flatpak
+             app's sandbox — see docs/flatpak-bridge.md); fixes/<app-id>.fix
+             per bridged app, same spirit as recipes/ for a different problem
 admin/       root-side scripts run by the admin account (example setup)
 ```
 

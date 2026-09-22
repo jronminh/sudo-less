@@ -392,6 +392,11 @@ flatpak/     bridge.sh (substitute a userspace daemon's path into a Flatpak
              app's sandbox), install-launcher.sh (make it persistent via a
              .desktop override — see docs/flatpak-bridge.md); fixes/<app-id>.fix
              per bridged app, same spirit as recipes/ for a different problem
+waydroid/    waydroid-fix-desktop-entries + systemd/ (auto-fix Waydroid's
+             NoDisplay=true on its own app launchers — see docs/waydroid-
+             mesa-debug.md §12), fetch-old-mesa.sh (rebuild the isolated old
+             Mesa Waydroid's hwcomposer needs — §9); the large binaries
+             these produce are deliberately not in this repo, see §13
 admin/       root-side scripts run by the admin account (example setup)
 ```
 

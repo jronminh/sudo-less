@@ -1,0 +1,6 @@
+[Unit]
+Description=Fix Waydroid app-entry visibility (NoDisplay reset)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/waydroid-fix-desktop-entries

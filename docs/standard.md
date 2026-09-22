@@ -37,16 +37,21 @@ with classification + a recipe, not by widening a mechanism "just in case."
 ## Tiers (normative)
 
 Each tier states what it **requires**, what it **guarantees**, and what it
-**excludes**. A recipe names the *lowest* tier that works.
+**excludes**. A recipe names the *lowest* tier that works. The **status** column
+is the promise: only the floor (`direct`/`env`) is supported today, reached via
+the default route ([`release.md`](release.md)); the rest are experimental.
+One tier is supported at a time, deliberately — with one maintainer, only one
+tier can be vouched for. A tier graduates to supported only when verified and
+stable.
 
-| tier | requires | guarantees | excludes |
-|---|---|---|---|
-| `direct` | nothing | relocatable binaries run with `PATH` (+ `LD_LIBRARY_PATH`) | anything reading paths not on `PATH` |
-| `env` | nothing (no root, no namespaces, no new deps) | lookups the program exposes an env knob for (`PYTHONPATH`, `PERL5LIB`, `GEM_PATH`, `CLASSPATH`, `XDG_*`, …) | absolute paths baked into binaries; root-only postinst |
-| `overlay` | `bwrap` + unprivileged userns + overlayfs ≥ 5.11 | hardcoded `/etc`, `/usr/share`, `/usr/lib` resolve to the prefix, stacked over the system tree | root-only postinst; session integration |
-| `rootfs` | a complete rootfs + `bwrap`/`proot`/`chroot` | a real `/`: paths *and* root-only postinst (dpkg runs as root inside) | host services, kernel/initramfs, host integration |
-| `gui` | an `overlay`/`rootfs` runner **plus** a desktop session | display, GPU and audio passed through | — |
-| `never` | — | nothing: documented as out of scope | 32-bit-only, self-updating/proprietary, container-in-container, services, PAM/setuid |
+| tier | status | requires | guarantees | excludes |
+|---|---|---|---|---|
+| `direct` | **supported** | nothing | relocatable binaries run with `PATH` (+ `LD_LIBRARY_PATH`) | anything reading paths not on `PATH` |
+| `env` | **supported** | nothing (no root, no namespaces, no new deps) | lookups the program exposes an env knob for (`PYTHONPATH`, `PERL5LIB`, `GEM_PATH`, `CLASSPATH`, `XDG_*`, …) | absolute paths baked into binaries; root-only postinst |
+| `overlay` | experimental | `bwrap` + unprivileged userns + overlayfs ≥ 5.11 | hardcoded `/etc`, `/usr/share`, `/usr/lib` resolve to the prefix, stacked over the system tree | root-only postinst; session integration |
+| `rootfs` | experimental | a complete rootfs + `bwrap`/`proot`/`chroot` | a real `/`: paths *and* root-only postinst (dpkg runs as root inside) | host services, kernel/initramfs, host integration |
+| `gui` | experimental | an `overlay`/`rootfs` runner **plus** a desktop session | display, GPU and audio passed through | — |
+| `never` | out of scope | — | nothing: documented as out of scope | 32-bit-only, self-updating/proprietary, container-in-container, services, PAM/setuid |
 
 `never` is a valid, useful verdict: it records *why* a package is out of scope
 so the boundary reads as a decision, not a gap.

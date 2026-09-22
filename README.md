@@ -50,6 +50,7 @@ ever escalating.
 - [Why it's cheap](#why-its-cheap)
 - [How it works](#how-it-works)
 - [Prefixes & hardcoded paths](#prefixes--hardcoded-paths)
+- [Standard & recipes](#standard--recipes)
 - [What works](#what-works)
 - [Repository layout](#repository-layout)
 - [Scope & status](#scope--status)
@@ -261,6 +262,32 @@ overlay of `~/.local` on `/usr`+`/etc` (no root), a complete rootfs via
 `bwrap`/`proot`/`chroot`, or a plain env-var fallback. `check-package.sh
 --runtime` says which class a package is in (`direct` / `overlay` / `never`).
 
+## Standard & recipes
+
+The tier ladder is a **standard**, not a pile of hacks. Each package is described
+by a plain-text **recipe** (`recipes/<pkg>.recipe`) declaring the minimum tier it
+needs and the mechanism that gets it there, and `scripts/recipes.sh` verifies the
+claim on a real host:
+
+```sh
+scripts/recipes.sh list      # package, raw verdict, tier
+scripts/recipes.sh verify    # prove every recipe still works
+```
+
+```sh
+# recipes/ranger.recipe — raw verdict is "unlikely", fixed at the floor tier
+package  ranger
+install  unlikely
+tier     env
+env      PYTHONPATH=$PREFIX/usr/lib/python3/dist-packages
+shim     py3compile
+verify   ranger --version
+```
+
+The tier contract, the recipe schema and the verification rules are normative in
+[`docs/standard.md`](docs/standard.md). A recipe is a claim until `verify`
+passes.
+
 ## What works
 
 Great for **user-space tooling and dev libraries**: CLI tools, interpreters and
@@ -275,14 +302,15 @@ Details and the `check-package.sh` predictor:
 ## Repository layout
 
 ```
-docs/        methodology, mobile, porting, apt-dpkg-port, paths,
+docs/        methodology, mobile, porting, apt-dpkg-port, paths, standard,
              working-packages, polkit, roles, hardening, waydroid
 scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
              build-in-container, install-config, install-shell-path,
              install-session-env, lock-seeded, check-package, test-packages,
-             fetch-sources, common
+             recipes, fetch-sources, common
 patches/     apt/{termux,local}, dpkg/termux   (verbatim upstream patches + our fixes)
 config/      apt.conf.d template, sources.list
+recipes/     one <pkg>.recipe per package (tier + mechanism; see docs/standard.md)
 tools/       deb2home.sh   (extract a .deb into $HOME without root)
              prefix-run.sh (run a command with the prefix presented at /)
 admin/       root-side scripts run by the admin account (example setup)

@@ -14,7 +14,7 @@
 #     substitute the host's values (DEB_CPU / DEB_ARCH, auto-detected).
 #   * --without-libselinux (Termux's --without-selinux is an unrecognized no-op).
 #   * admindir defaults to $PREFIX/var/lib/dpkg via --with-admindir.
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"
 rm -rf "$SRC/dpkg-$DPKG_VER"

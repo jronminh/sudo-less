@@ -2,9 +2,9 @@
 # Predict whether a Debian package will work when installed into a userspace
 # prefix (~/.local) by the ported apt/dpkg — WITHOUT installing it.
 #
-#   ./scripts/check-package.sh PKG [PKG...]
-#   ./scripts/check-package.sh --meta PKG      # index metadata only (no download)
-#   ./scripts/check-package.sh --runtime PKG   # also classify the runtime tier
+#   ./scripts/catalog/check-package.sh PKG [PKG...]
+#   ./scripts/catalog/check-package.sh --meta PKG      # index metadata only (no download)
+#   ./scripts/catalog/check-package.sh --runtime PKG   # also classify the runtime tier
 #
 # Method (cache-only, nothing is executed or installed):
 #   * apt index metadata (Section/Priority/Essential/Depends) via apt-cache show
@@ -31,7 +31,7 @@
 #   never     a hard blocker above; not runnable this way
 #   unknown   no .deb available to scan (--meta, or download failed)
 set -uo pipefail
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 set +e  # common.sh enables errexit; this checker is deliberately lenient
 
 META_ONLY=0

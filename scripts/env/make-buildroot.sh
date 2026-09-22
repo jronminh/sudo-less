@@ -2,8 +2,8 @@
 # Create a REAL Debian rootfs (a directory holding a complete /usr, /etc, /var,
 # ...) with all build dependencies, WITHOUT root and WITHOUT podman.
 #
-#   ./scripts/make-buildroot.sh            # -> ~/buildroot
-#   ROOTFS=~/myroot ./scripts/make-buildroot.sh
+#   ./scripts/env/make-buildroot.sh            # -> ~/buildroot
+#   ROOTFS=~/myroot ./scripts/env/make-buildroot.sh
 #
 # How it works
 # ------------
@@ -17,7 +17,7 @@
 # so we skip ./dev and let proot bind-mount the host's /dev at build time.
 set -euo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOTFS="${ROOTFS:-$HOME/buildroot}"
 TARBALL="${TARBALL:-$HOME/buildroot.tar}"
 SUITE="${SUITE:-sid}"

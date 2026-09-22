@@ -1,7 +1,7 @@
 # prismlauncher — #8's acceptance test. Needs `deb [...] sid contrib` added
 # to sources.list.d (it's in Debian's contrib archive area, not main, so it
 # won't even show up in `apt-cache search` until that's added). Also needed
-# `scripts/lock-seeded.sh unlock` once to let a newer private Qt6 land under
+# `scripts/setup/lock-seeded.sh unlock` once to let a newer private Qt6 land under
 # $PREFIX (the seeded/held system Qt6 was older than what sid's current
 # prismlauncher packaging requires) — re-lock afterward.
 #

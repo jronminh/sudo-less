@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lock (or unlock) the *seeded* packages in the userspace dpkg database.
 #
-#   ./scripts/lock-seeded.sh [lock|unlock|status]
+#   ./scripts/setup/lock-seeded.sh [lock|unlock|status]
 #
 # The dpkg database is seeded from the system, so apt sees system libraries as
 # installed. Without a lock, `apt upgrade` / `apt remove` would try to
@@ -12,12 +12,12 @@
 # Names are matched ignoring the ":arch" qualifier (dpkg --get-selections emits
 # "libc6:amd64", the status file says "Package: libc6").
 set -euo pipefail
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 
 DPKG="$PREFIX/bin/dpkg"
 ADMINDIR="$PREFIX/var/lib/dpkg"
 SYS_STATUS="/var/lib/dpkg/status"
-[ -f "$ADMINDIR/status" ] || die "no dpkg database at $ADMINDIR (run install-config.sh)"
+[ -f "$ADMINDIR/status" ] || die "no dpkg database at $ADMINDIR (run scripts/setup/install-config.sh)"
 
 MODE="${1:-lock}"
 case "$MODE" in lock|unlock|status) ;; *) die "usage: $0 [lock|unlock|status]" ;; esac

@@ -2,7 +2,7 @@
 # Make the prefix visible to the *desktop session* (Phosh/GNOME), not just the
 # shell, so GUI apps installed with the userspace apt appear in the launcher.
 #
-#   ./scripts/install-session-env.sh
+#   ./scripts/setup/install-session-env.sh
 #
 # Writes ~/.config/environment.d/50-sudo-less.conf, which systemd --user reads
 # when the session starts. Values are literal (no shell expansion), so the
@@ -12,7 +12,7 @@
 # are never scanned: Phosh discovers launchers via $XDG_DATA_DIRS, which a
 # shell rc cannot change for the session.
 set -euo pipefail
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d/50-sudo-less.conf"
 mkdir -p "$(dirname "$DEST")"

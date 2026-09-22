@@ -4,7 +4,7 @@
 # — so a package relocated there (e.g. ranger) imports without needing
 # PYTHONPATH in its own recipe. See #5, docs/paths.md.
 #
-# Called by scripts/install-config.sh; not usually run directly. Re-running
+# Called by scripts/setup/install-config.sh; not usually run directly. Re-running
 # is safe (overwrites the same file).
 source "$(dirname "${BASH_SOURCE[0]}")/../scripts/common.sh"
 

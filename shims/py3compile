@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # py3compile shim — installed at $PREFIX/bin/py3compile, ahead of the real
-# /usr/bin/py3compile on PATH (see scripts/install-shell-path.sh).
+# /usr/bin/py3compile on PATH (see scripts/setup/install-shell-path.sh).
 #
 # dh_python3 postinst scripts call the real py3compile with the package's
 # *canonical* absolute paths (e.g. `py3compile -p ranger`, which resolves to

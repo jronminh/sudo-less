@@ -4,7 +4,7 @@
 #
 # Caches into $SRC; the build scripts' fetch() then finds them and never calls
 # out. Run this before build-in-rootfs.sh / build-in-container.sh (they do).
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 
 fetch "$APT_URL"  "apt-$APT_VER.tar.gz"
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"

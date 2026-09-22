@@ -3,7 +3,7 @@
 # database from the system so apt treats already-installed libraries as
 # satisfied (and only installs the leaf packages you ask for).
 #
-# Called by scripts/install-config.sh; not usually run directly. Re-running
+# Called by scripts/setup/install-config.sh; not usually run directly. Re-running
 # is safe. Options:
 #   --reseed      refresh the seeded status from the system
 #   --no-shell    do not touch ~/.bashrc / ~/.profile
@@ -53,7 +53,7 @@ fi
 
 # Protect the seeded (system) packages: hold them so apt cannot accidentally
 # upgrade/remove them into/from the prefix. Our own installs stay upgradable.
-bash "$REPO/scripts/lock-seeded.sh" lock
+bash "$REPO/scripts/setup/lock-seeded.sh" lock
 
 # Install recipe shims (scripts a recipe's `shim` key requires on PATH ahead
 # of the real one; see docs/standard.md).
@@ -64,8 +64,8 @@ done
 
 # Make installed packages runnable in new shells (unless opted out).
 if [ "$SHELL_PATH" = 1 ]; then
-  bash "$REPO/scripts/install-shell-path.sh"
-  bash "$REPO/scripts/install-session-env.sh"
+  bash "$REPO/scripts/setup/install-shell-path.sh"
+  bash "$REPO/scripts/setup/install-session-env.sh"
 else
   log "skipping shell PATH setup (--no-shell). Add manually:"
   printf '  export PATH="%s/sbin:%s/bin:%s/usr/bin:$PATH"\n' "$PREFIX" "$PREFIX" "$PREFIX"

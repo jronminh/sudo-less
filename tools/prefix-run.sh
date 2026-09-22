@@ -85,7 +85,7 @@ pick_mode() {
       elif rootfs_ok; then printf 'rootfs'
       else printf 'env'; fi ;;
     overlay) [ -d "$PREFIX/usr" ] || die "overlay mode needs $PREFIX/usr (install a package first)"; overlay_ok || die "overlay unavailable: need bwrap + userns + overlayfs (kernel >= 5.11)"; printf 'overlay' ;;
-    rootfs)  rootfs_ok  || die "no rootfs at $ROOTFS (run scripts/make-buildroot.sh)"; printf 'rootfs' ;;
+    rootfs)  rootfs_ok  || die "no rootfs at $ROOTFS (run scripts/env/make-buildroot.sh)"; printf 'rootfs' ;;
     env)     printf 'env' ;;
     *)       die "unknown mode: $MODE (auto|overlay|rootfs|env)" ;;
   esac

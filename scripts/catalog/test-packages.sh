@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Smoke-test Debian packages against the userspace apt/dpkg.
 #
-#   ./scripts/test-packages.sh [PKG...]      # default: a curated list below
+#   ./scripts/catalog/test-packages.sh [PKG...]      # default: a curated list below
 #
 # Installs the batch in one transaction (apt parallelises the downloads) and
 # reports per-package status from the prefix dpkg database. Packages already
 # present system-wide are reported as "already installed" (the seeded db means
 # apt will not duplicate them into the prefix).
 set -uo pipefail
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 set +e  # common.sh enables errexit; keep going so per-package status is reported
 
 export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"

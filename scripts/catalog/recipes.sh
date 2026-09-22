@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # recipes.sh — list, show and verify sudo-less package recipes.
 #
-#   scripts/recipes.sh list
-#   scripts/recipes.sh show PKG
-#   scripts/recipes.sh verify [PKG...]     # default: every recipe
+#   scripts/catalog/recipes.sh list
+#   scripts/catalog/recipes.sh show PKG
+#   scripts/catalog/recipes.sh verify [PKG...]     # default: every recipe
 #
 # A recipe is a plain-text key/value file under recipes/; the schema and the
 # tier contract are in docs/standard.md.
 set -euo pipefail
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 
 RECIPES="${RECIPES:-$REPO/recipes}"
 ROOTFS="${ROOTFS:-$HOME/buildroot}"

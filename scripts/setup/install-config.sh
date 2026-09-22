@@ -8,7 +8,7 @@
 # Re-running is safe. Options:
 #   --reseed      refresh the seeded status from the system
 #   --no-shell    do not touch ~/.bashrc / ~/.profile
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 
 bash "$REPO/apt-dpkg/install.sh" "$@"
 bash "$REPO/python/install.sh"

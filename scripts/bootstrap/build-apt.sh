@@ -16,7 +16,7 @@
 #   * CMAKE_INSTALL_FULL_LOCALSTATEDIR=$PREFIX/var makes dpkg status resolve to
 #     $PREFIX/var/lib/dpkg/status (isolated from the system db).
 #   * RPATH=$PREFIX/lib so our libapt-pkg.so.6.0 wins over the system .7.0.
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 
 fetch "$APT_URL" "apt-$APT_VER.tar.gz"
 rm -rf "$SRC/apt-$APT_VER"

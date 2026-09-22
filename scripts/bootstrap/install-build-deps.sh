@@ -4,7 +4,7 @@
 # mmdebstrap rootfs). Idempotent.
 #
 #   podman exec -e DEBIAN_FRONTEND=noninteractive aptbuild \
-#     bash ~/sudo-less/scripts/install-build-deps.sh
+#     bash ~/sudo-less/scripts/bootstrap/install-build-deps.sh
 #
 # The package list lives in build-deps.list so the container build, the
 # mmdebstrap rootfs, and the docs all agree.
@@ -17,7 +17,7 @@
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/../common.sh"
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 

@@ -54,6 +54,13 @@ fi
 # upgrade/remove them into/from the prefix. Our own installs stay upgradable.
 bash "$REPO/scripts/lock-seeded.sh" lock
 
+# Install recipe shims (scripts a recipe's `shim` key requires on PATH ahead
+# of the real one; see docs/standard.md).
+mkdir -p "$PREFIX/bin"
+for s in "$REPO/shims/"*; do
+  install -m 0755 "$s" "$PREFIX/bin/$(basename "$s")"
+done
+
 # Make installed packages runnable in new shells (unless opted out).
 if [ "$SHELL_PATH" = 1 ]; then
   bash "$REPO/scripts/install-shell-path.sh"

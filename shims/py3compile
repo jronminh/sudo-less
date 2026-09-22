@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# py3compile shim — installed at $PREFIX/bin/py3compile, ahead of the real
+# /usr/bin/py3compile on PATH (see scripts/install-shell-path.sh).
+#
+# dh_python3 postinst scripts call the real py3compile with the package's
+# *canonical* absolute paths (e.g. `py3compile -p ranger`, which resolves to
+# /usr/lib/python3/dist-packages/ranger via the dpkg file list). Under
+# --instdir=$PREFIX those files live at $PREFIX/usr/lib/..., not /usr/lib/...,
+# so the real py3compile fails looking for a directory that was never created
+# at the absolute path. This shim reproduces just the bytecompile side effect
+# against the files where they actually are: $PREFIX<path>.
+#
+# See docs/standard.md (tier env) and recipes/ranger.recipe.
+set -euo pipefail
+PREFIX="${PREFIX:-$HOME/.local}"
+DPKG="$PREFIX/bin/dpkg"
+
+pkg="" dirs=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p) pkg="$2"; shift 2 ;;
+    -p*) pkg="${1#-p}"; shift ;;
+    -V) shift 2 ;;   # requested interpreter version(s): irrelevant, we use PATH's python3
+    -V*) shift ;;
+    -f|--force) shift ;;  # accepted, always effectively "force" (re-run is cheap)
+    --) shift; break ;;
+    -*) shift ;;      # ignore other debhelper-only flags
+    *)  dirs+=("$1"); shift ;;
+  esac
+done
+dirs+=("$@")
+
+targets=()
+if [ -n "$pkg" ] && [ -x "$DPKG" ]; then
+  while IFS= read -r f; do
+    case "$f" in *.py) targets+=("$PREFIX$f") ;; esac
+  done < <("$DPKG" -L "$pkg" 2>/dev/null || true)
+fi
+for d in "${dirs[@]}"; do
+  targets+=("$PREFIX$d")
+done
+
+[ "${#targets[@]}" -gt 0 ] || exit 0
+python3 -m compileall -q -- "${targets[@]}" || true

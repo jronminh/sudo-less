@@ -18,10 +18,16 @@
 #   RISKY     installs, but ships/uses system integration (may partly misbehave)
 #   UNLIKELY  a hard blocker: root-only postinst step, python app, service deps
 #
-# --runtime adds a line per package saying how it must be run (see docs/paths.md):
+# --runtime adds a line per package saying how it must be run (see docs/paths.md
+# and docs/standard.md's tier contract):
 #   direct    relocatable: PATH (+ LD_LIBRARY_PATH) is enough
-#   overlay   binaries reference /etc or /usr/share by absolute path; run it
-#             through tools/prefix-run.sh (or a complete rootfs)
+#   env       an interpreter's own default module search path misses $PREFIX
+#             (perl's @INC, ruby's $LOAD_PATH, java's classpath) — set the
+#             matching env var (see the `interp=` hint); no root, no namespace
+#   overlay   binaries reference /etc or /usr/share|lib|libexec by absolute
+#             path, or a script's shebang names an interpreter not on this
+#             host (would only land under $PREFIX) — run it through
+#             tools/prefix-run.sh (or a complete rootfs)
 #   never     a hard blocker above; not runnable this way
 #   unknown   no .deb available to scan (--meta, or download failed)
 set -uo pipefail
@@ -114,18 +120,51 @@ check_one() {
     elif [ -z "$deb" ]; then
       rt="unknown"   # --meta, or the .deb could not be fetched
     else
-      # Absolute /etc or /usr/share paths compiled into the package's binaries.
-      ev="$("$DPKG_DEB" --fsys-tarfile "$deb" 2>/dev/null \
+      local blob="$WORK/blob"
+      "$DPKG_DEB" --fsys-tarfile "$deb" 2>/dev/null \
         | tar -xO --wildcards './usr/bin/*' './usr/sbin/*' './usr/libexec/*' 2>/dev/null \
-        | head -c 20000000 \
-        | grep -aoE '/(usr/(share|lib|libexec)|etc)/[A-Za-z0-9._+-]+' \
+        | head -c 20000000 > "$blob" || true
+
+      # Absolute /etc or /usr/share|lib|libexec paths compiled into binaries.
+      ev="$(grep -aoE '/(usr/(share|lib|libexec)|etc)/[A-Za-z0-9._+-]+' "$blob" \
         | sort -u | head -20 || true)"
-      if [ -n "$ev" ]; then
+
+      # Shebangs pointing at an interpreter that doesn't exist on this host:
+      # it would only land under $PREFIX, so the absolute shebang is dead
+      # unless run through prefix-run's overlay (e.g. yard's #!/usr/bin/ruby
+      # when ruby isn't seeded).
+      local shebang missing=""
+      while IFS= read -r shebang; do
+        [ -n "$shebang" ] || continue
+        [ -e "$shebang" ] || missing="$missing $shebang"
+      done < <(grep -aoE '^#!/usr/(bin|local/bin)/[A-Za-z0-9_.+-]+' "$blob" | sed 's/^#!//' | sort -u)
+
+      # Interpreter module-search-path signals: the package ships files under
+      # a path the interpreter's own default search path won't see from
+      # $PREFIX (perl's @INC, ruby's $LOAD_PATH, java's classpath) — same bug
+      # class as python's PYTHONPATH gap, but invisible to a binary-content
+      # scan since `use Foo::Bar;` never spells out the absolute path.
+      local interp="" s
+      s="$(matches '/usr/share/perl5/|/usr/lib/[^ ]*/perl5/' "$files")"
+      [ -n "$s" ] && interp="perl:PERL5LIB"
+      s="$(matches '/usr/lib/ruby/|/var/lib/gems/' "$files")"
+      [ -n "$s" ] && interp="${interp:+$interp,}ruby:GEM_PATH+RUBYLIB"
+      s="$(matches '/usr/share/java/' "$files")"
+      [ -n "$s" ] && interp="${interp:+$interp,}java:CLASSPATH"
+
+      if [ -n "$missing" ]; then
         rt="overlay"
-        ev="$(tr '\n' ' ' <<<"$ev" | sed 's/ *$//')"
+        ev="shebang:${missing# } ${ev:+paths:$(tr '\n' ',' <<<"$ev" | sed 's/,$//')}"
+      elif [ -n "$ev" ]; then
+        rt="overlay"
+        ev="paths:$(tr '\n' ',' <<<"$ev" | sed 's/,$//')"
+      elif [ -n "$interp" ]; then
+        rt="env"
+        ev="interp=$interp"
       else
         rt="direct"
       fi
+      ev="$(printf '%s' "$ev" | tr '\n' ' ' | sed 's/ *$//')"
     fi
     printf '%-16s runtime=%-8s %s\n' "$pkg" "$rt" "$ev"
   fi

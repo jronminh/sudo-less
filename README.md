@@ -260,7 +260,10 @@ For the rest, [`tools/prefix-run.sh`](tools/prefix-run.sh) runs a command with
 the prefix presented at `/`, using the strongest tier you have: a `bwrap`
 overlay of `~/.local` on `/usr`+`/etc` (no root), a complete rootfs via
 `bwrap`/`proot`/`chroot`, or a plain env-var fallback. `check-package.sh
---runtime` says which class a package is in (`direct` / `overlay` / `never`).
+--runtime` says which class a package is in (`direct` / `env` / `overlay` /
+`never`), including an `interp=` hint when a scripting language's own default
+module search path (not just binary-embedded paths or a broken shebang) is
+the gap.
 
 ## Standard & recipes
 

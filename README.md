@@ -291,11 +291,11 @@ scripts/recipes.sh verify    # prove every recipe still works
 ```
 
 ```sh
-# recipes/ranger.recipe — raw verdict is "unlikely", fixed at the floor tier
+# recipes/ranger.recipe — raw verdict is "risky" (py3compile postinst),
+# fixed by a shim; sys.path is handled globally, so tier is direct
 package  ranger
-install  unlikely
-tier     env
-env      PYTHONPATH=$PREFIX/usr/lib/python3/dist-packages
+install  risky
+tier     direct
 shim     py3compile
 verify   ranger --version
 ```

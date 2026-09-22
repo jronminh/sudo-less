@@ -86,10 +86,16 @@ writes to `/etc` don't touch the host. Overlaying is required rather than
 This is exactly the "what works / what breaks" split in
 [`working-packages.md`](working-packages.md): relocatable leaf tools (CLI
 utilities, interpreters, `-dev` libraries) work directly; anything that reads
-`/etc`, `/usr/share`, or `/usr/lib/python3/dist-packages` by absolute path —
-Python applications, services, PAM/setuid helpers — needs `prefix-run.sh` (or a
-complete rootfs), and services/setuid stay out of scope either way.
-`scripts/check-package.sh --runtime` reports which class a package is in.
+`/etc`, `/usr/share`, `/usr/lib`, or `/usr/libexec` by absolute path — or a
+script whose shebang names an interpreter not on this host — needs
+`prefix-run.sh` (or a complete rootfs); services/setuid stay out of scope
+either way. Interpreted-language apps (Python, Perl, Ruby) are a narrower
+case: the *interpreter's own* default module search path
+(`sys.path`/`@INC`/`$LOAD_PATH`) misses `$PREFIX`, fixed with an env var (or,
+for Python, a `.pth` `install-config.sh` writes globally — see #5) rather
+than a full overlay/rootfs. `scripts/check-package.sh --runtime` reports
+which class a package is in (`direct` / `env` / `overlay` / `never`), with an
+`interp=`/`shebang:` hint for the env/overlay cases.
 
 The tiers above are a **standard**: each package declares its minimum tier and
 the mechanism that gets it there in a `recipes/<pkg>.recipe`, verified by

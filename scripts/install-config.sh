@@ -61,6 +61,19 @@ for s in "$REPO/shims/"*; do
   install -m 0755 "$s" "$PREFIX/bin/$(basename "$s")"
 done
 
+# Python: put apt-installed modules under $PREFIX/usr/lib/python3/dist-packages
+# on sys.path automatically, via a .pth file in the system python3's user
+# site — so a package relocated there (e.g. ranger) imports without needing
+# PYTHONPATH in its own recipe. See #5, docs/paths.md.
+if command -v python3 >/dev/null 2>&1; then
+  USER_SITE="$(python3 -m site --user-site 2>/dev/null || true)"
+  if [ -n "$USER_SITE" ]; then
+    mkdir -p "$USER_SITE"
+    printf '%s\n' "$PREFIX/usr/lib/python3/dist-packages" \
+      > "$USER_SITE/00-sudo-less.pth"
+  fi
+fi
+
 # Make installed packages runnable in new shells (unless opted out).
 if [ "$SHELL_PATH" = 1 ]; then
   bash "$REPO/scripts/install-shell-path.sh"

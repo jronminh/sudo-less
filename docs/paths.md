@@ -117,6 +117,40 @@ incompatible with `--mode env`: without an overlay or rootfs, the app's own
 `bwrap` and a live session, so `verify` reports `SKIP` (not a false `FAIL`)
 when run from a session-less shell.
 
+## Floor tier: env vars only, no namespaces at all
+
+Below `overlay`/`rootfs` is a weaker tier that needs **nothing** — no
+`bwrap`, no userns, no `proot`, not even a built rootfs: `env` var
+redirection alone. Two conditions decide whether a package is
+floor-supportable, both required:
+
+1. **installs clean** — `check-package.sh`'s `ok`/`risky` verdict, not
+   `unlikely` (a root-only postinst always needs a higher tier, or a shim
+   that specifically targets it — see `ranger`'s `py3compile`).
+2. **every path it reads honors an env override** — nothing baked in that
+   no environment variable can redirect. `PYTHONPATH`/`PERL5LIB` (#5, #7),
+   `LD_LIBRARY_PATH`, `GOROOT`, `XDG_*`, `TERMINFO_DIRS` are floor knobs;
+   an absolute `/usr/share/foo` path compiled into the binary is not — that
+   needs `overlay` no matter how RISKY-clean the install was.
+
+Both tested, not assumed, with two real recipes:
+
+- **`golang-go`** — `tier direct`, not even `env`: `go version` *and* a real
+  `go run hello.go` (actual compile + execute) both work with **zero** env
+  vars. `go` self-locates its stdlib relative to its own binary path, the
+  same trick OpenJDK's `java` uses (#17) — nothing to redirect at all.
+- **`nodejs`** — genuinely **not** floor-fixable, category 2 above: `node`
+  first needs `LD_LIBRARY_PATH` for `libnode.so`, then crashes loading
+  `internal/deps/undici/undici` from a hardcoded
+  `/usr/share/nodejs/undici/...` path — no env var reaches that. Needs
+  `tools/prefix-run.sh` (`overlay`), same as any other baked-in-path case.
+
+**No separate manifest** (`config/floor.tsv`-style) — the standard from #10
+already generalized this: `recipes/<pkg>.recipe` *is* the curated,
+`verify`-proved catalog for every tier, floor included. A `tier direct` or
+`tier env` recipe **is** the floor-tier entry; there's no second system to
+maintain.
+
 ## The consequence
 
 This is exactly the "what works / what breaks" split in

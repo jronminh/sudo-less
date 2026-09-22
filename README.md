@@ -227,6 +227,9 @@ only mode.
   and run tools.
 - **Reproducible per-project environments** — install and pin versions in a
   prefix, throw it away, rebuild from scripts.
+- **GUI apps with a live desktop session** — `tools/prefix-run.sh --gui`
+  passes through display/GPU/audio; verified end to end with Prism Launcher
+  + Minecraft on a real Mobian/Phosh device (#8).
 
 ## Why it's cheap
 
@@ -307,11 +310,15 @@ passes.
 ## What works
 
 Great for **user-space tooling and dev libraries**: CLI tools, interpreters and
-toolchains, `-dev` packages, fonts, single-binary apps.
+toolchains, `-dev` packages, fonts, single-binary apps. Python, Perl, Ruby
+and Java applications work too now (#5, #7), and so do GUI apps with a live
+desktop session (#8) — each via its own `recipes/<pkg>.recipe`, not a
+blanket claim. `scripts/recipes.sh list` shows the current catalog.
 
 Not a system package manager: packages that need root in their maintainer
-scripts (services, `systemd`, `adduser`, `debconf`), Python *applications*
-(absolute `dist-packages` paths), or setuid/PAM/kernel bits will not work.
+scripts (services, `systemd`, `adduser`, `debconf`) or setuid/PAM/kernel bits
+will not work — these get a `tier never` recipe with the reason, not a
+silent gap (see [`docs/standard.md`](docs/standard.md)'s design principle).
 Details and the `check-package.sh` predictor:
 [`docs/working-packages.md`](docs/working-packages.md).
 
@@ -337,11 +344,15 @@ tools/       deb2home.sh   (extract a .deb into $HOME without root)
 admin/       root-side scripts run by the admin account (example setup)
 ```
 
-Ecosystem-specific install-time hooks (currently just `python/`; Perl/Ruby/Java
-from #7 would each get their own top-level folder) live outside `apt-dpkg/`,
-which stays scoped to the apt/dpkg port itself. `scripts/install-config.sh` is
-the one stable entrypoint — it calls each folder's `install.sh` in turn, so
-callers never need to know the split happened.
+Ecosystem-specific install-time hooks live outside `apt-dpkg/`, which stays
+scoped to the apt/dpkg port itself. `scripts/install-config.sh` is the one
+stable entrypoint — it calls each folder's `install.sh` in turn, so callers
+never need to know the split happened. Turned out only Python needed one so
+far: Perl and Ruby's fixes are per-recipe (`env`/`overlay`), not a global
+hook, and Java's actual fix is `tools/deb2home.sh` (already generic, no
+`java/install.sh` needed) — see #7, #17. A new folder gets added only when a
+future ecosystem genuinely needs its own global install-time step, not
+preemptively.
 
 ## Scope & status
 

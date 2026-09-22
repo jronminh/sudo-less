@@ -1,0 +1,11 @@
+# golang-go — #6's floor-tier candidate list named GOROOT as the expected
+# knob. Tested without it: `go version` and a real `go run hello.go` (actual
+# compile + execute, not just a version check) both work with zero env vars
+# set at all. `go` self-locates its stdlib/toolchain relative to its own
+# binary path (argv[0]), same trick as OpenJDK's java (#17) — so this is
+# better than floor tier, not just floor: nothing to redirect.
+package  golang-go
+install  risky
+tier     direct
+verify   go version
+note     no GOROOT needed in practice; go self-locates from argv[0]

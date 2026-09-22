@@ -67,6 +67,8 @@ the system). Only packages the system lacks are actually installed into
 | `yard` | Ruby (pulls in a fresh interpreter) — run via `tools/prefix-run.sh --mode overlay`, see `recipes/yard.recipe` and #7 |
 | `openjdk-25-jre-headless` | Java — apt install is a **dead end** (root-only `/etc/.java` postinst, no safe shim target); extracted with `tools/deb2home.sh` instead (bypasses maintainer scripts entirely), then `JAVA_HOME`. See `recipes/openjdk-25-jre-headless.recipe` and #7 |
 | `prismlauncher` | GUI app — needs `contrib` added to `sources.list.d` (it's not in `main`) and a one-time seeded-Qt6 unlock; run via `tools/prefix-run.sh --gui`. Verified on a live Mobian/Phosh session: window rendered, logged into a Minecraft account, downloaded a modded instance, and **the game itself launched and ran with no visible problems (GL + audio working)** — #8's full acceptance bar. See `recipes/prismlauncher.recipe` and #8 |
+| `golang-go` | **floor tier**, not even `env` — `go version` and a real `go run` both work with zero env vars (self-locates from argv[0], same trick as `java`). See `recipes/golang-go.recipe` and #6 |
+| `nodejs` | **not** floor-fixable, despite looking like a floor candidate — needs `LD_LIBRARY_PATH` for `libnode.so`, then a hardcoded `/usr/share/nodejs/undici/...` path that no env var reaches; needs `overlay`. See `recipes/nodejs.recipe` and #6 |
 
 General rule: **leaf, user-space binaries with no root-needing maintainer
 script** install and run. A postinst blocker or interpreter search-path gap

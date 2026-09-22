@@ -1,0 +1,20 @@
+# nodejs — a real "floor-fixable? no" case from #6's own in/out taxonomy
+# (category 3: "absolute data path baked in, needs overlay/proot"). Tested
+# the whole ladder rather than assumed:
+#   - `node -e '...'` with zero env: fails, can't find libnode.so.137
+#     (needs LD_LIBRARY_PATH — that part IS floor-fixable).
+#   - with LD_LIBRARY_PATH set: node itself loads, then crashes loading
+#     "internal/deps/undici/undici" from the hardcoded
+#     /usr/share/nodejs/undici/undici-fetch.js — a path node's build baked
+#     in, not a dynamic-linker lookup, so no env var reaches it.
+#   - through tools/prefix-run.sh (overlay, $PREFIX/usr stacked on the
+#     host's /usr): works. That absolute path resolves once /usr/share
+#     itself is the prefix's copy, which only overlay (or rootfs) can do.
+# So nodejs needs the next tier up — not floor, not a bug in check-package.sh
+# either (its runtime=direct verdict was about node's own /usr/bin script
+# content, not this internal builtin-loader path).
+package  nodejs
+install  risky
+tier     overlay
+verify   tools/prefix-run.sh node -e process.version
+note     needs overlay, not floor — hardcoded /usr/share/nodejs/undici path, not an LD_LIBRARY_PATH gap

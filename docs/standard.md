@@ -6,6 +6,34 @@ tier** a package needs and the mechanism that gets it there, and
 `scripts/recipes.sh` verifies the claim. See [`paths.md`](paths.md) for why the
 tiers exist.
 
+## Design principle: triage, not universal support
+
+sudo-less does not "handle the userspace." It **classifies** it and handles
+the selected slices at the least tier each needs. The unit of work is never
+"make everything work" — it's: *decide which problem this package is, then
+either solve it at the cheapest tier that works, or declare it `never` with
+a reason.* That's triage, and the recipe database **is** the triage table:
+
+1. `check-package.sh` → does it install without root? (`ok` / `risky` /
+   `unlikely`)
+2. `check-package.sh --runtime` → does it read baked-in paths, or does an
+   interpreter's own search path miss the prefix?
+3. Assign the **minimum tier**: `direct` | `env` | `overlay` | `rootfs` |
+   `gui` | `never`.
+4. Solvable → a `recipes/<pkg>.recipe`, `verify` passes.
+5. Not solvable → a `tier never` recipe with the reason (root-only postinst,
+   32-bit-only, self-updating, service, …) — see `recipes/screen.recipe`,
+   `recipes/javascript-common.recipe`.
+
+This is legitimate, not lazy, because it's **data-driven**: `check-package.sh`
+classifies, the recipe declares the tier, `verify` proves it — the same
+input always gets the same verdict, and a `never` verdict records *why* a
+package is excluded rather than leaving a silent gap. A collector lists
+solutions ("use Homebrew for this, Flatpak for that"); a standard routes
+problems. Universal `.deb` coverage is explicitly not the goal — prefer a
+`never` verdict over a fragile hack, and answer every new package request
+with classification + a recipe, not by widening a mechanism "just in case."
+
 ## Tiers (normative)
 
 Each tier states what it **requires**, what it **guarantees**, and what it

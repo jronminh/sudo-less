@@ -57,7 +57,7 @@ have no root to create it there — that's when this doc applies.
 | tier | what it takes | durability | root used |
 |---|---|---|---|
 | **A. One-time root** | someone with `sudo` runs `install -d -o "$USER" -g "$USER" /run/whatever` once, plus a `systemd-tmpfiles.d` drop-in so it's recreated every boot | permanent | one brief, auditable action; never again |
-| **B. Namespace bridge** (`flatpak/bridge.sh`) | an unprivileged `bwrap` wrapper around `flatpak run` that substitutes the fixed path for your userspace one *before* Flatpak's own sandbox is built | per-launch — re-applied every time you start the app (wrap the launcher / `.desktop` file `Exec=`) | none, ever |
+| **B. Namespace bridge** (`flatpak/bridge.sh` + `flatpak/install-launcher.sh`) | an unprivileged `bwrap` wrapper around `flatpak run` that substitutes the fixed path for your userspace one *before* Flatpak's own sandbox is built | `bridge.sh` alone is per-invocation; `install-launcher.sh` makes it persistent once, by overriding the app's `.desktop` `Exec=` | none, ever |
 | **C. Patch + rebuild the app** | add the missing override yourself, build the app in the userspace prefix instead of using the Flatpak build | permanent, no root | real build effort (the app's own toolchain, e.g. GTK4/libadwaita for a Go+gotk4 app) |
 
 A is the cheapest fix *if* root is reachable at all, even once — it's a
@@ -128,6 +128,38 @@ sandbox. Kill every existing instance of the app first, then check the
   distinction — connection-refused vs. an answer from the other end — is
   the actual proof, not "the app didn't crash."
 
+## `flatpak/install-launcher.sh` — making the bridge persistent
+
+`bridge.sh` only fixes the one launch you invoke it for. Nothing else
+about how you'd normally start the app — the icon, the taskbar entry,
+the app switcher — goes through it, so the very next launch reverts to
+the broken, unbridged path. `install-launcher.sh` closes that gap once:
+
+```sh
+flatpak/install-launcher.sh APPID FAKE=REAL [FAKE=REAL...]
+
+flatpak/install-launcher.sh dev.deedles.Trayscale \
+  /run/tailscale=/run/user/"$(id -u)"/tailscale
+```
+
+It finds the app's Flatpak-exported `.desktop` file (owned by Flatpak,
+regenerated on every update — never edit it in place), copies every field
+except `Exec=`, and writes the result to
+`~/.local/share/applications/<APPID>.desktop`. That shadows the
+Flatpak-managed entry for the same desktop-file ID, because `$XDG_DATA_HOME`
+(`~/.local/share`) is searched before Flatpak's own exports dir is added to
+`$XDG_DATA_DIRS` — the standard, supported way to override a Flatpak app's
+launcher command without touching Flatpak's own files. Run it once per app;
+every subsequent icon click, taskbar launch, or app-switcher entry goes
+through the bridge automatically from then on.
+
+Verify the same way as the bridge itself (kill every running instance,
+check for real daemon responses instead of `dial unix ... no such file`)
+but launch it the way a person would: `gio launch
+~/.local/share/applications/<APPID>.desktop`, not `bridge.sh` directly —
+that's what actually proves the persistent path works, not just the
+one-off invocation.
+
 ## Recording a fix: `flatpak/fixes/<app-id>.fix`
 
 One file per bridged app, plain `key value` lines, same spirit as
@@ -140,6 +172,7 @@ different problem:
 | `expects` | yes | the fixed host path the app/manifest requires, and why it has no override (cite the source checked) |
 | `daemon` | yes | how the userspace-side daemon is started (command, socket path) |
 | `bridge` | yes | the exact `FAKE=REAL` mapping(s) passed to `bridge.sh` |
+| `launcher` | no | the `install-launcher.sh` invocation, if a persistent launcher override was installed |
 | `verify` | yes | the log evidence that proves the connection (not just "it launched") |
 | `status` | yes | `verified` (run for real, log evidence recorded) or `proposed` (untested) |
 | `note` | no | free text, repeatable — caveats, unrelated gaps found along the way |

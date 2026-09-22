@@ -328,12 +328,25 @@ flatpak/bridge.sh dev.deedles.Trayscale \
   /run/tailscale=/run/user/"$(id -u)"/tailscale
 ```
 
+`bridge.sh` alone only fixes the one launch you invoke it for — the icon,
+taskbar, and app switcher all still go through a bare `flatpak run` and
+revert to broken. `flatpak/install-launcher.sh` makes it persistent once,
+by overriding the app's `.desktop` `Exec=` (never Flatpak's own copy,
+which lives in its managed store and gets regenerated on update):
+
+```sh
+flatpak/install-launcher.sh dev.deedles.Trayscale \
+  /run/tailscale=/run/user/"$(id -u)"/tailscale
+```
+
 Verified for real against Trayscale (an unofficial Tailscale GUI) and a
 userspace `tailscaled`: before the bridge, its log showed `dial unix
 .../tailscaled.sock: no such file or directory`; after, real answers from
-the daemon. See [`docs/flatpak-bridge.md`](docs/flatpak-bridge.md) for the
-mechanism, the tiers (this is the no-root one; a one-time-root `tmpfiles.d`
-fix and rebuilding the app from source are the other two), and the
+the daemon — both through a direct `bridge.sh` call and through `gio
+launch` on the installed launcher, proving the persistent path works too.
+See [`docs/flatpak-bridge.md`](docs/flatpak-bridge.md) for the mechanism,
+the tiers (this is the no-root one; a one-time-root `tmpfiles.d` fix and
+rebuilding the app from source are the other two), and the
 `flatpak/fixes/<app-id>.fix` recording format —
 [`flatpak/fixes/dev.deedles.Trayscale.fix`](flatpak/fixes/dev.deedles.Trayscale.fix)
 is the worked example.
@@ -376,7 +389,8 @@ shims/       PATH shims a recipe's `shim` key requires, installed to $PREFIX/bin
 tools/       deb2home.sh   (extract a .deb into $HOME without root)
              prefix-run.sh (run a command with the prefix presented at /)
 flatpak/     bridge.sh (substitute a userspace daemon's path into a Flatpak
-             app's sandbox — see docs/flatpak-bridge.md); fixes/<app-id>.fix
+             app's sandbox), install-launcher.sh (make it persistent via a
+             .desktop override — see docs/flatpak-bridge.md); fixes/<app-id>.fix
              per bridged app, same spirit as recipes/ for a different problem
 admin/       root-side scripts run by the admin account (example setup)
 ```

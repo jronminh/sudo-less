@@ -176,6 +176,15 @@ The key idea is that **root inside a sandbox is not root on the host**:
 The result: the transformation is *easy* (a real root to work with) and the
 host stays *safe* (that root never reaches it).
 
+**The hardening is optional.** The userspace package manager — and the tiered
+approach to which packages work, and how — are useful with or without `sudo`.
+What changes is only *which* build path and runtime tier are reachable, not
+whether the toolkit is worth using. Run it **sudo-ful** and you still get a
+clean `~/.local` prefix, a pristine `/usr`, and disposable per-project
+toolchains; you additionally get the lighter `build-on-host` path and the
+strongest tiers for free. sudo-less is the extreme end of a spectrum, not the
+only mode.
+
 ## Who is this for
 
 - **Locked-down / managed Linux** where you have no admin rights but still need
@@ -183,6 +192,8 @@ host stays *safe* (that root never reaches it).
 - **Shared multi-user hosts** — labs, jumphosts, CI sandboxes — where touching
   system packages is forbidden or antisocial.
 - **Hardened / minimal systems** that are deliberately root-free.
+- **You have `sudo` but want a pristine system** — install into `~/.local`
+  anyway and leave `/usr` untouched (the sudo-ful mode).
 - **Mobian phones and tablets** — see above.
 - Anyone who wants **Debian `.deb`s + apt/dpkg semantics** (a real package
   database, `remove`/`upgrade`/`list`) in their home — not Homebrew bottles or
@@ -191,7 +202,9 @@ host stays *safe* (that root never reaches it).
 
 ## Who it is *not* for
 
-- If you have `sudo`, just use `apt`.
+- If you have `sudo` **and don't care about keeping the system tree pristine**,
+  just use `apt`. (The prefix isolation is still useful sudo-ful — see *Why this
+  exists*.)
 - For plain user-space CLI tools, **Homebrew/Linuxbrew** is more mature.
 - HPC/scientific stacks: **conda / spack / modules** already cover it.
 - Desktop isolation: **distrobox / toolbox / flatpak / nix**.

@@ -83,6 +83,21 @@ shim     py3compile
 verify   ranger --version
 ```
 
+## Language and dependencies
+
+The whole project stays **bash + plain text**. This is a hard rule, not a
+preference:
+
+- scripts are bash (`#!/usr/bin/env bash`); **no interpreter beyond bash**.
+- recipes are **data** — plain-text `key value`, parsed with `sed`, not
+  TOML/YAML/JSON (that is why the format is line-based).
+- `verify` and `env` values are shell.
+- no compiled helper, no third-party runtime, no `jq`/Python/parser.
+
+The higher tiers call standard Debian tools (`bwrap`, `proot`, `mmdebstrap`) as
+*programs*, not language runtimes; the `direct` and `env` tiers need none of
+them.
+
 ## Versioning
 
 Spec **v1**. Adding a tier or a key is a spec change; adding recipes is not.

@@ -41,8 +41,9 @@ per line, `#` comments, blank lines ignored — no parser, no dependencies.
 Rules:
 
 - `install` is the **raw** verdict, *before* the recipe's `shim`/`env` are
-  applied — so `ranger` is `install unlikely` *and* `tier env` with a
-  `py3compile` shim. That difference is the fix.
+  applied — so `ranger` is `install risky` (its postinst calls `py3compile`
+  against an absolute path) fixed to `tier direct` by a `shim`. That
+  difference is the fix.
 - A `tier never` recipe carries a `note` explaining the exclusion and no
   `verify`.
 
@@ -71,16 +72,30 @@ verify   jq --version
 ```
 
 `recipes/ranger.recipe` — pure Python; the postinst byte-compiles into the
-absolute `/usr/lib/python3/dist-packages` (so the raw verdict is `unlikely`),
-and the modules land off `sys.path`. A shim plus one env var fix both:
+absolute `/usr/lib/python3/dist-packages` (so the raw verdict is `risky`). A
+shim fixes the install; `sys.path` is handled globally by
+`install-config.sh`'s `.pth` in the system python3's user site (#5), so no
+recipe-level `env` is needed and the tier is `direct`:
 
 ```
 package  ranger
-install  unlikely
-tier     env
-env      PYTHONPATH=$PREFIX/usr/lib/python3/dist-packages
+install  risky
+tier     direct
 shim     py3compile
 verify   ranger --version
+```
+
+`recipes/pmarkdown.recipe` — pure Perl; `check-package.sh` calls it `OK` (no
+absolute path baked into its own script), but host perl's default `@INC`
+never includes `$PREFIX`, so `use Markdown::Perl;` fails without an explicit
+`env`:
+
+```
+package  pmarkdown
+install  ok
+tier     env
+env      PERL5LIB=$PREFIX/usr/share/perl5:$PREFIX/usr/lib/x86_64-linux-gnu/perl5/5.42
+verify   pmarkdown --version
 ```
 
 ## Language and dependencies

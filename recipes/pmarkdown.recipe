@@ -3,8 +3,9 @@
 # "OK"/direct: its own /usr/bin/pmarkdown has no absolute paths baked in, but
 # system perl's compiled-in @INC (/usr/share/perl5, /usr/lib/<arch>/perl5/<ver>)
 # never includes $PREFIX, so `use Markdown::Perl;` fails outright — the same
-# module-search-path gap as ranger's PYTHONPATH, just invisible to the
-# classifier because it only scans binaries, not perl's own @INC. See #7.
+# module-search-path gap as Python's sys.path (see #5's .pth fix for
+# ranger), just invisible to the classifier because it only scans binaries,
+# not perl's own @INC. See #7.
 #
 # CAVEAT: the arch/version path segment (x86_64-linux-gnu/perl5/5.42) is this
 # host's perl ABI triplet, not portable — regenerate it per host

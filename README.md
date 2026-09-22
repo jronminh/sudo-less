@@ -291,11 +291,11 @@ scripts/recipes.sh verify    # prove every recipe still works
 ```
 
 ```sh
-# recipes/ranger.recipe — raw verdict is "unlikely", fixed at the floor tier
+# recipes/ranger.recipe — raw verdict is "risky" (py3compile postinst),
+# fixed by a shim; sys.path is handled globally, so tier is direct
 package  ranger
-install  unlikely
-tier     env
-env      PYTHONPATH=$PREFIX/usr/lib/python3/dist-packages
+install  risky
+tier     direct
 shim     py3compile
 verify   ranger --version
 ```
@@ -321,18 +321,27 @@ Details and the `check-package.sh` predictor:
 docs/        methodology, mobile, porting, apt-dpkg-port, paths, standard,
              working-packages, polkit, roles, hardening, waydroid
 scripts/     build-apt, build-dpkg, build-on-host, make-buildroot, build-in-rootfs,
-             build-in-container, install-config, install-shell-path,
+             build-in-container, install-config (orchestrator: calls
+             apt-dpkg/install.sh then each ecosystem's), install-shell-path,
              install-session-env, lock-seeded, check-package, test-packages,
              recipes, fetch-sources, common
+apt-dpkg/    install.sh — apt/dpkg config, dpkg-db seeding, shims, shell PATH
+python/      install.sh — .pth into the system python3's user site (see #5)
 patches/     apt/{termux,local}, dpkg/termux   (verbatim upstream patches + our fixes)
 config/      apt.conf.d template, sources.list
 recipes/     one <pkg>.recipe per package (tier + mechanism; see docs/standard.md)
 shims/       PATH shims a recipe's `shim` key requires, installed to $PREFIX/bin
-             by install-config.sh (e.g. py3compile, for pure-Python postinst)
+             by apt-dpkg/install.sh (e.g. py3compile, for pure-Python postinst)
 tools/       deb2home.sh   (extract a .deb into $HOME without root)
              prefix-run.sh (run a command with the prefix presented at /)
 admin/       root-side scripts run by the admin account (example setup)
 ```
+
+Ecosystem-specific install-time hooks (currently just `python/`; Perl/Ruby/Java
+from #7 would each get their own top-level folder) live outside `apt-dpkg/`,
+which stays scoped to the apt/dpkg port itself. `scripts/install-config.sh` is
+the one stable entrypoint — it calls each folder's `install.sh` in turn, so
+callers never need to know the split happened.
 
 ## Scope & status
 

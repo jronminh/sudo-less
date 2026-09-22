@@ -51,16 +51,18 @@ DPKG_DEB="$(command -v dpkg-deb || echo "$PREFIX/bin/dpkg-deb")"
 ARCHIVES="$PREFIX/var/cache/apt/archives"
 
 # --- signals -----------------------------------------------------------------
-# HARD: a postinst/preinst step that needs root and will fail (or python apps
-# whose byte-compile/module paths are absolute).
-HARD_SCRIPT='systemctl|invoke-rc.d|update-rc.d|/etc/init.d|adduser|useradd|groupadd|debconf|ldconfig|chroot|py3compile|dpkg-statoverride|update-ca-certificates|update-crypto-policies'
-HARD_FILES='/usr/lib/python3/dist-packages/|/usr/lib/python3/|/etc/pam.d/|/usr/share/pam-configs/|/lib/modules/|/usr/lib/security/'
+# HARD: a postinst/preinst step that needs root and will fail, with no fix
+# this repo ships.
+HARD_SCRIPT='systemctl|invoke-rc.d|update-rc.d|/etc/init.d|adduser|useradd|groupadd|debconf|ldconfig|chroot|dpkg-statoverride|update-ca-certificates|update-crypto-policies'
+HARD_FILES='/etc/pam.d/|/usr/share/pam-configs/|/lib/modules/|/usr/lib/security/'
 HARD_DEPS='init-system-helpers|adduser|debconf|initramfs-tools|sysvinit-core|passwd|login'
 
-# SOFT: commonly non-fatal (Debian wraps these, or they only warn), or
-# system-integration artifacts that don't stop the binaries running.
-SOFT_SCRIPT='update-alternatives|update-menus|update-desktop-database|install-info|update-mime|update-mime-database|gtk-update-icon-cache|update-fonts|update-xmlcatalog|update-catalog|update-dictcommon|update-icon-caches'
-SOFT_FILES='/usr/lib/systemd/|/lib/systemd/|/etc/init.d/|/usr/libexec/|/usr/lib/udev/|/etc/dbus-1/|/usr/share/polkit-1/|/usr/lib/tmpfiles.d/|/etc/default/|/usr/share/dbus-1/|/etc/xdg/autostart/'
+# SOFT: commonly non-fatal (Debian wraps these, or they only warn), system
+# integration that doesn't stop the binaries running, or a blocker this repo
+# already ships a fix for (py3compile: shims/py3compile + install-config.sh's
+# .pth puts $PREFIX/usr/lib/python3/dist-packages on sys.path — see #5).
+SOFT_SCRIPT='update-alternatives|update-menus|update-desktop-database|install-info|update-mime|update-mime-database|gtk-update-icon-cache|update-fonts|update-xmlcatalog|update-catalog|update-dictcommon|update-icon-caches|py3compile'
+SOFT_FILES='/usr/lib/systemd/|/lib/systemd/|/etc/init.d/|/usr/libexec/|/usr/lib/udev/|/etc/dbus-1/|/usr/share/polkit-1/|/usr/lib/tmpfiles.d/|/etc/default/|/usr/share/dbus-1/|/etc/xdg/autostart/|/usr/lib/python3/dist-packages/|/usr/lib/python3/'
 
 # apt-cache/apt-get download need the package index; populate it if missing.
 if ! compgen -G "$PREFIX/var/lib/apt/lists/*_Packages*" >/dev/null; then

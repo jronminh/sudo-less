@@ -96,10 +96,11 @@ top, so `/tmp/.X11-unix` (X11), `$XDG_RUNTIME_DIR` (Wayland +
 PipeWire/Pulse), and `/dev/dri` (GPU, via the existing `--dev-bind /dev
 /dev`) are all already visible, and bwrap inherits the caller's environment
 (`DISPLAY`/`WAYLAND_DISPLAY`) by default. Verified end to end on a live
-Mobian/Phosh session: `prismlauncher` (#8's acceptance test) launched,
-rendered its window, connected to the network, and logged into and started
-downloading a modded instance — through *unmodified* `prefix-run.sh`,
-before `--gui` added anything.
+Mobian/Phosh session: `prismlauncher` launched, rendered its window,
+connected to the network, logged into a Minecraft account, downloaded a
+modded instance, and **launched the game itself with no visible problems
+(GL + audio working)** — #8's full "a world loads" acceptance bar, through
+*unmodified* `prefix-run.sh`, before `--gui` added anything.
 
 **`--gui` is what `rootfs` mode actually needs**, since that mode replaces
 `/` outright (`bwrap --bind "$ROOTFS" /`) and would not see `$XDG_RUNTIME_DIR`

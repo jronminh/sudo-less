@@ -16,9 +16,13 @@
 # with no session, which nothing did before.
 #
 # Verified for real, not just launched and assumed: logged into a Minecraft
-# account and downloaded a modded instance through the actual GUI, running
-# under this exact mechanism (tools/prefix-run.sh, unmodified aside from
-# --gui) on a live Mobian/Phosh session.
+# account, downloaded a modded instance, and launched the game itself
+# through it — ran with no visible problems (GL + audio both working),
+# meeting #8's full acceptance bar ("a world loads"). All of it through this
+# exact mechanism (tools/prefix-run.sh, unmodified aside from --gui) on a
+# live Mobian/Phosh session. Minecraft itself needed no extra work: per #8's
+# own analysis, Prism manages its own JDK download, so #7's Java-packaging
+# problem never came up for the game itself.
 package  prismlauncher
 install  ok
 tier     gui

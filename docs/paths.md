@@ -81,6 +81,42 @@ bwrap --ro-bind / / \
 writes to `/etc` don't touch the host. Overlaying is required rather than
 `--bind "$PREFIX/usr" /usr`: a bind would *hide* the system libraries.
 
+## GUI/session passthrough: `--gui`
+
+A GUI app needs more than paths — a display, a GPU and an audio socket. Add
+`--gui`:
+
+```sh
+tools/prefix-run.sh --gui prismlauncher
+```
+
+**Overlay mode already sees the session by accident**: its base bind is the
+*entire* host `/` (`--ro-bind / /`) before overlaying `$PREFIX/usr`,`etc` on
+top, so `/tmp/.X11-unix` (X11), `$XDG_RUNTIME_DIR` (Wayland +
+PipeWire/Pulse), and `/dev/dri` (GPU, via the existing `--dev-bind /dev
+/dev`) are all already visible, and bwrap inherits the caller's environment
+(`DISPLAY`/`WAYLAND_DISPLAY`) by default. Verified end to end on a live
+Mobian/Phosh session: `prismlauncher` launched, rendered its window,
+connected to the network, logged into a Minecraft account, downloaded a
+modded instance, and **launched the game itself with no visible problems
+(GL + audio working)** — #8's full "a world loads" acceptance bar, through
+*unmodified* `prefix-run.sh`, before `--gui` added anything.
+
+**`--gui` is what `rootfs` mode actually needs**, since that mode replaces
+`/` outright (`bwrap --bind "$ROOTFS" /`) and would not see `$XDG_RUNTIME_DIR`
+without an explicit bind. `--gui` adds that bind (plus explicit
+`--setenv DISPLAY`/`WAYLAND_DISPLAY`/`XDG_RUNTIME_DIR`, and Java's
+`_JAVA_AWT_WM_NONREPARENTING=1`) for both `overlay` and `rootfs`, and —
+something nothing did before — **refuses clearly** if no `DISPLAY`+X11
+socket or `WAYLAND_DISPLAY`+socket is detected, rather than letting the GUI
+app fail deep inside its own Wayland/Qt init with a cryptic error. It's
+incompatible with `--mode env`: without an overlay or rootfs, the app's own
+`/usr/lib` paths won't resolve either, session or not.
+
+`scripts/recipes.sh`'s `gui` tier mirrors this: `tier_ok` checks for both
+`bwrap` and a live session, so `verify` reports `SKIP` (not a false `FAIL`)
+when run from a session-less shell.
+
 ## The consequence
 
 This is exactly the "what works / what breaks" split in

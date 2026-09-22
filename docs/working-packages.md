@@ -66,6 +66,7 @@ the system). Only packages the system lacks are actually installed into
 | `pmarkdown` | pure-Perl CLI — `PERL5LIB`, see `recipes/pmarkdown.recipe` and #7 |
 | `yard` | Ruby (pulls in a fresh interpreter) — run via `tools/prefix-run.sh --mode overlay`, see `recipes/yard.recipe` and #7 |
 | `openjdk-25-jre-headless` | Java — apt install is a **dead end** (root-only `/etc/.java` postinst, no safe shim target); extracted with `tools/deb2home.sh` instead (bypasses maintainer scripts entirely), then `JAVA_HOME`. See `recipes/openjdk-25-jre-headless.recipe` and #7 |
+| `prismlauncher` | GUI app — needs `contrib` added to `sources.list.d` (it's not in `main`) and a one-time seeded-Qt6 unlock; run via `tools/prefix-run.sh --gui`. Verified on a live Mobian/Phosh session: window rendered, logged into a Minecraft account, downloaded a modded instance, and **the game itself launched and ran with no visible problems (GL + audio working)** — #8's full acceptance bar. See `recipes/prismlauncher.recipe` and #8 |
 
 General rule: **leaf, user-space binaries with no root-needing maintainer
 script** install and run. A postinst blocker or interpreter search-path gap

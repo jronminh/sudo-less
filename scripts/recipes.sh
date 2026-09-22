@@ -15,6 +15,21 @@ ROOTFS="${ROOTFS:-$HOME/buildroot}"
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# A session to pass through: DISPLAY with its X11 socket, or WAYLAND_DISPLAY
+# with its socket under $XDG_RUNTIME_DIR. Mirrors tools/prefix-run.sh's own
+# check — kept as a small duplicate rather than a shared dependency, same as
+# have() above.
+session_ok() {
+  if [ -n "${DISPLAY:-}" ] && [ -S "/tmp/.X11-unix/X${DISPLAY#:}" ]; then
+    return 0
+  fi
+  if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ] \
+     && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+    return 0
+  fi
+  return 1
+}
+
 # field FILE KEY — print every value for KEY (one per line)
 field() { sed -n "s/^$2[[:space:]]\{1,\}//p" "$1"; }
 
@@ -29,7 +44,8 @@ recipe_file() { # PKG
 tier_ok() { # TIER -> 0 ok, 1 missing prerequisites, 2 never
   case "$1" in
     direct|env) return 0 ;;
-    overlay|gui) have bwrap ;;
+    overlay)    have bwrap ;;
+    gui)        have bwrap && session_ok ;;
     rootfs)     [ -x "$ROOTFS/bin/sh" ] ;;
     never)      return 2 ;;
     *)          return 1 ;;

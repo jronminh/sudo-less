@@ -13,6 +13,18 @@ Dir::Etc::trusted "@PREFIX@/etc/apt/trusted.gpg";
 Dir::Etc::trustedparts "@PREFIX@/etc/apt/trusted.gpg.d";
 Dir::Bin::methods "@PREFIX@/lib/apt/methods";
 Dir::Bin::dpkg "@PREFIX@/bin/dpkg";
+// apt-key's own path, and the solver/planner search dirs, are compiled-in
+// defaults (CMAKE_INSTALL_FULL_BINDIR / LIBEXEC_DIR at *build* time) that
+// nothing else here overrides — found by actually testing a relocated
+// prefix under a different user than the one that built it: apt-get update
+// failed with "Couldn't execute /home/master/.local/bin/apt-key" on a
+// prefix extracted to /home/tester/.local. Without this, only Dir::Bin::dpkg
+// and Dir::Bin::methods above were actually relocatable.
+Dir::Bin::apt-key "@PREFIX@/bin/apt-key";
+#clear Dir::Bin::solvers;
+Dir::Bin::solvers:: "@PREFIX@/lib/apt/solvers";
+#clear Dir::Bin::planners;
+Dir::Bin::planners:: "@PREFIX@/lib/apt/planners";
 
 DPkg::Path "@PREFIX@/sbin:@PREFIX@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 DPkg::Options:: "--admindir=@PREFIX@/var/lib/dpkg";

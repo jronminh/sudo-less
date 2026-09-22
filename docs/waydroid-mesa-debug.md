@@ -187,21 +187,43 @@ crisp, full-resolution.
 **Native → only 1/4 of the screen visible.** Same HiDPI root cause,
 opposite direction: Android was rendering its buffer at the *physical*
 resolution (`persist.waydroid.width/height=1920x1200`, matching the panel),
-but Waydroid's Wayland client never declares `buffer_scale=2` to `phoc`.
-An unscaled buffer's pixels get placed 1:1 into logical space, so a
-1920x1200 buffer landed in a 960x600-logical output — 4x oversized, only
-the top-left logical 960x600 (physical-pixel) corner ever visible.
+but Waydroid's Wayland client never declared `buffer_scale=2` to `phoc`
+while those props were set. An unscaled buffer's pixels get placed 1:1
+into logical space, so a 1920x1200 buffer landed in a 960x600-logical
+output — 4x oversized, only the top-left logical 960x600 (physical-pixel)
+corner ever visible.
 
-**Fix for the 1/4 clipping**: set `persist.waydroid.width=960` /
-`persist.waydroid.height=600` (the *logical*, not physical, size) via
-`waydroid prop set` — note this needs the session already running first
-(`prop get`/`set` fail with "session is stopped" otherwise) — then a full
-`session stop` + `session start` for SurfaceFlinger to pick it up fresh.
-Confirmed: fits correctly. Trade-off: lower absolute resolution than the
-panel's native 1920x1200 (same softness as the `cage` blur, different
-cause) — no known way yet to get Waydroid's Wayland client to declare
-`buffer_scale=2` and use the full native resolution without this
-workaround.
+**First (wrong) fix tried**: set `persist.waydroid.width=960` /
+`persist.waydroid.height=600` (the logical size). This did fit the screen,
+but at a real cost: lower absolute resolution than the panel's native
+1920x1200 — same softness as the `cage` blur, just a different cause.
+Superseded by the real fix below; recorded here so nobody re-tries it.
+
+**Actual fix, found by reading Waydroid's own hwcomposer source**
+(`waydroid/android_hardware_waydroid`, `hwcomposer/wayland-hwc.cpp`):
+Waydroid has real, working HiDPI auto-calibration built in — it listens
+for the compositor's `wl_output.scale` event, computes
+`ro.sf.lcd_density = default_density(180) × scale`, and properly declares
+`wl_surface_set_buffer_scale()` (or uses `wp_viewporter` if the compositor
+offers it, which `phoc` does). **But `choose_width_height()` skips that
+entire path the moment `persist.waydroid.width`/`height` are set at all**
+— literally commented `// Ignore hint it requested` in the source. Those
+props were sitting at `1920`/`1200` as **stale leftovers from the original
+old-Mesa debugging session**, before anything was touched today — that's
+what actually broke this, not a Waydroid limitation. Setting them to
+960x600 "fixed" the fit by accident while keeping the real auto-calibration
+disabled.
+
+**Fix**: `waydroid prop set persist.waydroid.width ""` and same for
+`height` — genuinely *clear* them, don't set them to anything — then a
+full `session stop` + `session start` for calibration to run fresh (needs
+the session running first to reach `prop set` at all, same chicken-and-egg
+as before). Confirmed via `waydroid prop get waydroid.display_scale` →
+`2.000000` (correctly auto-detected) and `ro.sf.lcd_density` → `360`
+(`180×2`, matching the source's formula exactly), and
+screenshot-confirmed: **crisp native resolution and correct fit,
+simultaneously** — no trade-off. Also happened to still be running with
+multi-window enabled (§9) at the time, which visibly worked fine too.
 
 ## 12. App-drawer visibility (2026-09-22)
 

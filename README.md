@@ -90,6 +90,12 @@ plain `apt`/`apt-get` in your shell to manage your own tools.
 
 Full detail: [`docs/apt-dpkg-port.md`](docs/apt-dpkg-port.md).
 
+Everything in this repo is **plain shell scripts** — no binaries, no daemon, no
+third-party runtime. The only compiled code is `apt` and `dpkg` themselves,
+built from Debian's source. That's deliberate, and it's what makes the project
+special: you can read every line of what runs on your machine, and there is
+nothing to trust but the code in this repo.
+
 ## Going deeper
 
 - [`docs/paths.md`](docs/paths.md) — why some packages need extra help, and how.

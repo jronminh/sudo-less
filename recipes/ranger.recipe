@@ -1,0 +1,10 @@
+# ranger — pure Python. Raw check-package verdict is "unlikely": its postinst
+# byte-compiles into the absolute /usr/lib/python3/dist-packages (ignoring the
+# prefix). With a py3compile shim the install completes, and PYTHONPATH puts the
+# relocated modules on sys.path.
+package  ranger
+install  unlikely
+tier     env
+env      PYTHONPATH=$PREFIX/usr/lib/python3/dist-packages
+shim     py3compile
+verify   ranger --version

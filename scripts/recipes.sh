@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# recipes.sh — list, show and verify sudo-less package recipes.
+#
+#   scripts/recipes.sh list
+#   scripts/recipes.sh show PKG
+#   scripts/recipes.sh verify [PKG...]     # default: every recipe
+#
+# A recipe is a plain-text key/value file under recipes/; the schema and the
+# tier contract are in docs/standard.md.
+set -euo pipefail
+source "$(dirname "$0")/common.sh"
+
+RECIPES="${RECIPES:-$REPO/recipes}"
+ROOTFS="${ROOTFS:-$HOME/buildroot}"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# field FILE KEY — print every value for KEY (one per line)
+field() { sed -n "s/^$2[[:space:]]\{1,\}//p" "$1"; }
+
+all_recipes() { find "$RECIPES" -maxdepth 1 -name '*.recipe' | sort; }
+
+recipe_file() { # PKG
+  local f="$RECIPES/$1.recipe"
+  [ -f "$f" ] || die "no recipe for '$1' (try: recipes.sh list)"
+  printf '%s' "$f"
+}
+
+tier_ok() { # TIER -> 0 ok, 1 missing prerequisites, 2 never
+  case "$1" in
+    direct|env) return 0 ;;
+    overlay|gui) have bwrap ;;
+    rootfs)     [ -x "$ROOTFS/bin/sh" ] ;;
+    never)      return 2 ;;
+    *)          return 1 ;;
+  esac
+}
+
+list_recipes() {
+  [ -d "$RECIPES" ] || die "no recipes directory: $RECIPES"
+  local f pkg inst tier
+  for f in $(all_recipes); do
+    pkg="$(field "$f" package)"; inst="$(field "$f" install)"; tier="$(field "$f" tier)"
+    printf '%-16s %-9s tier=%s\n' "${pkg:-?}" "${inst:-?}" "${tier:-?}"
+  done
+}
+
+verify_one() { # PKG -> 0 pass, 1 fail, 2 skip
+  local pkg="$1" f tier line sh vcmd tok=0
+  f="$(recipe_file "$pkg")"
+  tier="$(field "$f" tier)"
+
+  tier_ok "$tier" || tok=$?
+  if [ "$tok" -eq 2 ]; then
+    printf '%-16s FAIL  tier=never: %s\n' "$pkg" "$(field "$f" note | head -1)"
+    return 1
+  elif [ "$tok" -ne 0 ]; then
+    printf '%-16s SKIP  tier=%s prerequisites missing\n' "$pkg" "$tier"
+    return 2
+  fi
+
+  local missing=""
+  while read -r sh; do
+    [ -n "$sh" ] || continue
+    [ -e "$PREFIX/bin/$sh" ] || missing="$missing $sh"
+  done < <(field "$f" shim)
+  if [ -n "$missing" ]; then
+    printf '%-16s FAIL  missing shim(s):%s\n' "$pkg" "$missing"
+    return 1
+  fi
+
+  while read -r line; do
+    [ -n "$line" ] || continue
+    export "${line//\$PREFIX/$PREFIX}"
+  done < <(field "$f" env)
+
+  vcmd="$(field "$f" verify | head -1)"
+  if [ -z "$vcmd" ]; then
+    printf '%-16s PASS  (no verify command)\n' "$pkg"
+    return 0
+  fi
+  if bash -c "$vcmd" >/dev/null 2>&1; then
+    printf '%-16s PASS  %s\n' "$pkg" "$vcmd"
+    return 0
+  fi
+  printf '%-16s FAIL  %s\n' "$pkg" "$vcmd"
+  return 1
+}
+
+usage() {
+  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  exit "${1:-0}"
+}
+
+[ $# -gt 0 ] || usage 2
+cmd="$1"; shift
+
+case "$cmd" in
+  list)
+    list_recipes
+    ;;
+  show)
+    [ $# -eq 1 ] || die "usage: recipes.sh show PKG"
+    cat "$(recipe_file "$1")"
+    ;;
+  verify)
+    pkgs=()
+    if [ $# -gt 0 ]; then
+      pkgs=("$@")
+    else
+      [ -d "$RECIPES" ] || die "no recipes directory: $RECIPES"
+      while IFS= read -r f; do
+        pkgs+=("$(basename "${f%.recipe}")")
+      done < <(all_recipes)
+    fi
+    [ "${#pkgs[@]}" -gt 0 ] || die "no recipes found in $RECIPES"
+    fails=0
+    for p in "${pkgs[@]}"; do
+      verify_one "$p" || fails=$((fails + 1))
+    done
+    [ "$fails" -eq 0 ] || { echo "recipes: $fails failed" >&2; exit 1; }
+    ;;
+  -h|--help)
+    usage 0
+    ;;
+  *)
+    die "unknown command: $cmd (list|show|verify)"
+    ;;
+esac

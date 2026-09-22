@@ -90,3 +90,7 @@ utilities, interpreters, `-dev` libraries) work directly; anything that reads
 Python applications, services, PAM/setuid helpers — needs `prefix-run.sh` (or a
 complete rootfs), and services/setuid stay out of scope either way.
 `scripts/check-package.sh --runtime` reports which class a package is in.
+
+The tiers above are a **standard**: each package declares its minimum tier and
+the mechanism that gets it there in a `recipes/<pkg>.recipe`, verified by
+`scripts/recipes.sh`. The normative contract is [`standard.md`](standard.md).

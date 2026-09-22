@@ -1,0 +1,5 @@
+# jq — relocatable binary; runs with PATH alone (no prefix paths baked in).
+package  jq
+install  ok
+tier     direct
+verify   jq --version

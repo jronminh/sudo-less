@@ -271,3 +271,61 @@ documented here so nothing is orphaned:
   `~mobian/phoc-backup/`, given this exact file's history of causing a
   stuck-DRM-master crash loop requiring a reboot (§6 above). Not currently
   planned to be touched.
+
+## 14. Multi-window: root cause pinned down exactly (2026-09-22, not yet fixed)
+
+Retesting multi-window (§9, §11) surfaced a *second* symptom beyond the
+known crash — booted fine, but a floating app window filled only about
+half the screen vertically. Diagnosed by disabling
+`persist.waydroid.multi_windows` and confirming full-screen mode fills the
+display correctly top-to-bottom (screenshot-verified) — so this is
+specifically a multi-window/freeform sizing bug, same buggy area as the
+known upstream crash (`waydroid/waydroid#1446`), not the display-scale fix
+from §11 (that one's independently confirmed correct).
+
+**Exact bug, found by reading the real LineageOS 20 source** (this vendor
+image is LineageOS 20 VANILLA) — not decompiled/guessed, the actual
+upstream file:
+[`LaunchParamsUtil.java`](https://github.com/LineageOS/android_frameworks_base/blob/lineage-20.0/services/core/java/com/android/server/wm/LaunchParamsUtil.java),
+`services/core/java/com/android/server/wm/LaunchParamsUtil.java`,
+method `getDefaultFreeformSize()`:
+
+```java
+final int portraitHeight = Math.min(stableBounds.width(), stableBounds.height());
+final int otherDimension = Math.max(stableBounds.width(), stableBounds.height());
+final int portraitWidth = (portraitHeight * portraitHeight) / otherDimension;  // divides by 0
+```
+
+When `stableBounds` is an empty `Rect` (0x0) at the point this runs,
+`otherDimension` is `0` → `ArithmeticException`. This is exactly the
+"stable bounds are 0x0 at boot" symptom from the original notes (§9) —
+sometimes it crashes outright (the known upstream issue), sometimes it
+apparently limps through with a bad size instead (today's half-height
+symptom) — same root cause, timing-dependent outcome.
+
+**The fix itself is trivial** — a one-line divide-by-zero guard:
+
+```java
+final int portraitWidth = (otherDimension == 0) ? portraitHeight
+        : (portraitHeight * portraitHeight) / otherDimension;
+```
+
+**What deploying it actually needs** (not done — parked, revisit if
+multi-window becomes worth having): this is compiled into `services.jar`'s
+dex inside the running system image already, so a source-level `.java`
+patch can't just be dropped in. Options: (a) a full LineageOS/AOSP
+rebuild — not remotely feasible on this hardware; (b) a surgical
+smali-level patch to just this one method (disassemble the class,
+add the equivalent guard, reassemble, repack `services.jar`, drop into
+the Waydroid overlay so the base image stays untouched). (b) is realistic
+— the phone at `ssh fe2` (Termux, Tailscale) already has a working Android
+build toolchain (`jadx`, `javac`, `d8`, `aapt`, `apksigner`, `zipalign`,
+`keytool` — used to build an existing `~/python-apk/pyrunner.apk` project
+there) but not `smali`/`baksmali` specifically; `apktool` (bundles both)
+is available via `pkg install apktool` in Termux's repo but not yet
+installed. **Decision: leave multi-window off
+(`persist.waydroid.multi_windows=false`, already set) and treat
+single-window as the stable daily state** — this is a real, understood,
+fixable bug, just not worth the effort right now for a "nice to have"
+(simultaneous floating app windows) when single-window already works
+crisply.

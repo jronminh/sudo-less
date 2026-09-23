@@ -1,5 +1,6 @@
 src/
 build-apt/
+dist/
 *.tar.gz
 *.tar.xz
 *.log

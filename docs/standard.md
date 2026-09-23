@@ -49,7 +49,7 @@ stable.
 | `direct` | **supported** | nothing | relocatable binaries run with `PATH` (+ `LD_LIBRARY_PATH`) | anything reading paths not on `PATH` |
 | `env` | **supported** | nothing (no root, no namespaces, no new deps) | lookups the program exposes an env knob for (`PYTHONPATH`, `PERL5LIB`, `GEM_PATH`, `CLASSPATH`, `XDG_*`, …) | absolute paths baked into binaries; root-only postinst |
 | `overlay` | experimental | overlayfs ≥ 5.11 + unprivileged userns (enabled once by `admin/native/enable-userspace.sh`) + a runner: `bwrap`, or util-linux alone (`overlay-native`) | hardcoded `/etc`, `/usr/share`, `/usr/lib` resolve to the prefix, stacked over the system tree | root-only postinst; session integration |
-| `rootfs` | experimental | a complete rootfs + `bwrap`/`proot`/`chroot` | a real `/`: paths *and* root-only postinst (dpkg runs as root inside) | host services, kernel/initramfs, host integration |
+| `rootfs` | experimental | a complete rootfs (`mmdebstrap`) + a runner: `bwrap`, util-linux + `chroot` (`rootfs-native`), or `proot` | a real `/`: paths *and* root-only postinst (dpkg runs as root inside) | host services, kernel/initramfs, host integration |
 | `gui` | experimental | an `overlay`/`rootfs` runner **plus** a desktop session | display, GPU and audio passed through | — |
 | `never` | out of scope | — | nothing: documented as out of scope | 32-bit-only, self-updating/proprietary, container-in-container, services, PAM/setuid |
 

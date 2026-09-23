@@ -83,7 +83,7 @@ tar -xf ~/buildroot.tar -C ~/buildroot --no-same-owner --exclude='./dev/*'
 `./dev` is skipped: device nodes can't be created unprivileged, and we bind the
 host's `/dev` when entering anyway.
 
-### Entering the rootfs — `bwrap`
+### Entering the rootfs — `bwrap` (or `unshare` + `chroot`)
 
 ```sh
 bwrap --bind ~/buildroot / \
@@ -103,8 +103,12 @@ user namespaces, with `-0` faking uid 0. But on hosts that restrict ptrace
 on recent kernels its seccomp accelerator needs `PROOT_NO_SECCOMP=1`. Prefer
 `bwrap`.
 
-`unshare -Ur -m chroot ~/buildroot` is another alternative (faster, no ptrace
-overhead) but needs you to mount `/proc`, `/dev`, `/sys` yourself.
+`unshare -Urm` + `chroot` needs nothing beyond util-linux and coreutils (no
+ptrace, no bwrap); `tools/prefix-run.sh --mode rootfs-native` does the binds
+for you (see `docs/paths.md`), and `build-in-rootfs.sh` falls back to it when
+bwrap is missing. `mmdebstrap` itself needs no admin either: install it with
+the userspace apt (`apt-get install mmdebstrap`), only `uidmap` (setuid
+`newuidmap`) comes from `admin/third-party/install-tools.sh`.
 
 ---
 
@@ -187,3 +191,25 @@ See `docs/polkit.md` and `docs/roles.md`. Verify the whole setup with
 - `distrobox enter` integration vs. the dpkg lock (see above).
 - Explicit `apt-get install` lists beat `build-dep` when the suite's package
   version differs from the one you are building.
+
+---
+
+## Prior art: proot-distro
+
+[termux/proot-distro](https://github.com/termux/proot-distro) (GPL-3.0) runs
+full Linux userlands from OCI images without root, via `proot`. We don't adopt
+it: this repo targets a host that already *is* a full Debian, so a second,
+docker-like userland adds nothing, and `proot` needs ptrace, which
+`kernel.yama.ptrace_scope=2` forbids. Its *methods* solve the same no-root
+problems we have, so we learn from them:
+
+| method (proot-distro source) | applied here |
+|---|---|
+| host-side vs guest environment kept apart; `isolated`/`minimal` env modes (`execenv.py`, `commands/login/env.py`) | rootfs runners build the environment from an allowlist instead of inheriting the host's (a leaked host `PATH` made `dpkg` inside the rootfs resolve to the userspace one) — #28 |
+| bind checklist for a guest `/`: `/dev`, `/proc`, `/sys`, `/dev/shm`, `/dev/fd`, `resolv.conf`, `hosts` (`commands/login/proot_cmd.py`) | `tools/prefix-run.sh --mode rootfs-native` — #28 |
+| safe archive extraction: drop `..`, re-root every symlink hop inside the target, never write through a planted hardlink, skip device nodes (`helpers/tar_extract.py`) | audit of `deb2home` and the userspace dpkg unpack — #29 |
+| atomic writes (temp file + `rename`) and a per-container lock (`atomic.py`, `locking.py`) | prefix state written by the setup scripts — #30 |
+
+Not taken: OCI image pulls, container `ps`/`kill` bookkeeping (our runners
+`exec` the command in place, so there is nothing to track), faked `/proc`
+entries and `--link2symlink` (Android and proot specifics).

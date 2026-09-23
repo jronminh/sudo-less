@@ -19,7 +19,11 @@
 #            back to your own uid (needs util-linux >= 2.38 for --map-user).
 #            Unprivileged userns is enabled once by admin/native/enable-userspace.sh.
 #   rootfs   run inside a complete rootfs ($ROOTFS, from scripts/env/make-buildroot.sh) as
-#            "/" — via bwrap --bind, else proot -R, else chroot when root.
+#            "/", as namespace root — via bwrap, else rootfs-native, else proot -R.
+#   rootfs-native
+#            the same with no third-party runner: unshare -Urm + bind mounts +
+#            chroot (util-linux + coreutils only). A userspace runner: no mode
+#            here runs as real root.
 #   env      no namespaces: export LD_LIBRARY_PATH/XDG_DATA_DIRS/PATH, exec.
 #
 #   --gui      for GUI apps: refuse clearly if no display/session is
@@ -38,7 +42,7 @@ source "$(dirname "$0")/../scripts/common.sh"
 MODE=auto PRINT=0 EXPLAIN=0 GUI=0
 ROOTFS="${ROOTFS:-$HOME/buildroot}"
 
-usage() { sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,38p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -74,6 +78,41 @@ fi
 have()      { command -v "$1" >/dev/null 2>&1; }
 userns_ok() { unshare -Ur true >/dev/null 2>&1; }
 rootfs_ok() { [ -x "$ROOTFS/bin/sh" ]; }
+bwrap_ok()  { have bwrap && bwrap --ro-bind / / true >/dev/null 2>&1; }
+proot_ok()  { have proot && proot -R / true >/dev/null 2>&1; }
+# /usr/sbin is off a non-root PATH on Debian
+CHROOT="$(PATH="$PATH:/usr/sbin:/sbin" command -v chroot || true)"
+native_rootfs_ok() {
+  [ "$(id -u)" -ne 0 ] && [ -n "$CHROOT" ] && have unshare || return 1
+  unshare -Urm --propagation private "$CHROOT" / true >/dev/null 2>&1
+}
+# Inside a rootfs, only the rootfs's own tools: the host PATH would put
+# ~/.local/bin (the userspace dpkg, apt, ...) ahead of the rootfs's.
+ROOTFS_PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# The environment a rootfs command starts from: an allowlist, not the host's.
+# LD_PRELOAD, LD_LIBRARY_PATH, the host PATH and the like would otherwise act
+# on the host-side runner and then leak into the rootfs. The runner itself is
+# started through `env -i` with this list, by absolute path.
+ROOTFS_ENV_KEEP="HOME USER LOGNAME TERM COLORTERM NO_COLOR LANG LANGUAGE TZ"
+ROOTFS_GUI_KEEP="DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR XAUTHORITY DBUS_SESSION_BUS_ADDRESS"
+rootfs_env() {
+  local v keep="$ROOTFS_ENV_KEEP"
+  if [ "$GUI" -eq 1 ]; then keep="$keep $ROOTFS_GUI_KEEP"; fi
+  ENVV=(PATH="$ROOTFS_PATH")
+  for v in $keep $(compgen -e | grep '^LC_' || true); do
+    if [ -n "${!v+x}" ]; then ENVV+=("$v=${!v}"); fi
+  done
+  if [ "$GUI" -eq 1 ]; then ENVV+=(_JAVA_AWT_WM_NONREPARENTING=1); fi
+}
+
+# The rootfs runner: bwrap, else the native one, else proot.
+rootfs_runner() {
+  if bwrap_ok; then printf 'bwrap'
+  elif native_rootfs_ok; then printf 'native'
+  elif proot_ok; then printf 'proot'
+  else return 1; fi
+}
 
 # A live probe: overlayfs usable from an unprivileged user namespace. bwrap's
 # --overlay-src/--tmp-overlay need >= 0.9.0; the kernel needs >= 5.11.
@@ -110,13 +149,22 @@ pick_mode() {
     auto)
       if [ -d "$PREFIX/usr" ] && overlay_ok; then printf 'overlay'
       elif [ -d "$PREFIX/usr" ] && native_overlay_ok; then printf 'overlay-native'
-      elif rootfs_ok; then printf 'rootfs'
+      elif [ "$(id -u)" -ne 0 ] && rootfs_ok && RUNNER="$(rootfs_runner)"; then
+        if [ "$RUNNER" = native ]; then printf 'rootfs-native'; else printf 'rootfs'; fi
       else printf 'env'; fi ;;
     overlay) [ -d "$PREFIX/usr" ] || die "overlay mode needs $PREFIX/usr (install a package first)"; overlay_ok || die "overlay unavailable: need bwrap + userns + overlayfs (kernel >= 5.11)"; printf 'overlay' ;;
     overlay-native) [ -d "$PREFIX/usr" ] || die "overlay-native mode needs $PREFIX/usr (install a package first)"; [ "$(id -u)" -ne 0 ] || die "overlay-native is a userspace runner; run it as the unprivileged user, not root"; native_overlay_ok || die "overlay-native unavailable: need unshare (util-linux >= 2.38) + unprivileged userns (admin/native/enable-userspace.sh) + overlayfs (kernel >= 5.11)"; printf 'overlay-native' ;;
-    rootfs)  rootfs_ok  || die "no rootfs at $ROOTFS (run scripts/env/make-buildroot.sh)"; printf 'rootfs' ;;
+    rootfs|rootfs-native)
+      [ "$(id -u)" -ne 0 ] || die "$MODE is a userspace runner; run it as the unprivileged user, not root"
+      rootfs_ok || die "no rootfs at $ROOTFS (run scripts/env/make-buildroot.sh)"
+      if [ "$MODE" = rootfs-native ]; then
+        native_rootfs_ok || die "rootfs-native unavailable: need unshare + chroot + unprivileged userns (admin/native/enable-userspace.sh)"
+      else
+        rootfs_runner >/dev/null || die "rootfs mode needs a runner: bwrap, unshare + chroot (unprivileged userns), or proot"
+      fi
+      printf '%s' "$MODE" ;;
     env)     printf 'env' ;;
-    *)       die "unknown mode: $MODE (auto|overlay|overlay-native|rootfs|env)" ;;
+    *)       die "unknown mode: $MODE (auto|overlay|overlay-native|rootfs|rootfs-native|env)" ;;
   esac
 }
 
@@ -181,20 +229,66 @@ exec unshare -U --map-user="$SL_UID" --map-group="$SL_GID" -- "$@"'
       CMD+=(unshare -Urm --propagation private bash -c "$script" prefix-run)
       ;;
     rootfs)
-      if have bwrap; then
-        CMD=(bwrap --bind "$ROOTFS" / --dev-bind /dev /dev --proc /proc
-             --ro-bind /sys /sys --bind /tmp /tmp --bind "$HOME" "$HOME"
-             --chdir "$PWD" --setenv HOME "$HOME")
-        if [ "$GUI" -eq 1 ]; then gui_cmd; fi
-      elif have proot; then
-        if [ "$GUI" -eq 1 ]; then die "--gui needs bwrap for the session bind (proot rootfs fallback can't)"; fi
-        CMD=(proot -R "$ROOTFS" -w "$PWD")
-      elif [ "$(id -u)" -eq 0 ]; then
-        if [ "$GUI" -eq 1 ]; then die "--gui needs bwrap for the session bind (chroot fallback can't)"; fi
-        CMD=(chroot "$ROOTFS")
-      else
-        die "rootfs mode needs bwrap, proot, or root"
+      case "$(rootfs_runner)" in
+        bwrap)
+          rootfs_env
+          CMD=(env -i "${ENVV[@]}" "$(command -v bwrap)"
+               --bind "$ROOTFS" / --dev-bind /dev /dev --proc /proc
+               --ro-bind /sys /sys --bind /tmp /tmp --bind "$HOME" "$HOME"
+               --ro-bind-try /etc/resolv.conf /etc/resolv.conf
+               --ro-bind-try /etc/hosts /etc/hosts
+               --unshare-user --uid 0 --gid 0 --chdir "$PWD")
+          if [ "$GUI" -eq 1 ]; then gui_cmd; fi
+          ;;
+        native) build_cmd rootfs-native ;;
+        proot)
+          if [ "$GUI" -eq 1 ]; then die "--gui needs bwrap or rootfs-native for the session bind (proot can't)"; fi
+          # -R binds /dev, /proc, /sys, /tmp, $HOME, resolv.conf and hosts itself
+          rootfs_env
+          CMD=(env -i "${ENVV[@]}" "$(command -v proot)" -0 -R "$ROOTFS" -w "$PWD")
+          ;;
+      esac
+      ;;
+    rootfs-native)
+      # No fork anywhere: unshare, bash and chroot each exec the next, so the
+      # command keeps prefix-run's pid, process group and session. Ctrl-C and
+      # SIGTERM reach it directly, the exit status is its own, and nothing is
+      # left behind to reap. /proc is the host's, bound (as in the overlay
+      # modes), so no pid namespace and no PID 1 to emulate. The mounts live in
+      # a private mount namespace and vanish with it.
+      # $HOME is bound non-recursively: a rootfs under $HOME would otherwise
+      # appear inside itself with its own /dev, /proc, ... mounts. /dev/shm
+      # comes with /dev. resolv.conf and hosts are the host's, read-only, so
+      # DNS follows the host; a symlink there is skipped, since it would be
+      # resolved on the host side.
+      local script='
+set -e
+R="$SL_ROOTFS"
+mkdir -p "$R$HOME"
+mount --bind "$HOME" "$R$HOME" 2>/dev/null || mount --rbind "$HOME" "$R$HOME"
+mount --rbind /dev "$R/dev"
+mount --rbind /proc "$R/proc"
+mount --rbind /sys "$R/sys"
+mount -o remount,bind,ro "$R/sys" 2>/dev/null || true
+mount --rbind /tmp "$R/tmp"
+for f in resolv.conf hosts; do
+  [ -e "/etc/$f" ] && [ ! -L "$R/etc/$f" ] || continue
+  [ -e "$R/etc/$f" ] || : > "$R/etc/$f"
+  mount -o bind,ro "/etc/$f" "$R/etc/$f"
+done
+if [ -n "${SL_RUNDIR:-}" ]; then
+  mkdir -p "$R$SL_RUNDIR"
+  mount --rbind "$SL_RUNDIR" "$R$SL_RUNDIR"
+fi
+c="$SL_CHROOT" p="$SL_PWD"
+unset SL_ROOTFS SL_CHROOT SL_PWD SL_RUNDIR
+exec "$c" "$R" /bin/sh -c '"'"'cd "$0" && exec "$@"'"'"' "$p" "$@"'
+      rootfs_env
+      CMD=(env -i "${ENVV[@]}" SL_ROOTFS="$ROOTFS" SL_CHROOT="$CHROOT" SL_PWD="$PWD")
+      if [ "$GUI" -eq 1 ] && [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -d "$XDG_RUNTIME_DIR" ]; then
+        CMD+=(SL_RUNDIR="$XDG_RUNTIME_DIR")
       fi
+      CMD+=("$(command -v unshare)" -Urm --propagation private "$(command -v bash)" -c "$script" prefix-run)
       ;;
   esac
 }
@@ -204,8 +298,10 @@ if [ "$GUI" -eq 1 ] && [ "$MODE_RESOLVED" = env ]; then
   die "--gui is incompatible with mode=env (no overlay/rootfs means the GUI app's own /usr/lib paths won't resolve either) — need an overlay (bwrap or unshare) + userns + overlayfs, or a rootfs"
 fi
 if [ "$EXPLAIN" -eq 1 ]; then
-  printf 'prefix-run: mode=%s PREFIX=%s ROOTFS=%s\n' \
-    "$MODE_RESOLVED" "$PREFIX" "$ROOTFS" >&2
+  RUNNER_NOTE=""
+  if [ "$MODE_RESOLVED" = rootfs ]; then RUNNER_NOTE=" runner=$(rootfs_runner)"; fi
+  printf 'prefix-run: mode=%s%s PREFIX=%s ROOTFS=%s\n' \
+    "$MODE_RESOLVED" "$RUNNER_NOTE" "$PREFIX" "$ROOTFS" >&2
 fi
 
 case "$MODE_RESOLVED" in
@@ -220,7 +316,7 @@ case "$MODE_RESOLVED" in
     fi
     exec "$@"
     ;;
-  overlay|overlay-native|rootfs)
+  overlay|overlay-native|rootfs|rootfs-native)
     build_cmd "$MODE_RESOLVED"
     if [ "$PRINT" -eq 1 ]; then print_cmd "${CMD[@]}" "$@"; exit 0; fi
     exec "${CMD[@]}" "$@"

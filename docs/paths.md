@@ -54,10 +54,11 @@ The same three privilege tiers the build scripts already use apply at *runtime*.
 
 | tier | mode | mechanism | extra deps | kernel |
 |---|---|---|---|---|
-| root | `rootfs` | `chroot` a complete rootfs | none | none |
 | no root, userns | `overlay` | `bwrap` overlays `$PREFIX/{usr,etc}` on `/usr`,`/etc` | `bubblewrap` | userns + overlayfs ≥ 5.11 |
 | no root, userns | `overlay-native` | the same overlay via `unshare -Urm` + `mount -t overlay` | none (util-linux ≥ 2.38) | userns + overlayfs ≥ 5.11 |
-| no root, no userns | `rootfs` | `proot -R` a complete rootfs | `proot` (1 static bin) | **none** |
+| no root, userns | `rootfs` | `bwrap` makes a complete rootfs `/`, as namespace root | `bubblewrap` | userns |
+| no root, userns | `rootfs-native` | the same via `unshare -Urm` + bind mounts + `chroot` | none (util-linux + coreutils) | userns |
+| no root, no userns | `rootfs` | `proot -R` a complete rootfs | `proot` (1 static bin) | **none** (needs ptrace) |
 | nothing available | `env` | export `LD_LIBRARY_PATH`/`XDG_DATA_DIRS`/`PATH` | none | none |
 
 ```sh
@@ -112,6 +113,49 @@ namespaces with base tools only), not to run the user's software as root. A
 per-run `sudo` runner would defeat the point, and it is also a privilege
 escalation: once `/usr` is overlaid with a user-owned tree, anything root
 execs in that namespace (mount helpers, `ld.so`, libc) may be the user's file.
+
+### Two axes: tier and runner
+
+The table mixes two independent things. The **tier** is *what* the command
+sees: `overlay` stacks the prefix onto the host's `/usr`,`/etc`; `rootfs`
+replaces all of `/` with a complete OS directory (from `mmdebstrap`, see
+`scripts/env/make-buildroot.sh`), so dpkg inside runs postinst as namespace
+root. The **runner** is *how* that view is built: `bwrap`, `unshare` + `mount`
+(+ `chroot`), or `proot`. They are all at the same level; the native one uses
+only util-linux and coreutils. `--mode rootfs` picks the rootfs runner itself
+(bwrap if it works, else native, else proot; `--explain` names it);
+`--mode rootfs-native` forces the native one.
+
+### Native rootfs: no third-party tools
+
+```sh
+tools/prefix-run.sh --mode rootfs-native sh -c 'id -u; dpkg -l | wc -l'
+```
+
+What it does, in one private user + mount namespace, then `chroot`:
+
+- binds `$HOME` (non-recursively: a rootfs under `$HOME` would otherwise show
+  up inside itself with all its mounts), `/dev` (with `/dev/shm`), `/proc`,
+  `/sys` (read-only), `/tmp`, and with `--gui` `$XDG_RUNTIME_DIR`;
+- binds the host's `/etc/resolv.conf` and `/etc/hosts` read-only, so DNS
+  follows the host;
+- **no fork**: `unshare`, `bash` and `chroot` each `exec` the next, so the
+  command keeps prefix-run's pid, process group and session. Ctrl-C and
+  SIGTERM reach it directly, its exit status is prefix-run's, and there is no
+  PID 1 to emulate and nothing left to reap. `/proc` is the host's (as in the
+  overlay modes), so no pid namespace is needed;
+- the mounts vanish with the namespace; nothing is left mounted on the host.
+
+Every rootfs runner starts the command from a **clean environment**: an
+allowlist (`HOME USER LOGNAME TERM LANG LC_* TZ ...`, plus the session
+variables with `--gui`) and a standard `PATH`. Inheriting the host's would
+put `~/.local/bin` first (so `dpkg` inside the rootfs would be the userspace
+one, listing the *host's* packages) and carry `LD_PRELOAD`/`LD_LIBRARY_PATH`
+into both the runner and the rootfs. Pass anything else explicitly:
+`tools/prefix-run.sh --mode rootfs env FOO=bar CMD`.
+
+Like the overlay modes, rootfs modes are **userspace runners**: as root they
+refuse. The old root `chroot` fallback ran a user-owned rootfs as real root.
 
 ## GUI/session passthrough: `--gui`
 

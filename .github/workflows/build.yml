@@ -48,21 +48,29 @@ jobs:
           SUITE: bookworm
         run: ./scripts/bootstrap/package-prebuilt.sh
 
-      - name: smoke test - install the artifact into a fresh prefix
+      - name: smoke test - install the artifact as a normal user
         run: |
           set -eux
-          export PREFIX=/tmp/smoke
-          rm -rf "$PREFIX"; mkdir -p "$PREFIX"
-          tar -C "$PREFIX" -xzf dist/sudo-less-apt-dpkg-*.tar.gz
-          PREFIX="$PREFIX" bash "$PREFIX/share/sudo-less/scripts/setup/install-config.sh" --no-shell
-          # test against the pinned baseline suite, not the repo's sid default
-          printf 'deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm main\n' \
-            > "$PREFIX/etc/apt/sources.list"
-          export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
-          export APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
-          apt-get update
-          apt-get install -y tree
-          "$PREFIX/usr/bin/tree" --version
+          # the userspace apt refuses to run as root on purpose, so test as a
+          # real unprivileged user -- the actual use case
+          id smoke >/dev/null 2>&1 || useradd -m -s /bin/bash smoke
+          cp dist/sudo-less-apt-dpkg-*.tar.gz /tmp/art.tar.gz
+          chmod 0644 /tmp/art.tar.gz
+          su smoke -s /bin/bash -c '
+            set -eux
+            export PREFIX=/home/smoke/.local
+            rm -rf "$PREFIX"; mkdir -p "$PREFIX"
+            tar -C "$PREFIX" -xzf /tmp/art.tar.gz
+            PREFIX="$PREFIX" bash "$PREFIX/share/sudo-less/scripts/setup/install-config.sh" --no-shell
+            # test against the pinned baseline suite, not the repo sid default
+            printf "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian bookworm main\n" \
+              > "$PREFIX/etc/apt/sources.list"
+            export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
+            export APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
+            apt-get update
+            apt-get install -y tree
+            "$PREFIX/usr/bin/tree" --version
+          '
 
       - uses: actions/upload-artifact@v4
         with:

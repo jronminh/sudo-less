@@ -187,3 +187,25 @@ See `docs/polkit.md` and `docs/roles.md`. Verify the whole setup with
 - `distrobox enter` integration vs. the dpkg lock (see above).
 - Explicit `apt-get install` lists beat `build-dep` when the suite's package
   version differs from the one you are building.
+
+---
+
+## Prior art: proot-distro
+
+[termux/proot-distro](https://github.com/termux/proot-distro) (GPL-3.0) runs
+full Linux userlands from OCI images without root, via `proot`. We don't adopt
+it: this repo targets a host that already *is* a full Debian, so a second,
+docker-like userland adds nothing, and `proot` needs ptrace, which
+`kernel.yama.ptrace_scope=2` forbids. Its *methods* solve the same no-root
+problems we have, so we learn from them:
+
+| method (proot-distro source) | applied here |
+|---|---|
+| host-side vs guest environment kept apart; `isolated`/`minimal` env modes (`execenv.py`, `commands/login/env.py`) | rootfs runners build the environment from an allowlist instead of inheriting the host's (a leaked host `PATH` made `dpkg` inside the rootfs resolve to the userspace one) — #28 |
+| bind checklist for a guest `/`: `/dev`, `/proc`, `/sys`, `/dev/shm`, `/dev/fd`, `resolv.conf`, `hosts` (`commands/login/proot_cmd.py`) | `tools/prefix-run.sh --mode rootfs-native` — #28 |
+| safe archive extraction: drop `..`, re-root every symlink hop inside the target, never write through a planted hardlink, skip device nodes (`helpers/tar_extract.py`) | audit of `deb2home` and the userspace dpkg unpack — #29 |
+| atomic writes (temp file + `rename`) and a per-container lock (`atomic.py`, `locking.py`) | prefix state written by the setup scripts — #30 |
+
+Not taken: OCI image pulls, container `ps`/`kill` bookkeeping (our runners
+`exec` the command in place, so there is nothing to track), faked `/proc`
+entries and `--link2symlink` (Android and proot specifics).

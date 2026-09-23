@@ -21,6 +21,7 @@ done
 log "prefix: $PREFIX"
 
 mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/apt.conf.d" \
+         "$PREFIX/etc/dpkg/dpkg.cfg.d" \
          "$PREFIX/etc/apt/preferences.d" \
          "$PREFIX/var/lib/apt/lists/partial" \
          "$PREFIX/var/cache/apt/archives/partial" \
@@ -33,6 +34,8 @@ install -m 0644 "$REPO/config/sources.list"                  "$PREFIX/etc/apt/so
 sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/00local-prefix.in" \
   > "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/dpkg/dpkg.cfg.in" > "$PREFIX/etc/dpkg/dpkg.cfg"
+chmod 0644 "$PREFIX/etc/dpkg/dpkg.cfg"
 
 # refresh the desktop-entry cache after installs so GUI packages' .desktop
 # files actually show up in app grids, not just on disk (see

@@ -2,3 +2,5 @@
 0001-no-superuser-check.patch
 0002-no-chown.patch
 0003-no-ldconfig-check.patch
+0100-relocatable.patch
+0101-no-setuid.patch

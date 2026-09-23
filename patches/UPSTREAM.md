@@ -50,6 +50,15 @@ patches, and nothing is built with `__ANDROID__`.
 | `mandoc_hook` | dropped | Termux uses mandoc; Debian uses man-db |
 | `scripts-dpkg-scanpackages.pl` | dropped | a Termux path in a tool sudo-less does not use |
 
+## sudo-less's own
+
+Numbered from `0100`, so Termux-derived patches keep their place.
+
+| patch | what |
+|---|---|
+| `0100-relocatable` | patch A: dpkg finds its prefix from `/proc/self/exe` and relocates the config dir and default admin dir compiled in under the build prefix; `dpkg-maintscript-helper` and `dpkg-realpath` find `share/dpkg` next to themselves |
+| `0101-no-setuid` | patch C: unpacking clears setuid and setgid bits, statoverrides included |
+
 ## Updating
 
 Upstream apt and dpkg are followed: when Debian moves to a new version,

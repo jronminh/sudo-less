@@ -11,11 +11,12 @@
 #     patches; nothing is built with -D__ANDROID__ (patches/UPSTREAM.md).
 #   * A native build: configure finds the architecture itself.
 #   * --without-libselinux (Termux's --without-selinux is an unrecognized no-op).
-#   * admindir defaults to $PREFIX/var/lib/dpkg via --with-admindir.
-#   * --sysconfdir=/etc: dpkg's config dir must NOT be $PREFIX/etc, or a
-#     relocated artifact tries to read the *builder's* prefix (unreadable to
-#     another user) and dies with "error opening configuration directory".
-#     The admin dir stays $PREFIX via --with-admindir, so the db is still local.
+#   * The config dir ($PREFIX/etc/dpkg) and admin dir ($PREFIX/var/lib/dpkg)
+#     are compiled in under the build prefix and relocated at run time to
+#     wherever dpkg is installed (patches/dpkg/0100-relocatable.patch).
+#   * --sysconfdir=/etc, --localstatedir=/var: update-alternatives uses them
+#     as paths inside the install root (DPKG_ROOT, the prefix), so they keep
+#     Debian's values: $PREFIX/etc/alternatives, $PREFIX/var/log.
 source "$(dirname "$0")/../common.sh"
 
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"
@@ -35,6 +36,8 @@ log "configuring"
 ./configure \
   --prefix="$PREFIX" \
   --sysconfdir=/etc \
+  --localstatedir=/var \
+  --with-pkgconfdir="$PREFIX/etc/dpkg" \
   --disable-dselect \
   --disable-shared \
   --without-libselinux \
@@ -45,7 +48,6 @@ log "building"
 make -j"$(nproc)"
 log "installing into $PREFIX"
 # sysconfdir is already compiled in as /etc; overriding it here only moves
-# the files `make install` would put there (alternatives/README, dpkg.cfg.d),
-# which a non-root build cannot write.
+# alternatives/README, which a non-root build cannot write to /etc.
 make install sysconfdir="$PREFIX/etc"
 log "dpkg installed: $PREFIX/bin/dpkg ($("$PREFIX/bin/dpkg" --version | head -1))"

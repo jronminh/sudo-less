@@ -1,0 +1,201 @@
+Origin: sudo-less
+Change: patch A. dpkg finds its prefix at run time from /proc/self/exe (PREFIX/bin/NAME) and relocates the paths compiled in under the build prefix: the config dir (dpkg.cfg) and the default admin dir. dpkg-maintscript-helper and dpkg-realpath fall back to ../share/dpkg next to themselves. A prebuilt dpkg then works in any user's prefix.
+License: GPL-2.0-or-later
+
+--- a/lib/dpkg/Makefile.am	2024-03-11 02:23:06.000000000 +0700
++++ b/lib/dpkg/Makefile.am	2026-09-24 02:12:21.980089295 +0700
+@@ -4,6 +4,7 @@
+ 	-DLOCALEDIR=\"$(localedir)\" \
+ 	-DCONFIGDIR=\"$(pkgconfdir)\" \
+ 	-DADMINDIR=\"$(admindir)\" \
++	-DBUILD_PREFIX=\"$(prefix)\" \
+ 	-DDEFAULT_TEXT_DOMAIN=\"@PACKAGE@\" \
+ 	-idirafter $(top_srcdir)/lib/compat \
+ 	-I$(top_builddir) \
+--- a/lib/dpkg/dbdir.c	2024-03-11 02:23:06.000000000 +0700
++++ b/lib/dpkg/dbdir.c	2026-09-24 02:12:21.980880954 +0700
+@@ -51,8 +51,12 @@
+ 	env = getenv("DPKG_ADMINDIR");
+ 	if (env)
+ 		dir = m_strdup(env);
+-	else
+-		dir = dpkg_fsys_get_path(ADMINDIR);
++	else {
++		char *admindir = dpkg_reloc_path(ADMINDIR);
++
++		dir = dpkg_fsys_get_path(admindir);
++		free(admindir);
++	}
+ 
+ 	return dir;
+ }
+--- a/lib/dpkg/fsys-dir.c	2024-03-11 02:23:06.000000000 +0700
++++ b/lib/dpkg/fsys-dir.c	2026-09-24 02:12:21.980745876 +0700
+@@ -21,7 +21,10 @@
+ #include <config.h>
+ #include <compat.h>
+ 
++#include <limits.h>
+ #include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
+ 
+ #include <dpkg/dpkg.h>
+ #include <dpkg/string.h>
+@@ -117,3 +120,51 @@
+ 
+ 	return str_fmt("%s/%s", dpkg_fsys_get_dir(), pathpart);
+ }
++
++/**
++ * Relocate a path compiled in under the build prefix.
++ *
++ * The prefix is found at run time from /proc/self/exe: a program installed
++ * as PREFIX/bin/NAME or PREFIX/sbin/NAME has the prefix PREFIX. If the path
++ * does not start with the build prefix, or the prefix cannot be found, the
++ * path is returned unchanged.
++ *
++ * @param path The compiled-in path.
++ *
++ * @return The relocated path, newly allocated.
++ */
++char *
++dpkg_reloc_path(const char *path)
++{
++	static char *prefix;
++	static bool prefix_init;
++	size_t build_len = strlen(BUILD_PREFIX);
++
++	if (!prefix_init) {
++		char exe[PATH_MAX];
++		ssize_t len;
++		char *slash;
++
++		prefix_init = true;
++		len = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
++		if (len > 0) {
++			exe[len] = '\0';
++			slash = strrchr(exe, '/');
++			if (slash) {
++				*slash = '\0';
++				slash = strrchr(exe, '/');
++			}
++			if (slash && (strcmp(slash, "/bin") == 0 ||
++			              strcmp(slash, "/sbin") == 0)) {
++				*slash = '\0';
++				prefix = m_strdup(exe);
++			}
++		}
++	}
++
++	if (prefix == NULL || strncmp(path, BUILD_PREFIX, build_len) != 0 ||
++	    (path[build_len] != '/' && path[build_len] != '\0'))
++		return m_strdup(path);
++
++	return str_fmt("%s%s", prefix, path + build_len);
++}
+--- a/lib/dpkg/fsys.h	2024-03-11 02:23:06.000000000 +0700
++++ b/lib/dpkg/fsys.h	2026-09-24 02:12:21.980602694 +0700
+@@ -209,6 +209,8 @@
+ const char *dpkg_fsys_get_dir(void);
+ char *dpkg_fsys_get_path(const char *pathpart);
+ 
++char *dpkg_reloc_path(const char *path);
++
+ DPKG_END_DECLS
+ 
+ #endif /* LIBDPKG_FSYS_H */
+--- a/lib/dpkg/libdpkg.map	2024-03-11 02:23:06.000000000 +0700
++++ b/lib/dpkg/libdpkg.map	2026-09-24 02:12:21.980428935 +0700
+@@ -460,6 +460,7 @@
+ 	dpkg_fsys_set_dir;
+ 	dpkg_fsys_get_dir;
+ 	dpkg_fsys_get_path;
++	dpkg_reloc_path;
+ 
+ 	# Package on-disk filesystem database support
+ 	parse_filehash;
+--- a/lib/dpkg/options-dirs.c	2024-03-11 02:23:06.000000000 +0700
++++ b/lib/dpkg/options-dirs.c	2026-09-24 02:12:21.981013331 +0700
+@@ -49,13 +49,15 @@
+ void
+ set_root(const struct cmdinfo *cip, const char *value)
+ {
+-	char *db_dir;
++	char *db_dir, *admindir;
+ 
+ 	/* Initialize the root directory. */
+ 	dpkg_fsys_set_dir(value);
+ 
+ 	/* Set the database directory based on the new root directory. */
+-	db_dir = dpkg_fsys_get_path(ADMINDIR);
++	admindir = dpkg_reloc_path(ADMINDIR);
++	db_dir = dpkg_fsys_get_path(admindir);
++	free(admindir);
+ 	dpkg_db_set_dir(db_dir);
+ 	free(db_dir);
+ }
+--- a/lib/dpkg/options.c	2024-03-11 02:23:06.000000000 +0700
++++ b/lib/dpkg/options.c	2026-09-24 02:12:33.694798472 +0700
+@@ -34,6 +34,7 @@
+ #include <dpkg/c-ctype.h>
+ #include <dpkg/dpkg.h>
+ #include <dpkg/string.h>
++#include <dpkg/fsys.h>
+ #include <dpkg/options.h>
+ 
+ static const char *printforhelp;
+@@ -162,11 +163,13 @@
+ static void
+ dpkg_options_load_dir(const char *prog, const struct cmdinfo *cmdinfos)
+ {
+-  char *dirname;
++  char *dirname, *configdir;
+   struct dirent **dlist;
+   int dlist_n, i;
+ 
+-  dirname = str_fmt("%s/%s.cfg.d", CONFIGDIR, prog);
++  configdir = dpkg_reloc_path(CONFIGDIR);
++  dirname = str_fmt("%s/%s.cfg.d", configdir, prog);
++  free(configdir);
+ 
+   dlist_n = scandir(dirname, &dlist, valid_config_filename, alphasort);
+   if (dlist_n < 0) {
+@@ -194,11 +197,13 @@
+ void
+ dpkg_options_load(const char *prog, const struct cmdinfo *cmdinfos)
+ {
+-  char *home, *file;
++  char *home, *file, *configdir;
+ 
+   dpkg_options_load_dir(prog, cmdinfos);
+ 
+-  file = str_fmt("%s/%s.cfg", CONFIGDIR, prog);
++  configdir = dpkg_reloc_path(CONFIGDIR);
++  file = str_fmt("%s/%s.cfg", configdir, prog);
++  free(configdir);
+   dpkg_options_load_file(file, cmdinfos);
+   free(file);
+ 
+--- a/src/dpkg-maintscript-helper.sh	2024-03-11 02:23:06.000000000 +0700
++++ b/src/dpkg-maintscript-helper.sh	2026-09-24 02:12:44.159220107 +0700
+@@ -601,6 +601,8 @@
+ export DPKG_ROOT
+ 
+ PKGDATADIR_DEFAULT=src
++# Relocatable: if the built-in datadir is gone, look next to this script.
++[ -d "$PKGDATADIR_DEFAULT" ] || PKGDATADIR_DEFAULT="${0%/*}/../share/dpkg"
+ PKGDATADIR="${DPKG_DATADIR:-$PKGDATADIR_DEFAULT}"
+ 
+ # shellcheck source=src/sh/dpkg-error.sh
+--- a/src/dpkg-realpath.sh	2024-03-11 02:23:06.000000000 +0700
++++ b/src/dpkg-realpath.sh	2026-09-24 02:12:44.186097210 +0700
+@@ -23,6 +23,8 @@
+ EOL="\n"
+ 
+ PKGDATADIR_DEFAULT=src
++# Relocatable: if the built-in datadir is gone, look next to this script.
++[ -d "$PKGDATADIR_DEFAULT" ] || PKGDATADIR_DEFAULT="${0%/*}/../share/dpkg"
+ PKGDATADIR="${DPKG_DATADIR:-$PKGDATADIR_DEFAULT}"
+ 
+ # shellcheck source=src/sh/dpkg-error.sh

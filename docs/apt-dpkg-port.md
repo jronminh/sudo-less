@@ -133,14 +133,18 @@ still write their log to `/var/log/dpkg.log` and point alternatives at
 
 | patch | fixes | status |
 |---|---|---|
-| **A. dpkg: locate itself at run time** | the prebuilt dpkg's datadir, sysconfdir and log path are the build machine's (`/root/.local/share/dpkg`, so `dpkg-maintscript-helper` fails; `/var/log/dpkg.log`). `dpkg.cfg` is read from that same compiled-in sysconfdir, so no config can move it; deriving the paths from `/proc/self/exe` makes the prebuilt relocatable | planned |
+| **A. dpkg: locate itself at run time** | the prebuilt dpkg's datadir, sysconfdir and log path are the build machine's (`/root/.local/share/dpkg`, so `dpkg-maintscript-helper` fails; `/var/log/dpkg.log`). `dpkg.cfg` is read from that same compiled-in sysconfdir, so no config can move it; deriving the paths from `/proc/self/exe` makes the prebuilt relocatable | done: `0100-relocatable`; the log path moves to the prefix's own `dpkg.cfg` (`config/dpkg/dpkg.cfg.in`) |
 | **B. a two-layer package database** | apt and dpkg read the host's `/var/lib/dpkg/status` directly as a read-only lower layer ("installed, never touch"); the prefix database holds only the user's packages. Replaces seeding, `lock-seeded.sh` and the sync stage; a stale seed is what makes apt report "held broken packages". Touches apt's resolver and dpkg's configure-time dependency check, so it is the largest | proposed; measure first how many packages a stale seed blocks |
-| **C. prefix hygiene at unpack** | drop setuid/setgid bits and file capabilities, and ignore the host's `statoverride`: meaningless in a prefix, and a setuid-to-user file in `~/.local` is a risk | planned |
+| **C. prefix hygiene at unpack** | drop setuid/setgid bits and file capabilities, and ignore the host's `statoverride`: meaningless in a prefix, and a setuid-to-user file in `~/.local` is a risk | done: `0101-no-setuid`. dpkg sets no file capabilities itself (a postinst's `setcap` fails without root), and the prefix's admin dir has its own `statoverride`, so only the mode bits needed a patch |
 | **D. record a failing maintainer script** | mark the package and report it, instead of leaving it half-configured and wedging every later install | deferred; only if stage 2 and the shims still leave many failures |
 
-To check before patching, since dpkg may already do it: `update-alternatives`
-honours `DPKG_ROOT` in current dpkg, which may put the links in the prefix
-with no patch (it is the most common RISKY signal); triggers of seeded system
+`update-alternatives` honours `DPKG_ROOT`: the links and its database land
+in the prefix with no patch. But the links are absolute
+(`$PREFIX/usr/bin/figlet` → `/etc/alternatives/figlet` →
+`/usr/bin/figlet-utf8`), so they resolve against the host, not the prefix,
+and the command is missing. The same holds for absolute symlinks shipped in
+`.deb` files. Relative symlinks inside the prefix would fix both; not
+patched yet. Triggers of seeded system
 packages (`man-db`, `fontconfig`, `shared-mime-info`) have no handler in the
 prefix, and prefix-aware versions belong in stage 4, not in dpkg.
 
@@ -149,7 +153,8 @@ of `gpgv`, which apt 2.8.1 cannot use, so a new account cannot `apt-get
 update` today; following upstream brings apt 3.x, which verifies with `sqv`.
 
 The fork is made in steps: first the same behaviour as today (done), then
-the rebase onto current upstream, then our patches.
+our patches A and C on dpkg 1.22.6 (done), then the rebase onto current
+upstream.
 
 ### Not patched, on purpose
 

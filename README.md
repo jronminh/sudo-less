@@ -90,8 +90,8 @@ system, just use `apt`.
 
 ## How it works
 
-`apt` and `dpkg` are the real Debian programs (**apt 2.8.1**, **dpkg 1.22.6**)
-plus [Termux](https://github.com/termux/termux-packages)'s patches, rebuilt to
+`apt` and `dpkg` are the real Debian programs (**apt 3.3.3**, **dpkg 1.23.11**)
+plus a few patches forked from [Termux](https://github.com/termux/termux-packages)'s, rebuilt to
 install into `~/.local`. Your copy keeps its own package database, separate from
 the system's, and treats everything already on the system as already installed —
 so it only fetches what you actually ask for. Neither program is a fork.

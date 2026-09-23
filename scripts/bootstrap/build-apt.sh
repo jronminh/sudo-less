@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Build upstream apt (Debian 2.8.1) with Termux's patches, retargeted to a
+# Build upstream apt (Debian 3.3.3) with sudo-less's patches (a fork of Termux's), retargeted to a
 # user-writable prefix ($PREFIX, default ~/.local).
 #
 # Run inside a Debian sid build environment with:
-#   build-essential cmake xsltproc docbook-xsl gettext po4a
-#   libgcrypt20-dev libgnutls28-dev libgpg-error-dev libcurl4-openssl-dev
+#   build-essential cmake triehash gettext libssl-dev sqv
 #   liblz4-dev liblzma-dev libbz2-dev zlib1g-dev libzstd-dev libxxhash-dev
 #   libdb-dev libseccomp-dev libmd-dev libudev-dev libperl-dev
 # (no libselinux1-dev needed)
@@ -18,9 +17,10 @@
 #   * RPATH=$PREFIX/lib so our libapt-pkg.so.6.0 wins over the system .7.0.
 source "$(dirname "$0")/../common.sh"
 
-fetch "$APT_URL" "apt-$APT_VER.tar.gz"
+fetch "$APT_URL" "apt-$APT_VER.tar.xz"
 rm -rf "$SRC/apt-$APT_VER"
-tar -C "$SRC" -xzf "$SRC/apt-$APT_VER.tar.gz"
+echo "$APT_SHA1  $SRC/apt-$APT_VER.tar.xz" | sha1sum -c --quiet || die "apt-$APT_VER.tar.xz: checksum mismatch"
+tar -C "$SRC" -xJf "$SRC/apt-$APT_VER.tar.xz"
 
 cd "$SRC/apt-$APT_VER"
 apply_series "$REPO/patches/apt"
@@ -49,7 +49,7 @@ cmake -S "$SRC/apt-$APT_VER" -B "$BUILD" \
   -DCACHE_DIR="$PREFIX/var/cache/apt" \
   -DCOMMON_ARCH="$DEB_ARCH" \
   -DDPKG_DATADIR=/usr/share/dpkg \
-  -DUSE_NLS=OFF -DWITH_DOC=OFF -DWITH_DOC_MANPAGES=OFF \
+  -DUSE_NLS=OFF -DWITH_DOC=OFF -DWITH_DOC_MANPAGES=OFF -DWITH_TESTS=OFF \
   -DCMAKE_INSTALL_LIBEXECDIR=lib \
   -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib;$ORIGIN/../..' \
   -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \

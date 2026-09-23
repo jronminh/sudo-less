@@ -49,8 +49,8 @@ for example:
   because `install-config.sh` seeds the local dpkg database from the host's
   `/var/lib/dpkg/status`.
 - **Disk/RAM**: ~1.5 GB for the build tree; ~2 GB RAM to build.
-- **`gpgv`**: apt's signature verification needs a real `gpgv` binary at
-  runtime (Debian ships it in its own `gpgv` package).
+- **`sqv`**: apt verifies signatures with the host's `sqv` (Debian's
+  default verifier, in its own `sqv` package).
 
 ## Build dependencies
 
@@ -69,7 +69,7 @@ superset for the *current* suite, which is fine.
 | setting | default | override |
 |---|---|---|
 | install prefix | `$HOME/.local` | `PREFIX=/somewhere` |
-| apt / dpkg version | `2.8.1` / `1.22.6` | `APT_VER`, `DPKG_VER` |
+| apt / dpkg version | `3.3.3` / `1.23.11` (apt also needs `APT_SHA1`) | `APT_VER`, `DPKG_VER` |
 | source cache dir | `<repo>/src` | `SRC=/path` |
 | architecture | auto-detected (`dpkg --print-architecture`, else `uname -m`) | `DEB_ARCH=`, `DEB_CPU=` |
 | dpkg tuple data | `/usr/share/dpkg` | `-DDPKG_DATADIR` in `build-apt.sh` |

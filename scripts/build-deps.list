@@ -1,4 +1,4 @@
-# Build dependencies for apt 2.8.1 and dpkg 1.22.6.
+# Build dependencies for apt 3.3.3 and dpkg 1.23.11.
 # Derived from both projects' debian/control Build-Depends, plus the autotools
 # we need because dpkg is built from a git archive (no pre-generated configure).
 # One package per line; blank lines and # comments ignored.
@@ -18,10 +18,8 @@ autopoint
 pkg-config
 dpkg-dev
 fakeroot
-libgcrypt20-dev
-libgnutls28-dev
-libgpg-error-dev
-libcurl4-openssl-dev
+libssl-dev
+sqv
 liblz4-dev
 liblzma-dev
 libbz2-dev
@@ -35,4 +33,3 @@ libudev-dev
 libsystemd-dev
 libperl-dev
 libncurses-dev
-libgtest-dev

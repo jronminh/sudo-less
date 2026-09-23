@@ -1,0 +1,145 @@
+Origin: termux-packages 91af886 packages/apt/0004-no-hardcoded-paths.patch
+Change: adapted: Termux's hunks for paths apt 3 still has; apt-key and the dmesg/df report hunks are gone (apt-key left apt in 3.1; the report runs the host's tools either way). Replaces apt's hardcoded paths with @TERMUX_PREFIX@, which build-apt.sh maps to $PREFIX or back to the host. Native need.
+License: GPL-2.0-or-later
+
+diff --git a/apt-pkg/aptconfiguration.cc b/apt-pkg/aptconfiguration.cc
+--- a/apt-pkg/aptconfiguration.cc
++++ b/apt-pkg/aptconfiguration.cc
+@@ -37,11 +37,11 @@ namespace APT {
+ // setDefaultConfigurationForCompressors				/*{{{*/
+ static void setDefaultConfigurationForCompressors() {
+ 	// Set default application paths to check for optional compression types
+-	_config->CndSet("Dir::Bin::gzip", "/bin/gzip");
+-	_config->CndSet("Dir::Bin::bzip2", "/bin/bzip2");
+-	_config->CndSet("Dir::Bin::xz", "/usr/bin/xz");
+-	_config->CndSet("Dir::Bin::lz4", "/usr/bin/lz4");
+-	_config->CndSet("Dir::Bin::zstd", "/usr/bin/zstd");
++	_config->CndSet("Dir::Bin::gzip", "@TERMUX_PREFIX@/bin/gzip");
++	_config->CndSet("Dir::Bin::bzip2", "@TERMUX_PREFIX@/bin/bzip2");
++	_config->CndSet("Dir::Bin::xz", "@TERMUX_PREFIX@/bin/xz");
++	_config->CndSet("Dir::Bin::lz4", "@TERMUX_PREFIX@/bin/lz4");
++	_config->CndSet("Dir::Bin::zstd", "@TERMUX_PREFIX@/bin/zstd");
+ 	if (FileExists(_config->Find("Dir::Bin::xz")) == true) {
+ 		_config->Set("Dir::Bin::lzma", _config->Find("Dir::Bin::xz"));
+ 		_config->Set("APT::Compressor::lzma::Binary", "xz");
+@@ -54,7 +54,7 @@ static void setDefaultConfigurationForCompressors() {
+ 			_config->Set("APT::Compressor::lzma::UncompressArg::", "-d");
+ 		}
+ 	} else {
+-		_config->CndSet("Dir::Bin::lzma", "/usr/bin/lzma");
++		_config->CndSet("Dir::Bin::lzma", "@TERMUX_PREFIX@/bin/lzma");
+ 		if (_config->Exists("APT::Compressor::lzma::CompressArg") == false) {
+ 			_config->Set("APT::Compressor::lzma::CompressArg::", "--suffix=");
+ 			_config->Set("APT::Compressor::lzma::CompressArg::", "-6");
+diff --git a/apt-pkg/contrib/cdromutl.cc b/apt-pkg/contrib/cdromutl.cc
+--- a/apt-pkg/contrib/cdromutl.cc
++++ b/apt-pkg/contrib/cdromutl.cc
+@@ -263,7 +263,7 @@ bool IdentCdrom(string CD,string &Res,unsigned int Version)
+ string FindMountPointForDevice(const char *devnode)
+ {
+    // this is the order that mount uses as well
+-   std::vector<std::string> const mounts = _config->FindVector("Dir::state::MountPoints", "/etc/mtab,/proc/mount");
++   std::vector<std::string> const mounts = _config->FindVector("Dir::state::MountPoints", "/proc/mount");
+ 
+    for (std::vector<std::string>::const_iterator m = mounts.begin(); m != mounts.end(); ++m)
+       if (FILE * f = fopen(m->c_str(), "r"))
+diff --git a/apt-pkg/contrib/fileutl.cc b/apt-pkg/contrib/fileutl.cc
+--- a/apt-pkg/contrib/fileutl.cc
++++ b/apt-pkg/contrib/fileutl.cc
+@@ -121,7 +121,7 @@ bool RunScripts(const char *Cnf)
+             _exit(100);
+       }
+ 
+-      if (chdir("/tmp/") != 0)
++      if (chdir("@TERMUX_PREFIX@/tmp/") != 0)
+ 	 _exit(100);
+ 
+       unsigned int Count = 1;
+@@ -3109,10 +3109,10 @@ static std::string APT_NONNULL(1) GetTempDirEnv(char const * const env)	/*{{{*/
+    struct stat st;
+    if (!tmpdir || strlen(tmpdir) == 0 || // tmpdir is set
+ 	 stat(tmpdir, &st) != 0 || (st.st_mode & S_IFDIR) == 0) // exists and is directory
+-      tmpdir = "/tmp";
++      tmpdir = "@TERMUX_PREFIX@/tmp";
+    else if (geteuid() != 0 && // root can do everything anyway
+ 	 faccessat(AT_FDCWD, tmpdir, R_OK | W_OK | X_OK, AT_EACCESS) != 0) // current user has rwx access to directory
+-      tmpdir = "/tmp";
++      tmpdir = "@TERMUX_PREFIX@/tmp";
+ 
+    return string(tmpdir);
+ }
+@@ -3412,7 +3412,7 @@ bool DropPrivileges()							/*{{{*/
+       setenv("LOGNAME", pw->pw_name, 1);
+       auto const shell = flNotDir(pw->pw_shell);
+       if (shell == "false" || shell == "nologin")
+-	 setenv("SHELL", "/bin/sh", 1);
++	 setenv("SHELL", "@TERMUX_PREFIX@/bin/sh", 1);
+       else
+ 	 setenv("SHELL", pw->pw_shell, 1);
+       auto const apt_setenv_tmp = [](char const * const env) {
+diff --git a/apt-pkg/deb/dpkgpm.cc b/apt-pkg/deb/dpkgpm.cc
+--- a/apt-pkg/deb/dpkgpm.cc
++++ b/apt-pkg/deb/dpkgpm.cc
+@@ -185,7 +185,7 @@ namespace
+    so we use the binary from util-linux */
+ static bool ionice(int PID)
+ {
+-   if (!FileExists("/usr/bin/ionice"))
++   if (!FileExists("@TERMUX_PREFIX@/bin/ionice"))
+       return false;
+    pid_t Process = ExecFork();
+    if (Process == 0)
+@@ -193,7 +193,7 @@ static bool ionice(int PID)
+       char buf[32];
+       snprintf(buf, sizeof(buf), "-p%d", PID);
+       const char *Args[4];
+-      Args[0] = "/usr/bin/ionice";
++      Args[0] = "@TERMUX_PREFIX@/bin/ionice";
+       Args[1] = "-c3";
+       Args[2] = buf;
+       Args[3] = 0;
+@@ -476,7 +476,7 @@ bool pkgDPkgPM::RunScriptsWithPkgs(const char *Cnf)
+ 
+ 	 debSystem::DpkgChrootDirectory();
+ 	 const char *Args[4];
+-	 Args[0] = "/bin/sh";
++	 Args[0] = "@TERMUX_PREFIX@/bin/sh";
+ 	 Args[1] = "-c";
+ 	 Args[2] = Opts->Value.c_str();
+ 	 Args[3] = 0;
+diff --git a/apt-pkg/init.cc b/apt-pkg/init.cc
+--- a/apt-pkg/init.cc
++++ b/apt-pkg/init.cc
+@@ -211,7 +211,7 @@ bool pkgInitConfig(Configuration &Cnf)
+    Cnf.CndSet("Acquire::Snapshots::URI::Host::ppa.launchpadcontent.net", "https://snapshot.ppa.launchpadcontent.net/@PATH@/@SNAPSHOTID@/");
+    Cnf.CndSet("Acquire::Snapshots::URI::Host::ppa.launchpad.net", "https://snapshot.ppa.launchpadcontent.net/@PATH@/@SNAPSHOTID@/");
+ 
+-   Cnf.CndSet("DPkg::Path", "/usr/sbin:/usr/bin:/sbin:/bin");
++   Cnf.CndSet("DPkg::Path", "@TERMUX_PREFIX@/bin");
+ 
+    // Read an alternate config file
+    _error->PushToStack();
+diff --git a/apt-private/private-json-hooks.cc b/apt-private/private-json-hooks.cc
+--- a/apt-private/private-json-hooks.cc
++++ b/apt-private/private-json-hooks.cc
+@@ -471,7 +471,7 @@ bool RunJsonHook(std::string const &option, std::string const &method, const cha
+ 
+ 	 DpkgChrootDirectory();
+ 	 const char *Args[4];
+-	 Args[0] = "/bin/sh";
++	 Args[0] = "@TERMUX_PREFIX@/bin/sh";
+ 	 Args[1] = "-c";
+ 	 Args[2] = Opts->Value.c_str();
+ 	 Args[3] = 0;
+diff --git a/cmdline/apt-dump-solver.cc b/cmdline/apt-dump-solver.cc
+--- a/cmdline/apt-dump-solver.cc
++++ b/cmdline/apt-dump-solver.cc
+@@ -77,7 +77,7 @@ int main(int argc,const char *argv[])					/*{{{*/
+       {
+ 	 EDSP::WriteError("ERR_NO_FILENAME", "You have to set the environment variable APT_EDSP_DUMP_FILENAME\n"
+ 	       "to a valid filename to store the dump of EDSP solver input in.\n"
+-	       "For example with: export APT_EDSP_DUMP_FILENAME=/tmp/dump.edsp", stdoutfd);
++	       "For example with: export APT_EDSP_DUMP_FILENAME=@TERMUX_PREFIX@/tmp/dump.edsp", stdoutfd);
+ 	 return 0;
+       }
+    }

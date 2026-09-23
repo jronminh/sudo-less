@@ -20,8 +20,8 @@ PREFIX="${PREFIX:-$HOME/.local}"
 REPO_SLUG="${REPO_SLUG:-jronminh/sudo-less}"
 VERSION="${VERSION:-}"                       # empty = the latest release
 BASE_URL="${BASE_URL:-}"                     # override the whole release base
-APT_VER="${APT_VER:-2.8.1}"
-DPKG_VER="${DPKG_VER:-1.22.6}"
+APT_VER="${APT_VER:-3.3.3}"
+DPKG_VER="${DPKG_VER:-1.23.11}"
 
 DRY=0
 VERIFY_ONLY=0

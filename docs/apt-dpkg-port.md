@@ -26,6 +26,8 @@ maintained in [`termux/termux-packages`](https://github.com/termux/termux-packag
 | apt  | Debian apt 2.8.1 | `packages/apt/*.patch` (14) |
 | dpkg | Debian dpkg 1.22.6 | `packages/dpkg/*.patch` (9) + `configure.diff` |
 
+(sudo-less's fork is rebased onto apt 3.3.3 and dpkg 1.23.11.)
+
 Termux builds these against `$PREFIX=/data/data/com.termux/files/usr` with the
 Android NDK (`__ANDROID__` defined). sudo-less carries a fork of those
 patches, cut down to what a prefix on Debian needs and built without
@@ -37,7 +39,7 @@ Termux patch to kept, adapted or dropped.
 ```
 bin/      apt apt-get apt-cache apt-config dpkg dpkg-deb dpkg-query update-alternatives
 sbin/     start-stop-daemon
-lib/      libapt-pkg.so.6.0, apt/methods/*, dpkg/...
+lib/      libapt-pkg.so.7.0, apt/methods/*, dpkg/...
 etc/apt/  sources.list, apt.conf.d/00local-prefix
 var/lib/apt/       apt lists/state
 var/lib/dpkg/      dpkg database (status, info, ...)
@@ -51,13 +53,13 @@ var/cache/apt/     downloaded .debs
    is split:
    - `@TERMUX_PREFIX@/bin/` → `/usr/bin/` (helper programs apt shells out to)
    - `@TERMUX_PREFIX@/tmp`  → `/tmp`
-   - remaining `@TERMUX_PREFIX@` (apt's own `etc/apt`, apt-key keyrings) → `$PREFIX`
+   - remaining `@TERMUX_PREFIX@` (apt's own `etc/apt`) → `$PREFIX`
    - `DPkg::Path` → `$PREFIX/bin` + the system PATH
 2. **Isolated database.** `CMAKE_INSTALL_FULL_LOCALSTATEDIR=$PREFIX/var` makes
    apt derive `Dir::State::status = $PREFIX/var/lib/dpkg/status`. It never reads
    the system `/var/lib/dpkg/status`.
 3. **RPATH.** apt is installed with `RPATH=$PREFIX/lib` so it loads our
-   `libapt-pkg.so.6.0`, not the system `libapt-pkg.so.7.0`.
+   `libapt-pkg.so.7.0`, not the system's library of the same name.
 4. **GCC 16 fixes** (`patches/apt/0008-gcc16-fixes.patch`): `<cstdint>`
    for `uint8_t`, and a `RAMFS_MAGIC` fallback.
 5. **dpkg without root checks.** `patches/dpkg/0001-no-superuser-check.patch`
@@ -94,8 +96,8 @@ installed program finds its files at run time is the mechanisms' job
 
 Our patch set becomes a fork of Termux's, cut down to that rule, and it
 **follows upstream**: at each apt or dpkg release in Debian, the patches are
-rebased onto it, instead of pinning old versions (today apt 2.8.1 and dpkg
-1.22.6). Keeping the patches few is what keeps the rebase cheap. The
+rebased onto it, instead of pinning old versions (today apt 3.3.3 and dpkg
+1.23.11). Keeping the patches few is what keeps the rebase cheap. The
 compatibility baseline in [`release.md`](release.md) still holds: each
 rebased version must build on it.
 
@@ -116,10 +118,11 @@ the old dpkg warned that `mandoc` is missing (Termux's `mandoc_hook`). Both
 still write their log to `/var/log/dpkg.log` and point alternatives at
 `/etc/alternatives`; that is step 3.
 
-- **Kept or adapted:** what native needs: prefix paths and no root checks
-  in apt (Termux `0004`, `0007`, `0010`), no superuser check, no `chown` and
-  no `ldconfig` check in dpkg; small build and HTTP fixes (`0000`, `0001`,
-  `0005`, `0008`).
+- **Kept or adapted:** what native needs: prefix paths and the root refusal
+  in apt (Termux `0004`, `0010`), no superuser check, no `chown` and no
+  `ldconfig` check in dpkg; an HTTP fix and a type fix (`0005`, `0008`).
+  Termux's build fixes (`0000`, `0001`) and `apt-key` (`0007`) went with the
+  rebase onto apt 3.3.3.
 - **Dropped:** the NDK fix `0012`, the apt patches that act only under
   `__ANDROID__` (`0002`, `0003`, `0006`, `0009`), `0011` (Debian's default of
   not keeping downloaded `.deb` files is better for the user's disk), `0013`
@@ -154,12 +157,13 @@ packages (`man-db`, `fontconfig`, `shared-mime-info`) have no handler in the
 prefix, and prefix-aware versions belong in stage 4, not in dpkg.
 
 Signature verification needs no patch: current Debian ships `sqv` instead
-of `gpgv`, which apt 2.8.1 cannot use, so a new account cannot `apt-get
-update` today; following upstream brings apt 3.x, which verifies with `sqv`.
+of `gpgv`, which apt 2.8.1 could not use; apt 3.x verifies with `sqv`.
 
-The fork is made in steps: first the same behaviour as today (done), then
-our patches A and C on dpkg 1.22.6 (done), then the rebase onto current
-upstream.
+The fork was made in steps: first the same behaviour as the old build, then
+our patches A and C on dpkg 1.22.6, then the rebase onto current upstream,
+apt 3.3.3 and dpkg 1.23.11 (all done). The rebase left four apt patches
+(`apt-key` is gone from apt 3.1, and the GCC 16 and NDK build fixes are no
+longer needed) and redid the dpkg ones for dpkg 1.23's tab indentation.
 
 ### Not patched, on purpose
 
@@ -214,10 +218,8 @@ via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
   way). See [our own changes](#beyond-termuxs-patches-our-own-changes).
 - **PATH shadowing:** with `~/.local/bin` early in `PATH`, the bare `apt`/`dpkg`
   for user `master` become these userspace builds. Use full paths if unsure.
-- `apt-key` verification needs a real `gpgv` binary on PATH. Current Debian
-  ships `sqv` instead, so a new account's `apt-get update` fails until `gpgv`
-  is provided; following upstream (apt 3.x) fixes it, see
-  [our own changes](#beyond-termuxs-patches-our-own-changes).
+- Signature verification runs the host's `sqv` (apt 3.x); a host without
+  it cannot `apt-get update`.
 - Architecture is auto-detected at build time (`scripts/common.sh`) and the
   prefix is generated from `$PREFIX`, so both are portable; override with
   `DEB_ARCH` / `DEB_CPU` / `PREFIX` if needed.

@@ -1,10 +1,11 @@
 Origin: sudo-less
-Change: patch A. dpkg finds its prefix at run time from /proc/self/exe (PREFIX/bin/NAME) and relocates the paths compiled in under the build prefix: the config dir (dpkg.cfg) and the default admin dir. dpkg-maintscript-helper and dpkg-realpath fall back to ../share/dpkg next to themselves. A prebuilt dpkg then works in any user's prefix.
+Change: patch A. dpkg finds its prefix at run time from /proc/self/exe (PREFIX/bin/NAME) and relocates the paths compiled in under the build prefix: the config dir (dpkg.cfg) and the default admin dir. dpkg-maintscript-helper falls back to ../share/dpkg next to itself (dpkg-realpath is a C program since dpkg 1.23). A prebuilt dpkg then works in any user's prefix.
 License: GPL-2.0-or-later
 
---- a/lib/dpkg/Makefile.am	2024-03-11 02:23:06.000000000 +0700
-+++ b/lib/dpkg/Makefile.am	2026-09-24 02:12:21.980089295 +0700
-@@ -4,6 +4,7 @@
+diff --git a/lib/dpkg/Makefile.am b/lib/dpkg/Makefile.am
+--- a/lib/dpkg/Makefile.am
++++ b/lib/dpkg/Makefile.am
+@@ -4,6 +4,7 @@ AM_CPPFLAGS = \
  	-DLOCALEDIR=\"$(localedir)\" \
  	-DCONFIGDIR=\"$(pkgconfdir)\" \
  	-DADMINDIR=\"$(admindir)\" \
@@ -12,12 +13,13 @@ License: GPL-2.0-or-later
  	-DDEFAULT_TEXT_DOMAIN=\"@PACKAGE@\" \
  	-idirafter $(top_srcdir)/lib/compat \
  	-I$(top_builddir) \
---- a/lib/dpkg/dbdir.c	2024-03-11 02:23:06.000000000 +0700
-+++ b/lib/dpkg/dbdir.c	2026-09-24 02:12:21.980880954 +0700
-@@ -51,8 +51,12 @@
+diff --git a/lib/dpkg/dbdir.c b/lib/dpkg/dbdir.c
+--- a/lib/dpkg/dbdir.c
++++ b/lib/dpkg/dbdir.c
+@@ -52,8 +52,12 @@ dpkg_db_new_dir(void)
  	env = getenv("DPKG_ADMINDIR");
  	if (env)
- 		dir = m_strdup(env);
+ 		dir = file_canonicalize(env);
 -	else
 -		dir = dpkg_fsys_get_path(ADMINDIR);
 +	else {
@@ -29,8 +31,9 @@ License: GPL-2.0-or-later
  
  	return dir;
  }
---- a/lib/dpkg/fsys-dir.c	2024-03-11 02:23:06.000000000 +0700
-+++ b/lib/dpkg/fsys-dir.c	2026-09-24 02:12:21.980745876 +0700
+diff --git a/lib/dpkg/fsys-dir.c b/lib/dpkg/fsys-dir.c
+--- a/lib/dpkg/fsys-dir.c
++++ b/lib/dpkg/fsys-dir.c
 @@ -21,7 +21,10 @@
  #include <config.h>
  #include <compat.h>
@@ -42,7 +45,7 @@ License: GPL-2.0-or-later
  
  #include <dpkg/dpkg.h>
  #include <dpkg/string.h>
-@@ -117,3 +120,51 @@
+@@ -130,3 +133,51 @@ dpkg_fsys_get_path(const char *pathpart)
  
  	return str_fmt("%s/%s", dpkg_fsys_get_dir(), pathpart);
  }
@@ -94,30 +97,33 @@ License: GPL-2.0-or-later
 +
 +	return str_fmt("%s%s", prefix, path + build_len);
 +}
---- a/lib/dpkg/fsys.h	2024-03-11 02:23:06.000000000 +0700
-+++ b/lib/dpkg/fsys.h	2026-09-24 02:12:21.980602694 +0700
-@@ -209,6 +209,8 @@
- const char *dpkg_fsys_get_dir(void);
- char *dpkg_fsys_get_path(const char *pathpart);
+diff --git a/lib/dpkg/fsys.h b/lib/dpkg/fsys.h
+--- a/lib/dpkg/fsys.h
++++ b/lib/dpkg/fsys.h
+@@ -212,6 +212,8 @@ dpkg_fsys_get_dir(void);
+ char *
+ dpkg_fsys_get_path(const char *pathpart);
  
 +char *dpkg_reloc_path(const char *path);
 +
  DPKG_END_DECLS
  
  #endif /* LIBDPKG_FSYS_H */
---- a/lib/dpkg/libdpkg.map	2024-03-11 02:23:06.000000000 +0700
-+++ b/lib/dpkg/libdpkg.map	2026-09-24 02:12:21.980428935 +0700
-@@ -460,6 +460,7 @@
+diff --git a/lib/dpkg/libdpkg.map b/lib/dpkg/libdpkg.map
+--- a/lib/dpkg/libdpkg.map
++++ b/lib/dpkg/libdpkg.map
+@@ -497,6 +497,7 @@ LIBDPKG_PRIVATE {
  	dpkg_fsys_set_dir;
  	dpkg_fsys_get_dir;
  	dpkg_fsys_get_path;
 +	dpkg_reloc_path;
  
- 	# Package on-disk filesystem database support
- 	parse_filehash;
---- a/lib/dpkg/options-dirs.c	2024-03-11 02:23:06.000000000 +0700
-+++ b/lib/dpkg/options-dirs.c	2026-09-24 02:12:21.981013331 +0700
-@@ -49,13 +49,15 @@
+ 	# Package on-disk filesystem sysuser/sysgroup support
+ 	dpkg_sysuser_from_name;
+diff --git a/lib/dpkg/options-dirs.c b/lib/dpkg/options-dirs.c
+--- a/lib/dpkg/options-dirs.c
++++ b/lib/dpkg/options-dirs.c
+@@ -49,13 +49,15 @@ set_admindir(const struct cmdinfo *cip, const char *value)
  void
  set_root(const struct cmdinfo *cip, const char *value)
  {
@@ -135,63 +141,54 @@ License: GPL-2.0-or-later
  	dpkg_db_set_dir(db_dir);
  	free(db_dir);
  }
---- a/lib/dpkg/options.c	2024-03-11 02:23:06.000000000 +0700
-+++ b/lib/dpkg/options.c	2026-09-24 02:12:33.694798472 +0700
+diff --git a/lib/dpkg/options.c b/lib/dpkg/options.c
+--- a/lib/dpkg/options.c
++++ b/lib/dpkg/options.c
 @@ -34,6 +34,7 @@
  #include <dpkg/c-ctype.h>
  #include <dpkg/dpkg.h>
  #include <dpkg/string.h>
 +#include <dpkg/fsys.h>
+ #include <dpkg/varbuf.h>
+ #include <dpkg/color.h>
  #include <dpkg/options.h>
- 
- static const char *printforhelp;
-@@ -162,11 +163,13 @@
+@@ -182,11 +183,13 @@ config_file_filter(const struct dirent *dent)
  static void
  dpkg_options_load_dir(const char *prog, const struct cmdinfo *cmdinfos)
  {
--  char *dirname;
-+  char *dirname, *configdir;
-   struct dirent **dlist;
-   int dlist_n, i;
+-	char *dirname;
++	char *dirname, *configdir;
+ 	struct dirent **dlist;
+ 	int dlist_n, i;
  
--  dirname = str_fmt("%s/%s.cfg.d", CONFIGDIR, prog);
-+  configdir = dpkg_reloc_path(CONFIGDIR);
-+  dirname = str_fmt("%s/%s.cfg.d", configdir, prog);
-+  free(configdir);
+-	dirname = str_fmt("%s/%s.cfg.d", CONFIGDIR, prog);
++	configdir = dpkg_reloc_path(CONFIGDIR);
++	dirname = str_fmt("%s/%s.cfg.d", configdir, prog);
++	free(configdir);
  
-   dlist_n = scandir(dirname, &dlist, valid_config_filename, alphasort);
-   if (dlist_n < 0) {
-@@ -194,11 +197,13 @@
+ 	dlist_n = scandir(dirname, &dlist, config_file_filter, alphasort);
+ 	if (dlist_n < 0) {
+@@ -215,11 +218,13 @@ dpkg_options_load_dir(const char *prog, const struct cmdinfo *cmdinfos)
  void
  dpkg_options_load(const char *prog, const struct cmdinfo *cmdinfos)
  {
--  char *home, *file;
-+  char *home, *file, *configdir;
+-	char *home, *file;
++	char *home, *file, *configdir;
  
-   dpkg_options_load_dir(prog, cmdinfos);
+ 	dpkg_options_load_dir(prog, cmdinfos);
  
--  file = str_fmt("%s/%s.cfg", CONFIGDIR, prog);
-+  configdir = dpkg_reloc_path(CONFIGDIR);
-+  file = str_fmt("%s/%s.cfg", configdir, prog);
-+  free(configdir);
-   dpkg_options_load_file(file, cmdinfos);
-   free(file);
+-	file = str_fmt("%s/%s.cfg", CONFIGDIR, prog);
++	configdir = dpkg_reloc_path(CONFIGDIR);
++	file = str_fmt("%s/%s.cfg", configdir, prog);
++	free(configdir);
+ 	dpkg_options_load_file(file, cmdinfos);
+ 	free(file);
  
---- a/src/dpkg-maintscript-helper.sh	2024-03-11 02:23:06.000000000 +0700
-+++ b/src/dpkg-maintscript-helper.sh	2026-09-24 02:12:44.159220107 +0700
-@@ -601,6 +601,8 @@
+diff --git a/src/dpkg-maintscript-helper.sh b/src/dpkg-maintscript-helper.sh
+--- a/src/dpkg-maintscript-helper.sh
++++ b/src/dpkg-maintscript-helper.sh
+@@ -620,6 +620,8 @@ fi
  export DPKG_ROOT
- 
- PKGDATADIR_DEFAULT=src
-+# Relocatable: if the built-in datadir is gone, look next to this script.
-+[ -d "$PKGDATADIR_DEFAULT" ] || PKGDATADIR_DEFAULT="${0%/*}/../share/dpkg"
- PKGDATADIR="${DPKG_DATADIR:-$PKGDATADIR_DEFAULT}"
- 
- # shellcheck source=src/sh/dpkg-error.sh
---- a/src/dpkg-realpath.sh	2024-03-11 02:23:06.000000000 +0700
-+++ b/src/dpkg-realpath.sh	2026-09-24 02:12:44.186097210 +0700
-@@ -23,6 +23,8 @@
- EOL="\n"
  
  PKGDATADIR_DEFAULT=src
 +# Relocatable: if the built-in datadir is gone, look next to this script.

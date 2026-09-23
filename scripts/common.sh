@@ -6,12 +6,16 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PREFIX="${PREFIX:-$HOME/.local}"
 SRC="${SRC:-$REPO/src}"
 
-APT_VER="${APT_VER:-2.8.1}"
-DPKG_VER="${DPKG_VER:-1.22.6}"
+APT_VER="${APT_VER:-3.3.3}"
+DPKG_VER="${DPKG_VER:-1.23.11}"
+# The apt source tarball's SHA-1, which is also its snapshot.debian.org name.
+APT_SHA1="${APT_SHA1:-f4f5406a434df5f18c885871d77197e682b20447}"
 
 # Where to fetch sources. salsa.debian.org is often blocked (403/Varnish PoW),
-# so use the upstream mirrors that publish the same release tags.
-APT_URL="${APT_URL:-https://github.com/Debian/apt/archive/refs/tags/$APT_VER.tar.gz}"
+# and the GitHub mirror of apt stopped at 3.1.x, so apt comes from
+# snapshot.debian.org, whose file URLs are permanent; dpkg from its
+# maintainer's GitHub mirror, which publishes the release tags.
+APT_URL="${APT_URL:-https://snapshot.debian.org/file/$APT_SHA1}"
 DPKG_URL="${DPKG_URL:-https://github.com/guillemj/dpkg/archive/refs/tags/$DPKG_VER.tar.gz}"
 
 # Architecture (no hardcoding): prefer dpkg's answer, else map uname -m.

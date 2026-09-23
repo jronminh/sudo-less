@@ -166,7 +166,7 @@ can't relocate those any better than apt can.
   and dpkg's `--instdir` is not chrooted. It doesn't write to the system as
   non-root (no privilege), but the alternatives it records are not useful in the
   prefix.
-- `apt-key`/signature verification needs a real `gpgv` on PATH.
+- Signature verification uses the host's `sqv` (apt 3.x; with apt 2.8.1 it needed `gpgv`).
 - Binary names differ from package names for several tools (`batcat`,
   `fdfind`, `rg`).
 

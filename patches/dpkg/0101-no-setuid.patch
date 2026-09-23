@@ -2,17 +2,18 @@ Origin: sudo-less
 Change: patch C. Unpacking clears the setuid and setgid bits, including ones from a statoverride: in a user's prefix they would only lend the owner's identity to whoever runs the file. (dpkg sets no file capabilities itself; a postinst's setcap fails without root.)
 License: GPL-2.0-or-later
 
---- a/src/main/archives.c	2026-09-24 00:08:03.894475497 +0700
-+++ b/src/main/archives.c	2026-09-24 02:12:54.306352565 +0700
-@@ -725,6 +725,11 @@
-     nodestat = ti->stat;
-   }
+diff --git a/src/main/archives.c b/src/main/archives.c
+--- a/src/main/archives.c
++++ b/src/main/archives.c
+@@ -800,6 +800,11 @@ tarobject(struct tar_archive *tar, struct tar_entry *ti)
+ 		nodestat = ti->stat;
+ 	}
  
-+  /* A user's prefix is no place for setuid or setgid files: nothing is
-+   * owned by root there, so the bits would only lend the owner's identity
-+   * to whoever runs the file. */
-+  nodestat.mode &= ~(S_ISUID | S_ISGID);
++	/* A user's prefix is no place for setuid or setgid files: nothing is
++	 * owned by root there, so the bits would only lend the owner's identity
++	 * to whoever runs the file. */
++	nodestat.mode &= ~(S_ISUID | S_ISGID);
 +
-   usenode = namenodetouse(nifd->namenode, tc->pkg, &tc->pkg->available);
-   usename = usenode->name;
+ 	usenode = namenodetouse(nifd->namenode, tc->pkg, &tc->pkg->available);
+ 	usename = usenode->name;
  

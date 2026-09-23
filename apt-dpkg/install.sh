@@ -44,10 +44,10 @@ sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/01update-desktop-database.in
   > "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 
-# apt's gpgv verifier needs a gpgv binary (Debian ships gpgv in its own package)
-if ! command -v gpgv >/dev/null; then
-  log "note: gpgv not found on PATH; apt-key verification will fail"
-  log "      install it, e.g.: extract the 'gpgv' .deb into $PREFIX/bin"
+# apt verifies signatures with the host's sqv (Debian's default verifier)
+if ! command -v sqv >/dev/null; then
+  log "note: sqv not found on PATH; apt-get update cannot verify signatures"
+  log "      install it, e.g.: extract the 'sqv' .deb into $PREFIX"
 fi
 
 STATUS="$PREFIX/var/lib/dpkg/status"

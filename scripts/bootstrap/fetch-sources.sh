@@ -6,6 +6,6 @@
 # out. build-on-host.sh runs it.
 source "$(dirname "$0")/../common.sh"
 
-fetch "$APT_URL"  "apt-$APT_VER.tar.gz"
+fetch "$APT_URL"  "apt-$APT_VER.tar.xz"
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"
 log "sources cached in $SRC"

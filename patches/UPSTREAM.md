@@ -11,25 +11,30 @@ patches have not changed since `4e756e3` (2024-08-15) and whose dpkg patches
 not since `bd75fa6` (2025-08-07). Termux builds apt 2.8.1 and dpkg 1.22.6
 there. The Termux patches are GPL-2.0-or-later, like apt and dpkg.
 
+**Upstream now:** the series are rebased onto Debian's **apt 3.3.3** and
+**dpkg 1.23.11** (sid, 2026-09). dpkg 1.23 re-indented its code with tabs
+and reworded its messages, so every dpkg patch was redone by hand, with
+the same changes.
+
 ## apt
 
 | Termux patch | here | why |
 |---|---|---|
-| `0000-cmake-fix` | `0001-cmake-no-libutil-no-tests` | kept verbatim for now; build-system changes for the NDK, probably unneeded on Debian |
-| `0001-no-macro-redef` | `0002-no-ramfs-magic-redef` | kept verbatim |
+| `0000-cmake-fix` | dropped | build-system changes for the NDK; on Debian `-DWITH_TESTS=OFF` is all that is needed |
+| `0001-no-macro-redef` | dropped | apt 3.3 builds with GCC 16 without it (was `0002-no-ramfs-magic-redef`) |
 | `0002-no-locales` | dropped | acts only under `__ANDROID__`, which apt is not built with |
 | `0003-no-srv-records` | dropped | same |
-| `0004-no-hardcoded-paths` | `0003-prefix-paths` | kept verbatim: the prefix paths, a native need |
-| `0005-http2-fix` | `0004-http2-status-line` | kept verbatim |
+| `0004-no-hardcoded-paths` | `0001-prefix-paths` | adapted: the prefix paths, a native need. The `apt-key` hunks went with `apt-key` (removed in apt 3.1); the bug-report hunks for `dmesg`/`df` are dropped, since the report runs the host's tools either way |
+| `0005-http2-fix` | `0002-http2-status-line` | kept verbatim |
 | `0006-no-init-arch-tuple` | dropped | acts only under `__ANDROID__` |
-| `0007-aptkey-no-root` | `0005-apt-key-no-root` | kept verbatim: a native need |
-| `0008-fix-function-args` | `0006-socklen-t` | kept verbatim |
+| `0007-aptkey-no-root` | dropped | `apt-key` is gone in apt 3.1 |
+| `0008-fix-function-args` | `0003-socklen-t` | kept verbatim |
 | `0009-update-error-messages` | dropped | Termux's own messages, only under `__ANDROID__` |
-| `0010-prevent-usage-as-root` | `0007-refuse-root` | kept verbatim: the userspace apt never runs as root |
+| `0010-prevent-usage-as-root` | `0004-refuse-root` | kept, without the `apt-key` hunk: the userspace apt never runs as root |
 | `0011-keep-downloaded-packages` | dropped | Debian's default (do not keep `.deb` files) saves the user's disk |
 | `0012-ndk-r27` | dropped | an NDK compiler fix |
 | `0013-fix-patterns` | dropped | renames apt's search patterns away from Debian's documented names |
-| (sudo-less) `local/0001-gcc16-fixes` | `0008-gcc16-fixes` | ours, for GCC 16 |
+| (sudo-less) `0008-gcc16-fixes` | dropped | apt 3.3 builds with GCC 16 without it |
 
 ## dpkg
 

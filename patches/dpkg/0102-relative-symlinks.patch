@@ -2,8 +2,10 @@ Origin: sudo-less
 Change: inside an install root (--instdir, DPKG_ROOT), symlinks are made relative, so they resolve inside the root instead of on the host. dpkg does it when unpacking a .deb, unless the target exists only on the host (a file of a package the root does not hold); update-alternatives does it for every link it makes, and reads relative links back as absolute paths. Outside an install root nothing changes.
 License: GPL-2.0-or-later
 
---- a/lib/dpkg/path-rel.h	1970-01-01 08:00:00.000000000 +0800
-+++ b/lib/dpkg/path-rel.h	2026-09-24 04:17:43.858054748 +0700
+diff --git a/lib/dpkg/path-rel.h b/lib/dpkg/path-rel.h
+new file mode 100644
+--- /dev/null
++++ b/lib/dpkg/path-rel.h
 @@ -0,0 +1,184 @@
 +/*
 + * libdpkg - Debian packaging suite library routines
@@ -189,8 +191,9 @@ License: GPL-2.0-or-later
 +}
 +
 +#endif /* LIBDPKG_PATH_REL_H */
---- a/src/main/archives.c	2026-09-24 02:12:54.306352565 +0700
-+++ b/src/main/archives.c	2026-09-24 04:17:43.941152321 +0700
+diff --git a/src/main/archives.c b/src/main/archives.c
+--- a/src/main/archives.c
++++ b/src/main/archives.c
 @@ -45,6 +45,7 @@
  #include <dpkg/dpkg.h>
  #include <dpkg/dpkg-db.h>
@@ -199,24 +202,25 @@ License: GPL-2.0-or-later
  #include <dpkg/path.h>
  #include <dpkg/fdio.h>
  #include <dpkg/buffer.h>
-@@ -731,6 +732,15 @@
-   nodestat.mode &= ~(S_ISUID | S_ISGID);
+@@ -806,6 +807,15 @@ tarobject(struct tar_archive *tar, struct tar_entry *ti)
+ 	nodestat.mode &= ~(S_ISUID | S_ISGID);
  
-   usenode = namenodetouse(nifd->namenode, tc->pkg, &tc->pkg->available);
+ 	usenode = namenodetouse(nifd->namenode, tc->pkg, &tc->pkg->available);
 +
-+  if (ti->type == TAR_FILETYPE_SYMLINK) {
-+    char *linkname;
++	if (ti->type == TAR_FILETYPE_SYMLINK) {
++		char *linkname;
 +
-+    linkname = path_rel_link_target(dpkg_fsys_get_dir(), usenode->name,
-+                                    ti->linkname);
-+    free(ti->linkname);
-+    ti->linkname = linkname;
-+  }
-   usename = usenode->name;
++		linkname = path_rel_link_target(dpkg_fsys_get_dir(), usenode->name,
++		                                ti->linkname);
++		free(ti->linkname);
++		ti->linkname = linkname;
++	}
+ 	usename = usenode->name;
  
-   trig_file_activate(usenode, tc->pkg);
---- a/utils/update-alternatives.c	2024-03-11 02:23:06.000000000 +0700
-+++ b/utils/update-alternatives.c	2026-09-24 04:17:43.939591805 +0700
+ 	trig_file_activate(usenode, tc->pkg);
+diff --git a/utils/update-alternatives.c b/utils/update-alternatives.c
+--- a/utils/update-alternatives.c
++++ b/utils/update-alternatives.c
 @@ -44,6 +44,7 @@
  #include <ctype.h>
  #include <limits.h>
@@ -225,7 +229,7 @@ License: GPL-2.0-or-later
  #include <dpkg/macros.h>
  #include <dpkg/i18n.h>
  
-@@ -616,6 +617,15 @@
+@@ -740,6 +741,15 @@ fsys_areadlink(const char *linkname)
  	target = areadlink(root_linkname);
  	free(root_linkname);
  
@@ -241,9 +245,9 @@ License: GPL-2.0-or-later
  	return target;
  }
  
-@@ -672,7 +682,16 @@
+@@ -798,7 +808,16 @@ fsys_symlink(const char *filename, const char *linkname)
  	if (unlink(root_linkname) < 0 && errno != ENOENT)
- 		syserr(_("unable to remove '%s'"), root_linkname);
+ 		syserr(_("cannot remove '%s'"), root_linkname);
  
 -	if (symlink(filename, root_linkname))
 +	/* Inside an install root, an absolute link would resolve against the
@@ -252,10 +256,10 @@ License: GPL-2.0-or-later
 +		char *rel = path_rel_make(linkname, filename);
 +
 +		if (symlink(rel, root_linkname))
-+			syserr(_("error creating symbolic link '%.255s'"),
++			syserr(_("cannot create symbolic link '%s'"),
 +			       root_linkname);
 +		free(rel);
 +	} else if (symlink(filename, root_linkname))
- 		syserr(_("error creating symbolic link '%.255s'"), root_linkname);
+ 		syserr(_("cannot create symbolic link '%s'"), root_linkname);
  
  	free(root_linkname);

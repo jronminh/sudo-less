@@ -12,8 +12,8 @@
 # Notes:
 #   * libselinux1-dev is intentionally omitted: apt/dpkg are built
 #     --without-libselinux, and it is mid-transition in sid.
-#   * gpgv is a *runtime* dep (apt-key verification), not a build dep; see
-#     install-config.sh / the gpgv note in README.md.
+#   * sqv is both: apt builds its sqv method only if sqv is found, and runs
+#     it to verify signatures.
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive

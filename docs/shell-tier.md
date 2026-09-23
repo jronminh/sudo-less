@@ -1,132 +1,152 @@
-# A middle identity: our own "shell" uid
+# `slsh`: a middle identity, used like `dsh`
 
-Status: **design, not implemented.** Nothing here is installed; the
-mechanisms named are verified to exist on this host (systemd 261, util-linux,
-coreutils), and the design has not been run yet.
+Status: **design.** The transport was prototyped as `master` on 2026-09-23 (a
+runtime user unit, same uid on both ends, see "Prototype"). The admin side
+(a system user, system units) is not installed.
 
-## Why
+## The core idea, taken from Android
 
-Android has three layers: the app (Termux), `shell` (uid 2000, what `adb
-shell` gets), and root. `shell` has **no effective capabilities**; its power is
-a fixed list (groups such as `readproc`/`uhid`, verbs such as `settings`,
-`pm`), and the system checks that list, not `shell` itself
-(`docs/system-resources.md` §1.4). Termux uses it once, to switch off the
-phantom-process killer, and then runs as the app again.
+On the phone, `dsh CMD` runs `CMD` as Android's `shell` uid. `shell` is not
+root: it has no effective capabilities, and what it can reach (groups, a few
+settings, all of `/proc`) is decided by the system, not by `dsh`
+(`docs/system-resources.md` §1.4). So `dsh` can run *any* command and still be
+safe, because the identity it runs as is bounded.
 
-This repo has two layers, `master` and root (via the admin account). What is
-out of reach for `master` today lands in tier `never` (`docs/standard.md`).
-A middle identity, enabled once by the admin and usable by `master` directly,
-would turn part of `never` into **`limited`**: the package works, and the
-host integration it needs is done by a reviewed, narrow verb.
+Only that part is copied:
 
-## The trap
+> **A command that runs anything, as an identity whose power is fixed by the
+> admin in advance and enforced by the kernel.**
 
-A middle uid that runs *arbitrary* commands for `master` is just `master`
-with more groups: every process `master` runs gets those rights. (`dsh` on the
-phone is exactly that: any process in Termux can call it.) So the design is
-bound by three rules:
+`slsh CMD` does what `sudo CMD` would do for the things `master` legitimately
+needs beyond userspace, as a system user `slsh` that can never become root.
+Nothing else from Android (SELinux, adbd, pairing, `settings`) is copied.
 
-1. **Verbs, not commands.** The middle identity executes a fixed table of
-   verbs with validated arguments. There is no "run this".
-2. **Never feed root.** A verb never writes anything that root later reads as
-   code or policy: `/etc/tmpfiles.d`, systemd units, `/etc/sudoers*`, polkit
-   rules, cron, udev rules, PAM, `ld.so.preload`, anything setuid. Writing
-   those *is* root.
-3. **No path up.** The middle uid has no sudo rights, no membership in
-   root-equivalent groups (`sudo`, `disk`, `docker`, `lxd`, `shadow`, …), and
-   owns nothing that root executes.
+## Usage (same shape as `dsh`)
 
-With those, it respects the repo's rule that admin steps enable userspace and
-never run `master`'s software: the middle identity runs *verbs*, not
-`master`'s programs.
+```sh
+slsh CMD [ARG...]      # run CMD as slsh; stdin/stdout/stderr and exit status pass through
+slsh -c 'CMD'          # run a shell command line
+slsh                   # interactive shell as slsh
+slsh status            # socket reachable? which paths/groups/caps does slsh hold?
+```
 
-## Native building blocks (no polkit)
+- a pty is allocated when stdin and stdout are terminals (Ctrl-C reaches the
+  command), not otherwise (pipes stay binary-clean);
+- the working directory is carried over when slsh can enter it, else
+  slsh's home;
+- the environment starts clean: `PATH`, `TERM`, `LANG`/`LC_*` only;
+- `ARG`s are quoted by the client, so `slsh touch 'a b'` means one file.
 
-Every piece below is in the kernel or the base system (priority
-`required`/`important` on Debian). polkit and `run0` (which asks polkit) are
-not used.
+## What bounds `slsh`
 
-| need | native mechanism | enforced by |
+Three locks, all set by the admin once, all enforced by the kernel. None
+depends on what command `master` sends.
+
+| lock | mechanism | effect |
 |---|---|---|
-| the identity | a system user `slsh` + group, created once (`useradd --system`, shadow) | kernel uid/gid |
-| who may call it | a unix socket owned `root:master`, mode `0660` | kernel DAC on `connect()` |
-| running a verb | systemd socket activation, `Accept=yes`, service `User=slsh` | systemd, one process per call |
-| the allowlist of paths | `ProtectSystem=strict` + `ReadWritePaths=` (exact list) | mount namespace set up by systemd |
-| the allowlist of powers | `CapabilityBoundingSet=` (empty, or one named cap), `NoNewPrivileges=yes` | kernel capabilities |
-| further confinement | `SystemCallFilter=@system-service`, `PrivateDevices=`, `RestrictAddressFamilies=` | seccomp |
-| delegating a path | group ownership + setgid directory (`chgrp slsh`, `chmod 2775`), not ACLs | kernel DAC |
-| delegating a device | group on the node via a udev rule installed once by the admin | udev + DAC |
+| **identity** | system user `slsh`, its own group, plus only the groups that were deliberately granted | ordinary DAC: slsh reaches what those groups reach, nothing more |
+| **filesystem** | the session runs in a systemd service with `ProtectSystem=strict`, `ProtectHome=read-only`, `PrivateTmp=yes`, and a `ReadWritePaths=` list | everything is read-only except the listed paths, **even if** DAC would allow a write |
+| **no way up** | `NoNewPrivileges=yes`, `RestrictSUIDSGID=yes`, empty `CapabilityBoundingSet=` (or one named capability via `AmbientCapabilities=`) | `sudo`, `su`, `pkexec` and every setuid binary lose their power inside; no capability can be regained |
 
-This mirrors Android closely: the socket is `adbd`, `User=slsh` is uid 2000,
-and systemd's sandbox options take the place of the SELinux `shell` domain
-(what the identity may touch is declared by someone else, not by the code
-running as it). ACLs (`setfacl`) would also work but the `acl` package is
-`optional` on Debian, so plain groups come first.
+The filesystem lock is what keeps rule "never feed root" honest: paths that
+root later executes (`/etc/sudoers*`, `/etc/systemd`, `/etc/tmpfiles.d`,
+`/etc/udev`, `/etc/pam.d`, `/etc/polkit-1`, `/etc/ld.so.preload`, cron) must
+never appear in `ReadWritePaths=`. The admin script refuses them.
 
-Rejected:
+The accepted trade-off, as with `dsh`: any process `master` runs can call
+`slsh`. That is fine because slsh's power is small, written down in one
+unit file, and reviewed.
 
-- **setuid-to-`slsh` helper.** Native (the kernel supports setuid to any uid,
-  and `AT_SECURE` strips `LD_PRELOAD`), but the helper inherits `master`'s
-  environment, fds, rlimits and cwd, and needs compiling (scripts cannot be
-  setuid). A socket-activated service starts from a clean slate instead.
-- **polkit actions / `run0`.** They work (`docs/polkit.md`), but decide per
-  action in a JavaScript rules engine outside the base system, and `run0`
-  runs as root.
-- **Just granting `master` the group.** Right when the power is harmless as a
-  standing right (a device node, a data directory). Wrong when the verb must
-  validate its input: a group grant cannot say "only this file name".
-
-## Shape
+## How it is wired (native pieces only, no polkit)
 
 ```
-master ──connect──▶ /run/slsh.sock (root:master 0660)
-                         │ systemd, Accept=yes
-                         ▼
-               slsh@.service  User=slsh  NoNewPrivileges=yes
-               ProtectSystem=strict  ReadWritePaths=<delegated paths>
-               CapabilityBoundingSet=  SystemCallFilter=@system-service
-                         │ reads one line: VERB ARG...
-                         ▼
-               /usr/local/libexec/slsh/<verb>   (root-owned, admin-installed)
+slsh CMD  (client, master)
+   │  ssh over a unix socket: systemd-ssh-proxy, ProxyUseFdpass
+   ▼
+/run/slsh.sock   root:master 0660   ── only master can connect (kernel DAC)
+   │  slsh.socket, Accept=yes: one service instance per call
+   ▼
+slsh@.service   User=slsh + the three locks above
+   ExecStart=-/usr/sbin/sshd -i -f /etc/slsh/sshd_config
+   │  sshd running as slsh, not root: it can only log in as slsh
+   ▼
+CMD, as slsh; when the connection closes, systemd kills the instance's cgroup
 ```
 
-Verbs are root-owned files installed by the admin, so neither `master` nor
-`slsh` can change what a verb does. The dispatcher refuses unknown verbs and
-arguments that fail the verb's own validation. Each verb's delegated paths
-appear in the unit's `ReadWritePaths=`, so a buggy verb still cannot write
-elsewhere.
+Why these parts:
 
-The recipe side: a recipe in tier `limited` lists the verbs it needs;
-`recipes.sh` checks that the socket answers and the verbs exist, and the
-verdict names the missing verb if not.
+- **systemd socket activation** gives a fresh, sandboxed process per call and
+  cleans up by cgroup: a client killed without a pty leaves no orphan.
+- **`sshd -i` as a non-root user** does the hard parts that a hand-written
+  protocol would get wrong: stdin/stdout/stderr, exit status, pty, window
+  size, signals. Running as `slsh` it cannot switch users, so it is not a root
+  daemon. OpenSSH and `systemd-ssh-proxy` (systemd ≥ 256, the `unix/PATH` host
+  syntax) are already installed here.
+- **The socket mode** is the real gate. The ssh key (`master`'s, listed in a
+  root-owned `/etc/slsh/authorized_keys`) is a second one.
 
-## Against today's `never` list
+Rejected: a setuid-to-`slsh` helper (inherits `master`'s environment, fds and
+rlimits; needs compiling), polkit / `run0` (a rules engine outside the base
+system; `run0` targets root), a custom protocol over `socat` (no pty, stderr
+or exit status without reinventing ssh).
 
-| `never` reason (`docs/standard.md`) | with `slsh` |
+## Prototype (as master, no admin)
+
+Runtime user units in `/run/user/1001/systemd/user` (non-persistent), sshd
+with a throwaway host key, same uid on both ends:
+
+| check | result |
 |---|---|
-| root-only postinst writing **data** (`javascript-common`: `mkdir /etc/lighttpd/conf-enabled`) | **limited**: a verb creates the directory in a delegated tree |
-| root-only postinst creating runtime dirs (`screen`: `/run/screen`, group `utmp`, `0775`) | **limited**: a verb creates it, with a fixed owner and mode |
-| postinst writing **root-executed config** (`screen`: `/etc/tmpfiles.d`, a unit link, `update-rc.d`) | **never** by rule 2; the admin can ship a reviewed static equivalent once instead |
-| services: ports < 1024 | not needed: `net.ipv4.ip_unprivileged_port_start` is an admin-once sysctl |
-| services: system D-Bus names, system units | **limited** at best, via a verb that starts a pre-reviewed unit; never installing units |
-| container-in-container | partly: a larger subuid range is admin-once, not a verb |
-| PAM / setuid | **never**: minting setuid-root or PAM modules is root by definition |
-| 32-bit-only, proprietary self-updating | unchanged; not a privilege problem |
+| `ssh slsh 'id; exit 7'` | runs, exit status 7 returned |
+| stdin / stderr | `echo hi \| … cat` → `hi`; stderr arrives separately |
+| pty (`-tt`) | `/dev/pts/N`, `TERM` passed |
+| environment | client's `FOO=leak` not seen; `PATH` is sshd's default |
+| 3 MB through stdin | byte-exact (`wc -c`) |
+| latency per call | ≈ 100 ms |
+| client killed, no pty | under `systemd-socket-activate`: remote `sleep` **orphaned**; under a socket unit: **no orphan** (cgroup) |
+| sandbox | `/` read-only, `ReadWritePaths=` dir writable, `NoNewPrivs: 1` |
+| gotcha | `ProtectSystem=strict` alone left `/home` writable in this setup; `ProtectHome=read-only` closed it. Both are required. |
 
-So `never` shrinks to "needs root by definition" plus the non-privilege
-reasons, and gains a precise meaning.
+Not yet verified: a different uid on the far end (needs the system user),
+`AmbientCapabilities=`, and the client wrapper's quoting and cwd handling.
 
-## Open questions before a prototype
+## Admin side (enable once)
 
-- Verb language: POSIX `sh` with `case` dispatch keeps it base-only; each verb
-  then needs careful argument validation (no `..`, fixed patterns).
-- Audit: systemd's journal records every instance (`slsh@<n>.service`) with
-  the peer; is that enough, or should verbs log explicitly?
-- Consent: Android also asks for pairing before `shell` is reachable. Here the
-  socket mode is the only gate; a verb-level "ask the user" would need a
-  desktop prompt, which brings polkit back.
-- Where the admin side lives: `admin/native/` (user, socket, service,
-  dispatcher, base verbs), with per-package verbs reviewed individually.
+`admin/native/enable-slsh.sh` would install:
 
-A prototype needs the admin account (system user, units under
-`/etc/systemd/system`), so it waits for explicit approval.
+- `useradd --system --home-dir /var/lib/slsh --shell /bin/sh slsh`;
+- `/etc/slsh/sshd_config` (no passwords, no forwarding, `AcceptEnv` for the
+  allowlist), a host key owned by slsh, and a root-owned `authorized_keys`
+  holding the public key that `master` generated;
+- `slsh.socket` and `slsh@.service` with the three locks;
+- one drop-in per delegation, `/etc/systemd/system/slsh@.service.d/<name>.conf`
+  (`ReadWritePaths=`, `SupplementaryGroups=`, or one `AmbientCapabilities=`),
+  each reviewed on its own and checked against the forbidden-path list.
+
+It never adds slsh to `sudo`, `disk`, `docker`, `lxd`, `shadow` or any other
+root-equivalent group.
+
+## Tier `limited`
+
+A package whose only obstacle is a privileged step becomes `limited`. The
+recipe names the delegation it needs, and the step runs through `slsh`, not
+root:
+
+| today `never` | with slsh |
+|---|---|
+| `javascript-common`: postinst `mkdir -p /etc/lighttpd/conf-enabled` | **limited**: delegation `ReadWritePaths=/etc/lighttpd`; the recipe runs `slsh mkdir -p /etc/lighttpd/conf-enabled`, then `dpkg --configure` |
+| `screen`: `/run/screen`, group `utmp`, mode `0775` | **limited**: delegation `SupplementaryGroups=utmp` + a `/run/screen` path |
+| `screen`: `/etc/tmpfiles.d`, unit link, `update-rc.d` | **never**: root-executed config; the admin may ship a reviewed static file once instead |
+| services on ports < 1024 | no slsh needed: `net.ipv4.ip_unprivileged_port_start` is an admin-once sysctl |
+| PAM, setuid | **never**: blocked by `NoNewPrivileges` and the forbidden list, by design |
+| 32-bit-only, proprietary self-updating | unchanged: not about privilege |
+
+`recipes.sh` would check that `slsh status` lists the delegation a `limited`
+recipe needs and name it when missing.
+
+## Open questions
+
+- Name: `slsh` (sudo-less shell) vs something shorter.
+- One `slsh` for everything, or one identity per delegation (`slsh-lighttpd`,
+  …) so that a grant for one package is not a grant for all?
+- Audit: every call is a journal entry (`slsh@<n>.service`, peer pid/uid). Enough?

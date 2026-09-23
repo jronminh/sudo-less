@@ -19,17 +19,6 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 source "$(dirname "$0")/../common.sh"
 
-# deb-src is not required for this explicit list, but harmless to have.
-if [ ! -e /etc/apt/sources.list.d/src.sources ]; then
-  cat > /etc/apt/sources.list.d/src.sources <<'EOF'
-Types: deb-src
-URIs: http://deb.debian.org/debian
-Suites: sid
-Components: main
-Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp
-EOF
-fi
-
 log "apt-get update"
 apt-get update -qq
 

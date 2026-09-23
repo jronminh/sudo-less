@@ -1,4 +1,4 @@
-# `slsh`: a middle identity, used like `dsh`
+# `slsh`: a middle identity, used like `sudo` / `dsh`
 
 Status: **design.** The transport was prototyped as `master` on 2026-09-23 (a
 runtime user unit, same uid on both ends, see "Prototype"). The admin side
@@ -21,21 +21,49 @@ Only that part is copied:
 needs beyond userspace, as a system user `slsh` that can never become root.
 Nothing else from Android (SELinux, adbd, pairing, `settings`) is copied.
 
-## Usage (same shape as `dsh`)
+## Usage: `sudo` with a different target
+
+`slsh` takes `sudo`'s options wherever they make sense, so muscle memory and
+scripts carry over (`sudo mkdir -p /etc/x` → `slsh mkdir -p /etc/x`), plus
+`dsh`'s `-c`/`-f`/`-p`.
 
 ```sh
-slsh CMD [ARG...]      # run CMD as slsh; stdin/stdout/stderr and exit status pass through
-slsh -c 'CMD'          # run a shell command line
-slsh                   # interactive shell as slsh
-slsh status            # socket reachable? which paths/groups/caps does slsh hold?
+slsh CMD [ARG...]        # run CMD as slsh                       (sudo CMD, dsh CMD)
+slsh -s [CMD]            # shell as slsh, or CMD through it      (sudo -s)
+slsh -i [CMD]            # login shell as slsh                   (sudo -i)
+slsh -e FILE...          # edit FILEs as slsh                    (sudo -e / sudoedit)
+slsh -l [CMD]            # what slsh may do; with CMD: would it  (sudo -l)
+slsh -D DIR CMD          # run in DIR                            (sudo -D)
+slsh --preserve-env=VAR,... CMD   # pass extra variables         (sudo --preserve-env=)
+slsh -u IDENT CMD        # another middle identity, if several exist (sudo -u)
+slsh -c 'CMD LINE'       # run a shell command line              (dsh -c)
+slsh -f FILE             # run the command read from FILE        (dsh -f)
+slsh -p FILE CMD         # stream FILE to CMD's stdin            (dsh -p)
+slsh -v | -k | -K        # accepted, do nothing: there is no password to cache
 ```
 
-- a pty is allocated when stdin and stdout are terminals (Ctrl-C reaches the
-  command), not otherwise (pipes stay binary-clean);
-- the working directory is carried over when slsh can enter it, else
-  slsh's home;
-- the environment starts clean: `PATH`, `TERM`, `LANG`/`LC_*` only;
-- `ARG`s are quoted by the client, so `slsh touch 'a b'` means one file.
+Behaviour a `sudo` user expects, kept:
+
+- stdin, stdout, stderr and the exit status pass through; a pty is allocated
+  when stdin and stdout are terminals, so Ctrl-C and full-screen programs work,
+  and pipes stay binary-clean otherwise;
+- the current directory is kept (sudo's default) when slsh can enter it,
+  else slsh's home, with a warning;
+- the environment is reset to an allowlist (`PATH`, `TERM`, `LANG`, `LC_*`),
+  as sudo's `env_reset` does; `--preserve-env` adds to it;
+- `-e` works like `sudoedit`: the file is copied out, edited by `$EDITOR`
+  running as **master**, and written back as slsh, so the editor itself never
+  runs with slsh's rights;
+- arguments are quoted by the client, so `slsh touch 'a b'` makes one file.
+
+Differences, on purpose:
+
+- no password and no credential cache: the gate is the socket (only `master`
+  can connect), so `-v`/`-k`/`-K` are no-ops kept for script compatibility;
+- the target is never root: `-u root` is refused, and `-u` takes only the
+  middle identities the admin created;
+- `slsh` is not installed as `sudo`: a script that calls `sudo` should fail
+  loudly, not get slsh's rights by surprise.
 
 ## What bounds `slsh`
 
@@ -141,12 +169,13 @@ root:
 | PAM, setuid | **never**: blocked by `NoNewPrivileges` and the forbidden list, by design |
 | 32-bit-only, proprietary self-updating | unchanged: not about privilege |
 
-`recipes.sh` would check that `slsh status` lists the delegation a `limited`
+`recipes.sh` would check that `slsh -l` lists the delegation a `limited`
 recipe needs and name it when missing.
 
 ## Open questions
 
 - Name: `slsh` (sudo-less shell) vs something shorter.
+- `-e` needs the client to copy files both ways; confirm it keeps owner and mode on write-back.
 - One `slsh` for everything, or one identity per delegation (`slsh-lighttpd`,
   …) so that a grant for one package is not a grant for all?
 - Audit: every call is a journal entry (`slsh@<n>.service`, peer pid/uid). Enough?

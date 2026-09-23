@@ -106,6 +106,10 @@ this repo.
 - [`docs/flatpak-bridge.md`](docs/flatpak-bridge.md) — letting a Flatpak app talk
   to a program you installed here.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
+- [`docs/system-resources.md`](docs/system-resources.md) — what Termux and Waydroid
+  need from the system: unprivileged, fakeable, or admin-once.
+- [`docs/dsb.md`](docs/dsb.md) — an optional [dsb](https://github.com/jronminh/dsb)
+  policy (bounded middle identities, never root) for developing sudo-less.
 
 ## Status
 
@@ -127,6 +131,7 @@ flatpak/       bridge for Flatpak apps (docs/flatpak-bridge.md)
 admin/         one-time root-side setup that enables userspace (never runs your software)
   native/        base system only: enable-userspace (userns, subuid), unlock
   third-party/   only what needs root to work: install-tools (setuid uidmap, fuse3)
+  dsb/           optional policy for dsb (docs/dsb.md)
   verify-privs.sh  read-only check of the setup, run as the daily user
 patches/       Termux's patches, verbatim
 extras/        device-specific, NOT part of the supported core (this machine only)

@@ -16,7 +16,7 @@ END="# <<< sudo-less PATH <<<"
 read -r -d '' BLOCK <<EOF || true
 $MARK
 # userspace apt/dpkg prefix (installed by $REPO)
-if [ -d "$PREFIX/usr/bin" ]; then
+if [ -d "$PREFIX/bin" ] || [ -d "$PREFIX/usr/bin" ]; then
     case ":\$PATH:" in
         *":$PREFIX/usr/bin:"*) ;;
         *) PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:\$PATH" ;;
@@ -28,8 +28,18 @@ if [ -f "$PREFIX/etc/apt/apt.conf.d/00local-prefix" ]; then
     APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
     export APT_CONFIG
 fi
+# and dpkg at its database: a prebuilt dpkg's compiled-in admindir is the
+# build machine's (apt passes --admindir itself; plain \`dpkg -l\` does not)
+if [ -f "$PREFIX/var/lib/dpkg/status" ]; then
+    DPKG_ADMINDIR="$PREFIX/var/lib/dpkg"
+    export DPKG_ADMINDIR
+fi
 $END
 EOF
+
+# an account created without /etc/skel has neither file: create ~/.profile,
+# or nothing would put the prefix on PATH (and nothing would say so)
+[ -e "$HOME/.bashrc" ] || [ -e "$HOME/.profile" ] || : > "$HOME/.profile"
 
 updated=0
 for rc in "$HOME/.bashrc" "$HOME/.profile"; do

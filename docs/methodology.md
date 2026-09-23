@@ -2,8 +2,9 @@
 
 `master` has no `sudo` and no root. Everything below runs as `master` (uid
 1001) and stays inside the home directory. The privileged pieces are done once
-by `mobian` via `admin/third-party/admin-prep.sh` (subuid/subgid, user namespaces, uidmap,
-fuse-overlayfs, `~/.local/bin` on PATH).
+by `mobian`: `admin/native/enable-userspace.sh` (user namespaces, subuid/subgid,
+`~/.local/bin` on PATH; base tools only) and `admin/third-party/install-tools.sh`
+(uidmap, fuse-overlayfs, bwrap, mmdebstrap).
 
 There are four levels of "no-root", from lightest to heaviest. Pick the
 lightest that does the job.

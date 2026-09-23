@@ -125,9 +125,9 @@ recipes/       per-package notes (see docs/standard.md)
 tools/         deb2home.sh, prefix-run.sh
 flatpak/       bridge for Flatpak apps (docs/flatpak-bridge.md)
 waydroid/      Waydroid fixes (docs/waydroid-mesa-debug.md)
-admin/         root-side scripts (example setup), run as the admin:
-  native/        root + base system only (util-linux, kernel): overlay-run, unlock
-  third-party/   root, installs extra packages: admin-prep
+admin/         one-time root-side setup that enables userspace (never runs your software)
+  native/        base system only: enable-userspace (userns, subuid), unlock
+  third-party/   installs extra packages: install-tools (bwrap, mmdebstrap, ...)
   device/        root, this machine only: SMART, desktop, Waydroid
   verify-privs.sh  read-only check of the setup, run as the daily user
 patches/       Termux's patches, verbatim

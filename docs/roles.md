@@ -13,7 +13,12 @@ Two-persona split on this box (Debian forky/sid, host `mobian`, x86_64).
 - Owns privileged services: smartmontools + `cap_sys_rawio`, Waydroid, the
   setuid container stack (`newuidmap`/`newgidmap`).
 - SSH admin account; runs the root-side prep in `../admin/` once:
-  `sudo bash ~/sudo-less/admin/third-party/admin-prep.sh [--with-podman]`.
+  `sudo bash ~/sudo-less/admin/native/enable-userspace.sh` (base tools only), then
+  `sudo bash ~/sudo-less/admin/third-party/install-tools.sh [--with-podman]`.
+- **Admin enables, never runs.** Every script in `../admin/` is one-time
+  enablement so `master` can run software in userspace. None of them runs
+  `master`'s software as root; a per-run `sudo` path would be an escape hatch,
+  not a feature.
 
 ## `master` (uid 1001) — unprivileged daily user
 

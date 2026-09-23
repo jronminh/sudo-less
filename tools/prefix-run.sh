@@ -17,8 +17,7 @@
 #            the same overlay with no bwrap: unshare -Urm + mount -t overlay,
 #            i.e. util-linux + the kernel only; a nested userns then maps you
 #            back to your own uid (needs util-linux >= 2.38 for --map-user).
-#            No root. The root variant, which needs no userns, is
-#            admin/native/overlay-run.sh.
+#            Unprivileged userns is enabled once by admin/native/enable-userspace.sh.
 #   rootfs   run inside a complete rootfs ($ROOTFS, from scripts/env/make-buildroot.sh) as
 #            "/" — via bwrap --bind, else proot -R, else chroot when root.
 #   env      no namespaces: export LD_LIBRARY_PATH/XDG_DATA_DIRS/PATH, exec.
@@ -86,7 +85,7 @@ overlay_ok() {
 
 # The same, with no bwrap: a throwaway overlay (lowerdir /usr) mounted in an
 # unprivileged user + mount namespace, and --map-user for the nested userns
-# that hands the command back its own uid. Not as root: see overlay-run.sh.
+# that hands the command back its own uid. A userspace runner: not as root.
 native_overlay_ok() {
   [ "$(id -u)" -ne 0 ] || return 1
   have unshare || return 1
@@ -114,7 +113,7 @@ pick_mode() {
       elif rootfs_ok; then printf 'rootfs'
       else printf 'env'; fi ;;
     overlay) [ -d "$PREFIX/usr" ] || die "overlay mode needs $PREFIX/usr (install a package first)"; overlay_ok || die "overlay unavailable: need bwrap + userns + overlayfs (kernel >= 5.11)"; printf 'overlay' ;;
-    overlay-native) [ -d "$PREFIX/usr" ] || die "overlay-native mode needs $PREFIX/usr (install a package first)"; [ "$(id -u)" -ne 0 ] || die "overlay-native is the no-root variant; as root use admin/native/overlay-run.sh -u USER CMD"; native_overlay_ok || die "overlay-native unavailable: need unshare (util-linux >= 2.38) + unprivileged userns + overlayfs (kernel >= 5.11)"; printf 'overlay-native' ;;
+    overlay-native) [ -d "$PREFIX/usr" ] || die "overlay-native mode needs $PREFIX/usr (install a package first)"; [ "$(id -u)" -ne 0 ] || die "overlay-native is a userspace runner; run it as the unprivileged user, not root"; native_overlay_ok || die "overlay-native unavailable: need unshare (util-linux >= 2.38) + unprivileged userns (admin/native/enable-userspace.sh) + overlayfs (kernel >= 5.11)"; printf 'overlay-native' ;;
     rootfs)  rootfs_ok  || die "no rootfs at $ROOTFS (run scripts/env/make-buildroot.sh)"; printf 'rootfs' ;;
     env)     printf 'env' ;;
     *)       die "unknown mode: $MODE (auto|overlay|overlay-native|rootfs|env)" ;;

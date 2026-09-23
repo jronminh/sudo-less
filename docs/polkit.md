@@ -23,7 +23,7 @@ Two-persona split on this box.
 - Owns privileged services: smartmontools + `cap_sys_rawio`, Waydroid (needs
   sudo), the setuid container stack (`newuidmap/newgidmap`).
 - SSH admin account; runs the root-side prep scripts in `master`'s home
-  (`admin-prep.sh`, `smart-install.sh`,
+  (`enable-userspace.sh`, `install-tools.sh`, `smart-install.sh`,
   `waydroid-install.sh`, `desktop-fix.sh`, `unlock.sh`).
 - Recovery/repair: debugging, kernel/firmware, LUKS unlock.
 

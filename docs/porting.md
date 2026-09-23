@@ -27,7 +27,9 @@ and dpkg, installs them into `~/.local`, and writes the runtime config.
 ### No-root path (userns + rootfs)
 
 Requires your admin to enable user namespaces and give you subuid/subgid
-(see `../admin/admin-prep.sh` for what that entails). Then:
+(see `../admin/native/enable-userspace.sh`) and to install `uidmap`
+(`../admin/third-party/install-tools.sh`). The rootfs tools themselves need
+no root: `apt-get install bubblewrap mmdebstrap` puts them in `~/.local`. Then:
 
 ```sh
 ./scripts/env/make-buildroot.sh        # builds a real Debian rootfs, no root

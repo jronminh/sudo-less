@@ -13,6 +13,11 @@
 # Modes (auto = first available):
 #   overlay  bwrap overlay of $PREFIX/{usr,etc} on the host's /usr,/etc.
 #            Needs bwrap + unprivileged userns + overlayfs (kernel >= 5.11).
+#   overlay-native
+#            the same overlay with no bwrap: unshare -Urm + mount -t overlay,
+#            i.e. util-linux + the kernel only; a nested userns then maps you
+#            back to your own uid (needs util-linux >= 2.38 for --map-user).
+#            Unprivileged userns is enabled once by admin/native/enable-userspace.sh.
 #   rootfs   run inside a complete rootfs ($ROOTFS, from scripts/env/make-buildroot.sh) as
 #            "/" — via bwrap --bind, else proot -R, else chroot when root.
 #   env      no namespaces: export LD_LIBRARY_PATH/XDG_DATA_DIRS/PATH, exec.
@@ -22,8 +27,8 @@
 #              --mode env, and explicitly binds/forwards the session
 #              ($XDG_RUNTIME_DIR — Wayland + PipeWire/Pulse sockets — plus
 #              DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR and Java's
-#              _JAVA_AWT_WM_NONREPARENTING). overlay mode already sees the
-#              session anyway (its base bind is the whole host /), so --gui
+#              _JAVA_AWT_WM_NONREPARENTING). overlay modes already see the
+#              session anyway (the whole host / stays visible), so --gui
 #              mainly matters for rootfs mode, which otherwise wouldn't.
 #   --print    print the command that would run, and exit
 #   --explain  say which mode was chosen and why (to stderr)
@@ -33,7 +38,7 @@ source "$(dirname "$0")/../scripts/common.sh"
 MODE=auto PRINT=0 EXPLAIN=0 GUI=0
 ROOTFS="${ROOTFS:-$HOME/buildroot}"
 
-usage() { sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -78,16 +83,40 @@ overlay_ok() {
   bwrap --ro-bind / / --overlay-src /usr --tmp-overlay /usr true >/dev/null 2>&1
 }
 
+# The same, with no bwrap: a throwaway overlay (lowerdir /usr) mounted in an
+# unprivileged user + mount namespace, and --map-user for the nested userns
+# that hands the command back its own uid. A userspace runner: not as root.
+native_overlay_ok() {
+  [ "$(id -u)" -ne 0 ] || return 1
+  have unshare || return 1
+  unshare --help 2>/dev/null | grep -q -- --map-user || return 1
+  unshare -Urm --propagation private sh -c 'd=$(mktemp -d) && mount -t tmpfs tmpfs "$d" &&
+    mkdir "$d/u" "$d/w" "$d/m" &&
+    mount -t overlay overlay -o "lowerdir=/usr,upperdir=$d/u,workdir=$d/w" "$d/m"' \
+    >/dev/null 2>&1
+}
+
+# overlayfs splits lowerdir on ':' and options on ','; and a layer may not be
+# an ancestor of the mount point.
+native_prefix_ok() {
+  case "$PREFIX" in
+    *:*|*,*)     die "overlay-native: PREFIX may not contain ':' or ',' ($PREFIX)" ;;
+    /usr|/usr/*|/etc|/etc/*) die "overlay-native: PREFIX may not be under /usr or /etc ($PREFIX)" ;;
+  esac
+}
+
 pick_mode() {
   case "$MODE" in
     auto)
       if [ -d "$PREFIX/usr" ] && overlay_ok; then printf 'overlay'
+      elif [ -d "$PREFIX/usr" ] && native_overlay_ok; then printf 'overlay-native'
       elif rootfs_ok; then printf 'rootfs'
       else printf 'env'; fi ;;
     overlay) [ -d "$PREFIX/usr" ] || die "overlay mode needs $PREFIX/usr (install a package first)"; overlay_ok || die "overlay unavailable: need bwrap + userns + overlayfs (kernel >= 5.11)"; printf 'overlay' ;;
+    overlay-native) [ -d "$PREFIX/usr" ] || die "overlay-native mode needs $PREFIX/usr (install a package first)"; [ "$(id -u)" -ne 0 ] || die "overlay-native is a userspace runner; run it as the unprivileged user, not root"; native_overlay_ok || die "overlay-native unavailable: need unshare (util-linux >= 2.38) + unprivileged userns (admin/native/enable-userspace.sh) + overlayfs (kernel >= 5.11)"; printf 'overlay-native' ;;
     rootfs)  rootfs_ok  || die "no rootfs at $ROOTFS (run scripts/env/make-buildroot.sh)"; printf 'rootfs' ;;
     env)     printf 'env' ;;
-    *)       die "unknown mode: $MODE (auto|overlay|rootfs|env)" ;;
+    *)       die "unknown mode: $MODE (auto|overlay|overlay-native|rootfs|env)" ;;
   esac
 }
 
@@ -126,6 +155,31 @@ build_cmd() {
             --setenv XDG_DATA_DIRS "$PREFIX/usr/share:$PREFIX/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}")
       if [ "$GUI" -eq 1 ]; then gui_cmd; fi
       ;;
+    overlay-native)
+      # The mounts run inside the namespace, before the user command. Each
+      # upper/work pair lives on a private tmpfs, so writes are ephemeral and
+      # land neither in the prefix nor on the host (bwrap's --tmp-overlay).
+      # lowerdir is leftmost-wins, so the prefix comes first (the reverse of
+      # bwrap's --overlay-src order).
+      local script='
+set -e
+ovl="$(mktemp -d)"
+mount -t tmpfs -o mode=0700 tmpfs "$ovl"
+for d in usr etc; do
+  [ -d "$PREFIX/$d" ] || continue
+  mkdir "$ovl/up-$d" "$ovl/wk-$d"
+  mount -t overlay overlay \
+    -o "lowerdir=$PREFIX/$d:/$d,upperdir=$ovl/up-$d,workdir=$ovl/wk-$d" "/$d"
+done
+cd "$SL_PWD"
+export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
+export XDG_DATA_DIRS="$PREFIX/usr/share:$PREFIX/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+exec unshare -U --map-user="$SL_UID" --map-group="$SL_GID" -- "$@"'
+      native_prefix_ok
+      CMD=(env PREFIX="$PREFIX" SL_PWD="$PWD" SL_UID="$(id -u)" SL_GID="$(id -g)")
+      if [ "$GUI" -eq 1 ]; then CMD+=(_JAVA_AWT_WM_NONREPARENTING=1); fi
+      CMD+=(unshare -Urm --propagation private bash -c "$script" prefix-run)
+      ;;
     rootfs)
       if have bwrap; then
         CMD=(bwrap --bind "$ROOTFS" / --dev-bind /dev /dev --proc /proc
@@ -147,7 +201,7 @@ build_cmd() {
 
 MODE_RESOLVED="$(pick_mode)"
 if [ "$GUI" -eq 1 ] && [ "$MODE_RESOLVED" = env ]; then
-  die "--gui is incompatible with mode=env (no overlay/rootfs means the GUI app's own /usr/lib paths won't resolve either) — need bwrap + userns + overlayfs, or a rootfs"
+  die "--gui is incompatible with mode=env (no overlay/rootfs means the GUI app's own /usr/lib paths won't resolve either) — need an overlay (bwrap or unshare) + userns + overlayfs, or a rootfs"
 fi
 if [ "$EXPLAIN" -eq 1 ]; then
   printf 'prefix-run: mode=%s PREFIX=%s ROOTFS=%s\n' \
@@ -166,7 +220,7 @@ case "$MODE_RESOLVED" in
     fi
     exec "$@"
     ;;
-  overlay|rootfs)
+  overlay|overlay-native|rootfs)
     build_cmd "$MODE_RESOLVED"
     if [ "$PRINT" -eq 1 ]; then print_cmd "${CMD[@]}" "$@"; exit 0; fi
     exec "${CMD[@]}" "$@"

@@ -23,7 +23,7 @@ Two-persona split on this box.
 - Owns privileged services: smartmontools + `cap_sys_rawio`, Waydroid (needs
   sudo), the setuid container stack (`newuidmap/newgidmap`).
 - SSH admin account; runs the root-side prep scripts in `master`'s home
-  (`admin-prep.sh`, `smart-install.sh`,
+  (`enable-userspace.sh`, `install-tools.sh`, `smart-install.sh`,
   `waydroid-install.sh`, `desktop-fix.sh`, `unlock.sh`).
 - Recovery/repair: debugging, kernel/firmware, LUKS unlock.
 
@@ -54,7 +54,7 @@ Two-persona split on this box.
 - `~/.local/bin/smartctl` → `/usr/sbin/smartctl` symlink: Debian's
   `/etc/profile` keeps `/usr/sbin` off a non-root `PATH`, so this makes
   `smartctl` work by name for `master`.
-- Install/revert script: `~/sudo-less/admin/smart-install.sh`.
+- Install/revert script: `~/sudo-less/extras/device/smart-install.sh`.
 
 ## What `master` may do (polkit grants)
 

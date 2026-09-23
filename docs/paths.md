@@ -56,6 +56,7 @@ The same three privilege tiers the build scripts already use apply at *runtime*.
 |---|---|---|---|---|
 | root | `rootfs` | `chroot` a complete rootfs | none | none |
 | no root, userns | `overlay` | `bwrap` overlays `$PREFIX/{usr,etc}` on `/usr`,`/etc` | `bubblewrap` | userns + overlayfs ≥ 5.11 |
+| no root, userns | `overlay-native` | the same overlay via `unshare -Urm` + `mount -t overlay` | none (util-linux ≥ 2.38) | userns + overlayfs ≥ 5.11 |
 | no root, no userns | `rootfs` | `proot -R` a complete rootfs | `proot` (1 static bin) | **none** |
 | nothing available | `env` | export `LD_LIBRARY_PATH`/`XDG_DATA_DIRS`/`PATH` | none | none |
 
@@ -80,6 +81,37 @@ bwrap --ro-bind / / \
 `--tmp-overlay` (bubblewrap ≥ 0.9.0) gives an ephemeral writable upper layer, so
 writes to `/etc` don't touch the host. Overlaying is required rather than
 `--bind "$PREFIX/usr" /usr`: a bind would *hide* the system libraries.
+
+### Native overlay: no third-party tools
+
+bwrap is a convenience, not a requirement: `unshare` and `mount` are util-linux
+(base system) and overlayfs is the kernel. `--mode overlay-native` builds the
+same stack with nothing else. In `auto` mode it is picked when bwrap is missing
+or its probe fails:
+
+```sh
+U=$(id -u) G=$(id -g) unshare -Urm --propagation private bash -c '
+  ovl=$(mktemp -d); mount -t tmpfs -o mode=0700 tmpfs "$ovl"
+  mkdir "$ovl/up" "$ovl/wk"
+  mount -t overlay overlay \
+    -o "lowerdir=$PREFIX/usr:/usr,upperdir=$ovl/up,workdir=$ovl/wk" /usr
+  exec unshare -U --map-user="$U" --map-group="$G" -- "$@"' _ CMD
+```
+
+- **`lowerdir` is leftmost-wins**, the reverse of bwrap's `--overlay-src` order:
+  `$PREFIX/usr:/usr`, not `/usr:$PREFIX/usr`.
+- `unshare -Ur` makes you uid 0 inside the namespace, which some programs
+  refuse (userspace apt does). After mounting, a nested user namespace
+  (`--map-user`, util-linux ≥ 2.38) maps the command back to your own uid.
+- `$PREFIX` must not contain `:` or `,` (overlayfs option syntax) and must not
+  live under `/usr` or `/etc` (a layer can't be an ancestor of the mount point).
+
+There is deliberately **no root variant**. The admin's job is to *enable*
+userspace once (`admin/native/enable-userspace.sh` turns on unprivileged user
+namespaces with base tools only), not to run the user's software as root. A
+per-run `sudo` runner would defeat the point, and it is also a privilege
+escalation: once `/usr` is overlaid with a user-owned tree, anything root
+execs in that namespace (mount helpers, `ld.so`, libc) may be the user's file.
 
 ## GUI/session passthrough: `--gui`
 

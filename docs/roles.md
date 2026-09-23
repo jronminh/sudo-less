@@ -13,13 +13,22 @@ Two-persona split on this box (Debian forky/sid, host `mobian`, x86_64).
 - Owns privileged services: smartmontools + `cap_sys_rawio`, Waydroid, the
   setuid container stack (`newuidmap`/`newgidmap`).
 - SSH admin account; runs the root-side prep in `../admin/` once:
-  `sudo bash ~/sudo-less/admin/admin-prep.sh [--with-podman]`.
+  `sudo bash ~/sudo-less/admin/native/enable-userspace.sh` (base tools only), then
+  `sudo bash ~/sudo-less/admin/third-party/install-tools.sh [--with-podman]`
+  (only packages that need root to *work*: setuid `uidmap`, `fuse3`).
+- **Admin enables, never runs.** Every script in `../admin/` is one-time
+  enablement so `master` can run software in userspace. None of them runs
+  `master`'s software as root; a per-run `sudo` path would be an escape hatch,
+  not a feature.
 
 ## `master` (uid 1001) — unprivileged daily user
 
 - **No sudo, no root.** Holds the active desktop session.
 - Runs the no-root half of every task: `deb2home`, user namespaces, rootless
   podman, mmdebstrap+proot, userspace apt/dpkg (this repo).
+- Installs unprivileged tools itself with the userspace apt, e.g.
+  `apt-get install bubblewrap mmdebstrap slirp4netns fuse-overlayfs`; the admin
+  only installs what needs root to work (setuid helpers, podman).
 - Powers off / suspends / reboots, edits hostname/locale/time, manages
   NetworkManager, mounts disks, and restarts a small allowlist of services via
   **polkit** (no password, no `pkexec`) — see `polkit.md`.
@@ -55,6 +64,6 @@ would require `mobian`'s password. Do not rely on it.
 - Never `sudo`/`su` as `master` (always fails: "not in the sudoers file").
 - **Keep at least one working privileged path.** On a single-user device,
   de-privileging the only user can soft-lock you out of `sudo`/root; recover
-  with a GRUB `init=/bin/bash` shell + `../admin/unlock.sh`.
+  with a GRUB `init=/bin/bash` shell + `../admin/native/unlock.sh`.
 - Never weaken host hardening.
 - Root/admin changes go through `mobian`, ideally via a script in `../admin/`.

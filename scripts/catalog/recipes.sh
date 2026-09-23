@@ -44,7 +44,7 @@ recipe_file() { # PKG
 tier_ok() { # TIER -> 0 ok, 1 missing prerequisites, 2 never
   case "$1" in
     direct|env) return 0 ;;
-    overlay)    have bwrap ;;
+    overlay)    have bwrap || "$REPO/tools/prefix-run.sh" --mode overlay-native --print true >/dev/null 2>&1 ;;
     gui)        have bwrap && session_ok ;;
     rootfs)     [ -x "$ROOTFS/bin/sh" ] ;;
     never)      return 2 ;;

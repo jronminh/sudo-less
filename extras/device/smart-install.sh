@@ -1,7 +1,7 @@
 #!/bin/bash
 # smart-install.sh
 # Run as the `mobian` user (the only sudo-capable account):
-#     sudo bash ~/sudo-less/admin/smart-install.sh
+#     sudo bash ~/sudo-less/extras/device/smart-install.sh
 #
 # Gives `master` unprivileged SMART access to the USB NVMe (JMicron JMS583
 # bridge, USB id 152d:0583) WITHOUT root, the disk group, sudo, pkexec, or a

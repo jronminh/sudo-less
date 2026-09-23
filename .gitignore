@@ -5,3 +5,4 @@ dist/
 *.tar.xz
 *.log
 *.done
+CLAUDE.local.md

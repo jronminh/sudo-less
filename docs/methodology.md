@@ -2,8 +2,10 @@
 
 `master` has no `sudo` and no root. Everything below runs as `master` (uid
 1001) and stays inside the home directory. The privileged pieces are done once
-by `mobian` via `admin/admin-prep.sh` (subuid/subgid, user namespaces, uidmap,
-fuse-overlayfs, `~/.local/bin` on PATH).
+by `mobian`: `admin/native/enable-userspace.sh` (user namespaces, subuid/subgid,
+`~/.local/bin` on PATH; base tools only) and `admin/third-party/install-tools.sh`
+(setuid `uidmap` and `fuse3` only). Unprivileged tools such as bwrap and
+mmdebstrap `master` installs with the userspace apt.
 
 There are four levels of "no-root", from lightest to heaviest. Pick the
 lightest that does the job.
@@ -149,8 +151,8 @@ pure Java and needs **no root** — on this box it ran on the phone
 Only the final `install` into the root-owned overlay needs the admin account,
 and that is a single `cp`. Worked example (a one-line divide-by-zero guard in
 `services.jar`): `docs/waydroid-mesa-debug.md` §15, with
-`waydroid/patch-services-jar.sh` (unprivileged build) and
-`admin/waydroid-install-framework-overlay.sh` (the one root drop).
+`extras/waydroid/patch-services-jar.sh` (unprivileged build) and
+`extras/device/waydroid-install-framework-overlay.sh` (the one root drop).
 
 ---
 

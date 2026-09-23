@@ -255,6 +255,8 @@ proposed below.
    master's software.
    Android has the same three layers (app → `shell` → root, §1.4) and uses the
    middle one the same way: change a setting once, run as the app afterwards.
+   A design for our own middle identity, built from native pieces rather
+   than polkit, is in `docs/shell-tier.md`.
 3. **Proposed work** (to become issues):
    - *Spike: unprivileged Waydroid.* Userns with an idmap into a ≥ 100000 subuid
      range, images extracted to a dir, overlay native, `pasta` networking, binder

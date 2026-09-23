@@ -1,6 +1,6 @@
 # Perl
 
-**Debian section:** `perl`. **Status:** installs; tier `env`.
+**Debian section:** `perl`. **Status:** installs; mechanism `env`.
 
 Perl's `@INC` does not include `$PREFIX`, so modules installed there are
 not found. Set `PERL5LIB` to the prefix's two module trees:

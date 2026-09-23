@@ -38,7 +38,7 @@ done
 # 2. the in-repo runtime files install-config.sh needs to configure it
 mkdir -p "$STAGE/share/sudo-less"
 # tools/: prefix-run.sh and deb2home.sh, which a bootstrap user needs for
-# the overlay tier and for packages apt cannot install
+# the overlay and for packages apt cannot install
 for d in apt-dpkg config ecosystems tools; do
   cp -a "$REPO/$d" "$STAGE/share/sudo-less/$d"
 done

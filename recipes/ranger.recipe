@@ -8,6 +8,6 @@
 # is direct once the shim is in place.
 package  ranger
 install  risky
-tier     direct
+mechanism  none
 shim     py3compile
 verify   ranger --version

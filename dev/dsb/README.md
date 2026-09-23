@@ -50,11 +50,11 @@ path for an account created without `/etc/skel`, all fixed in
 - plain `dpkg` used the prebuilt's compiled-in admindir (the build machine's
   `/root/.local`); `DPKG_ADMINDIR` now points it at the prefix.
 
-Inside `sl-fresh`, `prefix-run.sh` picks the `overlay-native` tier
+Inside `sl-fresh`, `prefix-run.sh` picks the `overlay-native` runner
 (`unshare`): Debian's bwrap 0.12 is built without its `openat2` fallback,
 and dsb's `RestrictSUIDSGID` makes `openat2` fail with `ENOSYS`
 ([bubblewrap#774](https://github.com/containers/bubblewrap/issues/774)), so
-the bwrap tiers are unavailable there by design.
+the bwrap runner is unavailable there by design.
 
 `bootstrap.sh` runs the scripts from the release tarball, so the fix reaches
 it with the next release. On a host without `gpgv`, `apt-get update` still

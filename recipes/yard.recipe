@@ -13,6 +13,6 @@
 # resolves.
 package  yard
 install  ok
-tier     overlay
+mechanism  overlay
 verify   tools/prefix-run.sh yard --version
 note     run from the repo root (verify's path is relative to tools/prefix-run.sh)

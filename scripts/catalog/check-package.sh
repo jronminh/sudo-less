@@ -4,7 +4,7 @@
 #
 #   ./scripts/catalog/check-package.sh PKG [PKG...]
 #   ./scripts/catalog/check-package.sh --meta PKG      # index metadata only (no download)
-#   ./scripts/catalog/check-package.sh --runtime PKG   # also classify the runtime tier
+#   ./scripts/catalog/check-package.sh --runtime PKG   # also predict the mechanism (docs/mechanisms.md)
 #
 # Method (cache-only, nothing is executed or installed):
 #   * apt index metadata (Section/Priority/Essential/Depends) via apt-cache show

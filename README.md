@@ -62,7 +62,7 @@ It depends first on the package's Debian **section**
 - **Supported:** libraries and `-dev`, languages (`python`, `perl`, `ruby`,
   `java`, `rust`, `golang`, `javascript`, …; see [`ecosystems/`](ecosystems/)),
   `utils`, `text`, `editors`, `doc`, `fonts`, science, graphics, sound, video,
-  games, and desktop apps (tier `gui`).
+  games, and desktop apps.
 - **The admin's:** `admin`, `kernel`, `net` and `mail` servers, `database` and
   `httpd` servers, `tasks`, `metapackages`, and anything that creates a system
   user or ships a service, in any section.
@@ -113,7 +113,7 @@ this repo.
   pipeline sudo-less hangs on apt's hooks, its parts, and what exists today.
 - [`docs/survey-2026-09.md`](docs/survey-2026-09.md) — a random sample by
   Debian section: what installs today and what blocks the rest.
-- [`docs/standard.md`](docs/standard.md) — the tiers, the supported sections,
+- [`docs/standard.md`](docs/standard.md) — scope by Debian section, recipes,
   and how each package is checked.
 - [`ecosystems/`](ecosystems/) — what each language needs (Python, Java, Perl,
   Ruby).

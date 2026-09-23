@@ -11,7 +11,7 @@
 # Overrides (env): PREFIX, REPO_SLUG, BASE_URL, APT_VER, DPKG_VER.
 # Requires: bash, curl or wget, tar, sha256sum. Nothing else.
 #
-# This is the supported path (docs/standard.md): the floor tier, reached with
+# This is the supported path (docs/standard.md): mechanisms none and env, reached with
 # no capability beyond curl + tar + a writable $PREFIX. Building from source,
 # the overlay and GUI apps, are experimental.
 set -euo pipefail

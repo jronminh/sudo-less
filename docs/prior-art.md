@@ -14,7 +14,7 @@ For every resource, the question is the one sudo-less asks of every package:
 | **U**: unprivileged | the kernel already grants it to any user | nothing to do |
 | **F**: fakeable | userspace can provide a stand-in (namespace, shim, relocation) | `tools/`, `ecosystems/`, mechanisms in `docs/mechanisms.md` |
 | **A**: admin, once | needs root to *enable*, never to *run* | `admin/` |
-| **N**: not possible | no stand-in and no one-time enablement fits the rules | tier `never` |
+| **N**: not possible | no stand-in and no one-time enablement fits the rules | scope `never` |
 
 ## Termux: no root, no namespaces, no FHS
 
@@ -130,7 +130,7 @@ run there (`ptrace_scope=2`):
 
 - the **fake `/proc` file list** is the list of things software actually reads
   and a sandbox tends to deny. Our namespaced runners bind the real `/proc`,
-  so none of it is needed today, but it is the checklist if a tier ever
+  so none of it is needed today, but it is the checklist if a runner ever
   hides `/proc`;
 - **"success without effect"** (`chown`, `mknod`) is how proot keeps dpkg
   happy. Our userspace dpkg gets the same result by skipping `chown` at

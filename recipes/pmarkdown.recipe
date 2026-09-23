@@ -13,7 +13,7 @@
 # env key only substitutes $PREFIX, no other variables.
 package  pmarkdown
 install  ok
-tier     env
+mechanism  env
 env      PERL5LIB=$PREFIX/usr/share/perl5:$PREFIX/usr/lib/x86_64-linux-gnu/perl5/5.42
 verify   pmarkdown --version
 note     arch/version-pinned PERL5LIB; regenerate the triplet per host

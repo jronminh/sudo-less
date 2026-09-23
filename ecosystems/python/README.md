@@ -1,6 +1,6 @@
 # Python
 
-**Debian section:** `python`. **Status:** supported, tier `direct` once set up.
+**Debian section:** `python`. **Status:** supported; mechanism `none` once set up.
 
 Two things break a Python package installed into the prefix, and both are
 handled here:

@@ -6,6 +6,6 @@
 # better than floor tier, not just floor: nothing to redirect.
 package  golang-go
 install  risky
-tier     direct
+mechanism  none
 verify   go version
 note     no GOROOT needed in practice; go self-locates from argv[0]

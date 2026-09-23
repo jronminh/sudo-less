@@ -6,7 +6,7 @@ not install through apt, use `tools/deb2home.sh`.
 | problem | fix |
 |---|---|
 | `java-common` and `openjdk-*-jre-headless` postinst run `mkdir -m 755 /etc/.java`, unguarded: root only, `dpkg --configure` fails | extract the JDK without its maintainer scripts: `tools/deb2home.sh openjdk-25-jre-headless`, then set `JAVA_HOME` (the JVM creates its preferences dir lazily, so `/etc/.java` is not needed) |
-| a library jar is found only on the classpath | `CLASSPATH` or the application's own launcher (tier `env`) |
+| a library jar is found only on the classpath | `CLASSPATH` or the application's own launcher (mechanism `env`) |
 
 There is no shim: the failing call is a bare `mkdir` against `/etc`, and
 shimming `mkdir` would catch every other script.

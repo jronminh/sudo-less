@@ -15,6 +15,6 @@
 # content, not this internal builtin-loader path).
 package  nodejs
 install  risky
-tier     overlay
+mechanism  overlay
 verify   tools/prefix-run.sh node -e process.version
 note     needs overlay, not floor — hardcoded /usr/share/nodejs/undici path, not an LD_LIBRARY_PATH gap

@@ -24,7 +24,7 @@
 # under $PREFIX/opt/<pkg>/, not $PREFIX/usr/ like an apt-installed package.
 package  openjdk-25-jre-headless
 install  unlikely
-tier     env
+mechanism  env
 env      JAVA_HOME=$PREFIX/opt/openjdk-25-jre-headless/usr/lib/jvm/java-25-openjdk-amd64
 verify   $JAVA_HOME/bin/java -version
 note     apt route is a dead end (root-only /etc/.java postinst, no safe shim target); install via `tools/deb2home.sh openjdk-25-jre-headless` instead — see #7

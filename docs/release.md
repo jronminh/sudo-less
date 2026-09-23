@@ -3,9 +3,8 @@
 `bootstrap.sh` is the **supported** way to use sudo-less. It fetches a prebuilt,
 patched apt/dpkg for your architecture, checks its hash, unpacks it into
 `$PREFIX` (`~/.local`) and configures it. No root, no build, no namespaces —
-nothing beyond `curl` (or `wget`), `tar` and a writable `$PREFIX`. That is the
-floor tier; see [`standard.md`](standard.md) for what it does and does not
-promise.
+nothing beyond `curl` (or `wget`), `tar` and a writable `$PREFIX`; see
+[`standard.md`](standard.md) for what it does and does not promise.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/jronminh/sudo-less/main/bootstrap.sh | bash
@@ -83,11 +82,12 @@ or a specific tag with `--version`.
 
 ## Scope
 
-- **Supported:** the floor tier (`direct`/`env`) via this route.
+- **Supported:** packages in scope whose mechanism is `none` or `env`, via
+  this route.
 - **Experimental:** source builds, the overlay, and GUI apps.
-- **Out of scope:** `tier never` packages (32-bit-only, self-updating,
-  services, PAM/setuid) — see `recipes/` and [`standard.md`](standard.md).
+- **Out of scope:** scope `admin` and `never` (services, system users,
+  setuid, 32-bit-only, self-updating); see [`standard.md`](standard.md).
 
-One tier is supported at a time, deliberately: with one maintainer, only one
-tier can be *vouched for*. Another tier graduates from experimental to supported
-only when it is verified and stable.
+One thing is supported at a time, deliberately: with one maintainer, only
+so much can be *vouched for*. A mechanism graduates from experimental to
+supported only when it is verified and stable.

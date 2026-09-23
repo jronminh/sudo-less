@@ -24,6 +24,24 @@ Only that part is copied:
 needs beyond userspace, as a system user `updo` that can never become root.
 Nothing else from Android (SELinux, adbd, pairing, `settings`) is copied.
 
+## The pieces, side by side
+
+| Android (`fe2`) | role | `updo` | lives in |
+|---|---|---|---|
+| `dsh` | the command the user types | `updo` client (wraps `ssh`) | `tools/updo`, userspace |
+| wireless debugging + pairing | who may reach the daemon | unix socket `root:master 0660` + `master`'s ssh key | admin, once |
+| `adbd` | accepts a call, starts the session | `updo-<id>.socket` (`Accept=yes`) + `sshd -i` running as the identity | admin, once |
+| uid 2000 `shell` | the bounded identity | `updo-<id>` system users (persistent), or a `DynamicUser` (per call) | admin, once per identity |
+| `shell`'s groups (`readproc`, `uhid`, `log`, …) | what the identity can reach | `SupplementaryGroups=`, group-owned setgid dirs | admin, per grant |
+| SELinux `shell` domain | a limit the identity cannot lift | systemd sandbox: `ProtectSystem=strict`, `ProtectHome`, `ReadWritePaths=`, `NoNewPrivileges`, no caps | admin, per identity |
+| platform services checking uid 2000 | the system decides, not the caller | the kernel (DAC, mount namespace, `no_new_privs`) | kernel |
+| `dsh status` | show the state | `updo -l` | client |
+
+So making `updo` real means building four things: the client (`tools/updo`),
+the enablement (`admin/native/enable-updo.sh`), a grant tool that creates one
+identity with its drop-in and refuses forbidden paths, and the recipe side
+(tier `limited`).
+
 ## Usage: `sudo` with a different target
 
 `updo` takes `sudo`'s options wherever they make sense, so muscle memory and
@@ -143,20 +161,58 @@ wrap exactly that call:
 Not yet verified: a different uid on the far end (needs the system user),
 `AmbientCapabilities=`, and the client wrapper's quoting and cwd handling.
 
+## Identities: persistent per grant, or one per call
+
+`-u IDENT` picks an identity. Two kinds, tested through the admin account with
+transient units on 2026-09-23:
+
+**Per call: `DynamicUser=yes`.** systemd allocates a fresh uid for each
+instance and releases it afterwards, with no `useradd`; the name resolves
+through `nss-systemd` (`passwd: files systemd` here). Two runs got uid 65395
+and 62315. It also turns on `ProtectSystem=strict`, `ProtectHome=read-only`,
+`PrivateTmp`, `NoNewPrivileges` and `RestrictSUIDSGID` by itself. But a file
+it writes outside systemd-managed directories keeps a dead owner:
+
+| step | result |
+|---|---|
+| run 1 (uid 62932) `touch /run/dyntest/f` | `f` owned by 62932 |
+| after run 1 | uid 62932 no longer exists |
+| run 2 (uid 62416) appends to `f` | **denied** |
+
+Nobody but root can fix that file later, and systemd may hand the same uid
+to another service, which would then own it. `StateDirectory=` and
+`RuntimeDirectory=` avoid this (systemd re-chowns them on each start) but live
+only under `/var/lib` and `/run`. So per-call identities fit calls that
+**leave nothing behind**: reads, checks, one-off jobs. That is the default
+identity, `updo` with no `-u`.
+
+**Per grant: a static user `updo-<name>`.** Created once with `useradd
+--system`, with its own socket (`/run/updo/<name>.sock`), unit pair and
+sandbox. Files it writes keep a stable owner, a later call can change them,
+and a grant for one package is not a grant for another. This is what tier
+`limited` uses: `javascript-common` gets `updo-lighttpd`, allowed to write
+`/etc/lighttpd` and nothing else.
+
+Not yet verified: `sshd -i` under a `DynamicUser` (the user resolves, so it
+should work).
+
 ## Admin side (enable once)
 
 `admin/native/enable-updo.sh` would install:
 
-- `useradd --system --home-dir /var/lib/updo --shell /bin/sh updo`;
+- the default identity: `updo.socket` + `updo@.service` with
+  `DynamicUser=yes`, nothing writable beyond its runtime directory;
 - `/etc/updo/sshd_config` (no passwords, no forwarding, `AcceptEnv` for the
-  allowlist), a host key owned by updo, and a root-owned `authorized_keys`
+  allowlist), a host key readable by group `updo` (every identity's primary or
+  supplementary group), and a root-owned `authorized_keys`
   holding the public key that `master` generated;
-- `updo.socket` and `updo@.service` with the three locks;
-- one drop-in per delegation, `/etc/systemd/system/updo@.service.d/<name>.conf`
-  (`ReadWritePaths=`, `SupplementaryGroups=`, or one `AmbientCapabilities=`),
-  each reviewed on its own and checked against the forbidden-path list.
+- the grant tool, `admin/native/updo-grant.sh NAME [--rw PATH]... [--group G]...
+  [--cap CAP]`: creates `updo-NAME` (`useradd --system`), its socket
+  `/run/updo/NAME.sock` (`root:master 0660`) and a `updo-NAME@.service` with the
+  three locks and exactly those grants. It refuses the forbidden paths and
+  root-equivalent groups, and each grant is reviewed on its own.
 
-It never adds updo to `sudo`, `disk`, `docker`, `lxd`, `shadow` or any other
+It never adds an updo identity to `sudo`, `disk`, `docker`, `lxd`, `shadow` or any other
 root-equivalent group.
 
 ## Tier `limited`
@@ -167,7 +223,7 @@ root:
 
 | today `never` | with updo |
 |---|---|
-| `javascript-common`: postinst `mkdir -p /etc/lighttpd/conf-enabled` | **limited**: delegation `ReadWritePaths=/etc/lighttpd`; the recipe runs `updo mkdir -p /etc/lighttpd/conf-enabled`, then `dpkg --configure` |
+| `javascript-common`: postinst `mkdir -p /etc/lighttpd/conf-enabled` | **limited**: delegation `ReadWritePaths=/etc/lighttpd`; the recipe runs `updo -u lighttpd mkdir -p /etc/lighttpd/conf-enabled`, then `dpkg --configure` |
 | `screen`: `/run/screen`, group `utmp`, mode `0775` | **limited**: delegation `SupplementaryGroups=utmp` + a `/run/screen` path |
 | `screen`: `/etc/tmpfiles.d`, unit link, `update-rc.d` | **never**: root-executed config; the admin may ship a reviewed static file once instead |
 | services on ports < 1024 | no updo needed: `net.ipv4.ip_unprivileged_port_start` is an admin-once sysctl |
@@ -180,6 +236,4 @@ recipe needs and name it when missing.
 ## Open questions
 
 - `-e` needs the client to copy files both ways; confirm it keeps owner and mode on write-back.
-- One `updo` for everything, or one identity per delegation (`updo-lighttpd`,
-  …) so that a grant for one package is not a grant for all?
 - Audit: every call is a journal entry (`updo@<n>.service`, peer pid/uid). Enough?

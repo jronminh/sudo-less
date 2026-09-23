@@ -121,7 +121,9 @@ or exit status without reinventing ssh).
 ## Prototype (as master, no admin)
 
 Runtime user units in `/run/user/1001/systemd/user` (non-persistent), sshd
-with a throwaway host key, same uid on both ends:
+with a throwaway host key, same uid on both ends. The `slsh` client does not
+exist yet, so the checks call the underlying `ssh` directly; `slsh CMD` will
+wrap exactly that call:
 
 | check | result |
 |---|---|

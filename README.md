@@ -108,7 +108,7 @@ this repo.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
 - [`docs/system-resources.md`](docs/system-resources.md) — what Termux and Waydroid
   need from the system: unprivileged, fakeable, or admin-once.
-- [`docs/updo.md`](docs/updo.md) — design: `updo` (userspace do), a sudo-like command
+- [`docs/updo.md`](docs/updo.md) — design and prototype: `updo` (userspace do), a sudo-like command
   that runs as a bounded middle identity (tier `limited`).
 
 ## Status
@@ -126,7 +126,7 @@ bootstrap.sh   one-command install (fetches prebuilt apt/dpkg)
 apt-dpkg/      apt/dpkg setup: config, database seeding, small shims
 scripts/       build, setup and catalog helpers
 recipes/       per-package notes (see docs/standard.md)
-tools/         deb2home.sh, prefix-run.sh
+tools/         deb2home.sh, prefix-run.sh, updo/ (prototype: client + daemon)
 flatpak/       bridge for Flatpak apps (docs/flatpak-bridge.md)
 admin/         one-time root-side setup that enables userspace (never runs your software)
   native/        base system only: enable-userspace (userns, subuid), unlock

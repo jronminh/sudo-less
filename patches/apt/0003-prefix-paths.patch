@@ -1,3 +1,7 @@
+Origin: termux-packages 91af886 packages/apt/0004-no-hardcoded-paths.patch
+Change: verbatim; replaces apt's hardcoded /usr, /etc and /var paths with @TERMUX_PREFIX@, which build-apt.sh maps to $PREFIX. Native need.
+License: GPL-2.0-or-later
+
 diff -uNr apt-2.1.11/apt-pkg/aptconfiguration.cc apt-2.1.11.mod/apt-pkg/aptconfiguration.cc
 --- apt-2.1.11/apt-pkg/aptconfiguration.cc	2020-10-21 12:53:18.000000000 +0300
 +++ apt-2.1.11.mod/apt-pkg/aptconfiguration.cc	2020-11-05 15:33:57.243575020 +0200

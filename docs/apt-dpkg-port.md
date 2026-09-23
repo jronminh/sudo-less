@@ -27,8 +27,10 @@ maintained in [`termux/termux-packages`](https://github.com/termux/termux-packag
 | dpkg | Debian dpkg 1.22.6 | `packages/dpkg/*.patch` (9) + `configure.diff` |
 
 Termux builds these against `$PREFIX=/data/data/com.termux/files/usr` with the
-Android NDK (`__ANDROID__` defined). This repo retargets the same patches to
-`$PREFIX=$HOME/.local` on glibc.
+Android NDK (`__ANDROID__` defined). sudo-less carries a fork of those
+patches, cut down to what a prefix on Debian needs and built without
+`__ANDROID__`: [`../patches/UPSTREAM.md`](../patches/UPSTREAM.md) maps every
+Termux patch to kept, adapted or dropped.
 
 ## Layout produced under `$PREFIX` (`~/.local`)
 
@@ -56,13 +58,14 @@ var/cache/apt/     downloaded .debs
    the system `/var/lib/dpkg/status`.
 3. **RPATH.** apt is installed with `RPATH=$PREFIX/lib` so it loads our
    `libapt-pkg.so.6.0`, not the system `libapt-pkg.so.7.0`.
-4. **GCC 16 fixes** (`patches/apt/local/0001-gcc16-fixes.patch`): `<cstdint>`
+4. **GCC 16 fixes** (`patches/apt/0008-gcc16-fixes.patch`): `<cstdint>`
    for `uint8_t`, and a `RAMFS_MAGIC` fallback.
-5. **dpkg needs `__ANDROID__`.** Upstream dpkg has zero `__ANDROID__`
-   references; Termux's patches wrap the root-only bits (the superuser check in
-   `lib/dpkg/dbmodify.c`, `chown` in `src/main/archives.c`) in
-   `#ifndef __ANDROID__`. Compiling with `-D__ANDROID__` activates them —
-   otherwise dpkg dies with "requested operation requires superuser privilege".
+5. **dpkg without root checks.** `patches/dpkg/0001-no-superuser-check.patch`
+   removes the superuser check in `lib/dpkg/dbmodify.c` (otherwise dpkg dies
+   with "requested operation requires superuser privilege"), `0002-no-chown`
+   the `chown` calls, `0003-no-ldconfig-check` the start-up check for
+   `ldconfig` on `PATH`. Termux guards the same changes with
+   `#ifndef __ANDROID__`; the fork makes them plain patches.
 6. **Traditional alternate-root install.** dpkg is run with
    `--instdir=$PREFIX`, so a package's `./usr/bin/foo` lands in
    `~/.local/usr/bin/foo` (a real rootfs layout). `--force-script-chrootless`
@@ -87,7 +90,7 @@ the pipeline's job, through apt's hooks ([`design.md`](design.md)); how an
 installed program finds its files at run time is the mechanisms' job
 ([`mechanisms.md`](mechanisms.md)). Neither is a reason to patch.
 
-### The fork (to do)
+### The fork
 
 Our patch set becomes a fork of Termux's, cut down to that rule, and it
 **follows upstream**: at each apt or dpkg release in Debian, the patches are
@@ -105,18 +108,27 @@ patches/
 └── */NNNN-*.patch  each with a header: origin, change, GPL-2.0-or-later
 ```
 
+Step 1 is done: [`../patches/UPSTREAM.md`](../patches/UPSTREAM.md) has the
+full table. Both builds, old and forked, were made as a non-root user and
+run through the same checks (`dpkg -i`, `apt install ./x.deb`, removal,
+`dpkg --audit`, an apt pattern) with the same results. The only difference:
+the old dpkg warned that `mandoc` is missing (Termux's `mandoc_hook`). Both
+still write their log to `/var/log/dpkg.log` and point alternatives at
+`/etc/alternatives`; that is step 3.
+
 - **Kept or adapted:** what native needs: prefix paths and no root checks
-  in apt (Termux `0004`, `0007`, `0010`), no superuser check and no `chown`
-  in dpkg (`dbmodify`, the `chown` part of `archives.c`, `configure.diff`),
-  and real bug fixes (`0013`).
-- **Dropped:** NDK and Android build fixes (`0000`, `0001`, `0012`),
-  `mandoc_hook` (Termux uses mandoc, Debian man-db), `scanpackages`, and the
-  apt patches that act only under `__ANDROID__`, which our apt is not built
-  with (`0002` locales, `0003` SRV records, `0006`, `0009`).
-- **No `-D__ANDROID__` for dpkg.** Today it switches on *every* Android
-  branch of Termux's dpkg patches, not only the two behaviours we need. In
-  the fork each change sits unconditionally in its own patch, so the
-  `series` file says exactly how our dpkg differs from Debian's.
+  in apt (Termux `0004`, `0007`, `0010`), no superuser check, no `chown` and
+  no `ldconfig` check in dpkg; small build and HTTP fixes (`0000`, `0001`,
+  `0005`, `0008`).
+- **Dropped:** the NDK fix `0012`, the apt patches that act only under
+  `__ANDROID__` (`0002`, `0003`, `0006`, `0009`), `0011` (Debian's default of
+  not keeping downloaded `.deb` files is better for the user's disk), `0013`
+  (renames apt's search patterns away from Debian's), and in dpkg
+  `configure.diff`, the hard-link and `EROFS` workarounds, `mandoc_hook` and
+  `scanpackages`.
+- **No `-D__ANDROID__` for dpkg.** It used to switch on *every* Android
+  branch of Termux's dpkg patches. Each kept change is now a plain patch, so
+  the `series` file says exactly how our dpkg differs from Debian's.
 - **Ours, numbered from `0100`**, all at the native level:
 
 | patch | fixes | status |
@@ -136,9 +148,8 @@ Signature verification needs no patch: current Debian ships `sqv` instead
 of `gpgv`, which apt 2.8.1 cannot use, so a new account cannot `apt-get
 update` today; following upstream brings apt 3.x, which verifies with `sqv`.
 
-The fork is made in steps: first the same behaviour as today (checked by
-building and re-running the survey), then the rebase onto current upstream,
-then our patch.
+The fork is made in steps: first the same behaviour as today (done), then
+the rebase onto current upstream, then our patches.
 
 ### Not patched, on purpose
 

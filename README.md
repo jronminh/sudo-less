@@ -142,7 +142,7 @@ recipes/       per-package notes (see docs/standard.md)
 tools/         prefix-run.sh (the overlay), deb2home.sh (extract without scripts)
 scripts/       build, setup and catalog helpers
 admin/         one-time root step that enables userspace: enable-userspace.sh
-patches/       Termux's patches, verbatim
+patches/       apt/dpkg patches: a fork of Termux's (patches/UPSTREAM.md)
 dev/           tools for developing sudo-less (dsb test policy)
 docs/          all the detail
 ```
@@ -161,7 +161,6 @@ path. Not affiliated with Debian or Termux.
 Built by **jronminh** with **deepseek-v4-flash** ([opencode](https://opencode.ai))
 as pairing assistant — see [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
 
-[GPL-3.0-or-later](LICENSE). The patches under `patches/apt/termux/` and
-`patches/dpkg/termux/` are taken verbatim from
-[`termux/termux-packages`](https://github.com/termux/termux-packages) and remain
-under their original GPL-2.0-or-later terms.
+[GPL-3.0-or-later](LICENSE). The patches under `patches/` are a fork of
+[`termux/termux-packages`](https://github.com/termux/termux-packages)'s and remain
+under their original GPL-2.0-or-later terms (`patches/UPSTREAM.md`).

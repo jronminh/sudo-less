@@ -19,8 +19,9 @@ not the promise.
 There is no signature to trust. Instead the inputs are pinned and public, so the
 output is reproducible and you can check it yourself:
 
-- **apt 2.8.1** and **dpkg 1.22.6**, with the **verbatim** Termux patch sets
-  (`patches/apt/termux/`, `patches/dpkg/termux/`) plus one local apt fix.
+- **apt 2.8.1** and **dpkg 1.22.6**, with sudo-less's patches
+  (`patches/apt/series`, `patches/dpkg/series`), a fork of Termux's; see
+  `patches/UPSTREAM.md`.
 - The build is the same scripted, no-fork build the repo already uses
   (`scripts/bootstrap/build-apt.sh`, `build-dpkg.sh`).
 - Each release asset ships a `.sha256`; `bootstrap.sh` verifies it and refuses

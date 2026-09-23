@@ -1,3 +1,7 @@
+Origin: termux-packages 91af886 packages/apt/0000-cmake-fix.patch
+Change: verbatim; build-system changes for the NDK (no -lutil, no resolv probe, no dpkg-architecture probe, no tests). To revisit: likely unneeded on Debian.
+License: GPL-2.0-or-later
+
 diff -uNr apt-2.1.13/apt-pkg/CMakeLists.txt apt-2.1.13.mod/apt-pkg/CMakeLists.txt
 --- apt-2.1.13/apt-pkg/CMakeLists.txt	2020-12-10 16:40:27.000000000 +0200
 +++ apt-2.1.13.mod/apt-pkg/CMakeLists.txt	2020-12-11 18:10:24.236801758 +0200

@@ -23,8 +23,7 @@ rm -rf "$SRC/apt-$APT_VER"
 tar -C "$SRC" -xzf "$SRC/apt-$APT_VER.tar.gz"
 
 cd "$SRC/apt-$APT_VER"
-apply_patches "$REPO/patches/apt/termux"
-apply_patches "$REPO/patches/apt/local"
+apply_series "$REPO/patches/apt"
 
 log "retargeting @TERMUX_PREFIX@ -> $PREFIX"
 mapfile -t files < <(grep -rl '@TERMUX_PREFIX@' \

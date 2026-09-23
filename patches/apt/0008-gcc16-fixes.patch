@@ -1,3 +1,7 @@
+Origin: sudo-less (was patches/apt/local/0001-gcc16-fixes.patch)
+Change: <cstdint> for uint8_t and a RAMFS_MAGIC fallback, for GCC 16.
+License: GPL-2.0-or-later
+
 --- a/apt-pkg/contrib/strutl.cc
 +++ b/apt-pkg/contrib/strutl.cc
 @@ -38,6 +38,7 @@

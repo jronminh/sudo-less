@@ -52,12 +52,12 @@ fetch() { # fetch URL FILE
 # The build dependency package list (one per line, comments/blank ignored).
 build_pkgs() { grep -vE '^\s*(#|$)' "$REPO/scripts/build-deps.list"; }
 
-apply_patches() { # apply_patches DIR
+apply_series() { # apply_series DIR: the patches listed in DIR/series, in order
   local dir="$1" p
-  shopt -s nullglob
-  for p in "$dir"/*.patch; do
-    log "patch $(basename "$p")"
-    patch -p1 -f --no-backup-if-mismatch < "$p"
-  done
-  shopt -u nullglob
+  [ -f "$dir/series" ] || die "no series file in $dir"
+  while read -r p; do
+    case "$p" in ''|'#'*) continue ;; esac
+    log "patch $p"
+    patch -p1 -f --no-backup-if-mismatch < "$dir/$p"
+  done < "$dir/series"
 }

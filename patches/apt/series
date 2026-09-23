@@ -1,0 +1,9 @@
+# applied in order by scripts/bootstrap/build-apt.sh; see ../UPSTREAM.md
+0001-cmake-no-libutil-no-tests.patch
+0002-no-ramfs-magic-redef.patch
+0003-prefix-paths.patch
+0004-http2-status-line.patch
+0005-apt-key-no-root.patch
+0006-socklen-t.patch
+0007-refuse-root.patch
+0008-gcc16-fixes.patch

@@ -1,3 +1,7 @@
+Origin: termux-packages 91af886 packages/apt/0008-fix-function-args.patch
+Change: verbatim; getsockopt() length as socklen_t.
+License: GPL-2.0-or-later
+
 diff -uNr apt-2.1.11/methods/connect.cc apt-2.1.11.mod/methods/connect.cc
 --- apt-2.1.11/methods/connect.cc	2020-11-05 18:22:37.313283369 +0200
 +++ apt-2.1.11.mod/methods/connect.cc	2020-11-05 18:22:52.713391462 +0200

@@ -1,0 +1,15 @@
+Origin: termux-packages 91af886 packages/dpkg/dbmodify_dont_require_root.patch
+Change: adapted: the same removal without #ifndef __ANDROID__. Native need.
+License: GPL-2.0-or-later
+
+--- a/lib/dpkg/dbmodify.c	2024-03-11 02:23:06.000000000 +0700
++++ b/lib/dpkg/dbmodify.c	2026-09-24 00:07:47.342534392 +0700
+@@ -317,8 +317,6 @@
+   switch (readwritereq) {
+   case msdbrw_needsuperuser:
+   case msdbrw_needsuperuserlockonly:
+-    if (getuid() || geteuid())
+-      ohshit(_("requested operation requires superuser privilege"));
+     /* Fall through. */
+   case msdbrw_write: case msdbrw_writeifposs:
+     db_can_access = access(dpkg_db_get_dir(), W_OK) == 0;

@@ -32,11 +32,22 @@ hash differs from a build you did yourself, don't trust the artifact.
 
 ## Compatibility baseline
 
-The binaries are built against one Debian suite (the build rootfs). They run on
-that suite and newer; they may not run on an older glibc. **This is the real
-compatibility limit**, and it is stated rather than hidden. (The current
-baseline is noted in the release notes; treat an unstated baseline as "built on
-whatever the maintainer had", i.e. do not assume it runs on oldstable.)
+Releases are built against **Debian 12 (bookworm, oldstable)**, so the binaries
+run on bookworm and newer. That is the real compatibility limit: anything older
+than bookworm (older glibc) is not supported, and this is stated rather than
+hidden.
+
+Build releases with the rootfs path pinned to that suite — **not**
+`build-on-host`, which inherits whatever the host happens to run:
+
+```sh
+SUITE=bookworm ./scripts/env/make-buildroot.sh
+./scripts/env/build-in-rootfs.sh
+```
+
+`package-prebuilt.sh` writes a `<asset>.buildinfo` recording the suite, arch,
+apt/dpkg versions and build date. Attach it to the release so the baseline is
+*recorded*, not assumed.
 
 The artifact *is* relocatable across users and prefixes: apt follows the config
 `install-config.sh` regenerates (`config/apt.conf.d/00local-prefix`), so
@@ -46,14 +57,15 @@ The artifact *is* relocatable across users and prefixes: apt follows the config
 ## Cutting a release (maintainer)
 
 ```sh
-# 1. build in a CLEAN prefix (only apt/dpkg installed):
-./scripts/env/build-on-host.sh            # or the rootfs/container path
+# 1. build in a CLEAN prefix against the pinned baseline suite (bookworm):
+SUITE=bookworm ./scripts/env/make-buildroot.sh
+./scripts/env/build-in-rootfs.sh
 
 # 2. package it:
-./scripts/bootstrap/package-prebuilt.sh   # -> dist/<asset> + .sha256
+./scripts/bootstrap/package-prebuilt.sh   # -> dist/<asset>, .sha256, .buildinfo
 
-# 3. attach BOTH files to a GitHub Release (tag = --version for bootstrap.sh):
-gh release create <tag> dist/<asset> dist/<asset>.sha256
+# 3. attach ALL THREE to a GitHub Release (tag = --version for bootstrap.sh):
+gh release create <tag> dist/<asset> dist/<asset>.sha256 dist/<asset>.buildinfo
 ```
 
 The asset name encodes the pinned versions and arch:

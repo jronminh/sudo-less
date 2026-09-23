@@ -13,6 +13,12 @@
 set -euo pipefail
 source "$(dirname "$0")/../common.sh"
 
+# the suite this build was produced against (the compatibility baseline)
+suite_name() {
+  if [ -n "${SUITE:-}" ]; then printf '%s' "$SUITE"; return; fi
+  sed -n 's/^VERSION_CODENAME=//p' /etc/os-release 2>/dev/null | tr -d '"'
+}
+
 OUT="${OUT:-$REPO/dist}"
 ASSET="sudo-less-apt-dpkg-${APT_VER}-${DPKG_VER}-${DEB_ARCH}.tar.gz"
 
@@ -46,6 +52,17 @@ mkdir -p "$OUT"
 tar -C "$STAGE" -czf "$OUT/$ASSET" .
 ( cd "$OUT" && sha256sum "$ASSET" > "$ASSET.sha256" )
 
+# record what this was built from, so the baseline is stated, not assumed
+BUILDINFO="$OUT/$ASSET.buildinfo"
+{
+  printf 'asset  %s\n' "$ASSET"
+  printf 'apt    %s\n' "$APT_VER"
+  printf 'dpkg   %s\n' "$DPKG_VER"
+  printf 'arch   %s\n' "$DEB_ARCH"
+  printf 'suite  %s\n' "$(suite_name)"
+  printf 'built  %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$BUILDINFO"
+
 log "wrote:"
-ls -l "$OUT/$ASSET" "$OUT/$ASSET.sha256"
-log "attach BOTH to a GitHub Release; bootstrap.sh fetches them by name."
+ls -l "$OUT/$ASSET" "$OUT/$ASSET.sha256" "$BUILDINFO"
+log "attach ALL THREE to a GitHub Release; bootstrap.sh fetches the first two."

@@ -83,7 +83,7 @@ tar -xf ~/buildroot.tar -C ~/buildroot --no-same-owner --exclude='./dev/*'
 `./dev` is skipped: device nodes can't be created unprivileged, and we bind the
 host's `/dev` when entering anyway.
 
-### Entering the rootfs — `bwrap`
+### Entering the rootfs — `bwrap` (or `unshare` + `chroot`)
 
 ```sh
 bwrap --bind ~/buildroot / \
@@ -103,8 +103,12 @@ user namespaces, with `-0` faking uid 0. But on hosts that restrict ptrace
 on recent kernels its seccomp accelerator needs `PROOT_NO_SECCOMP=1`. Prefer
 `bwrap`.
 
-`unshare -Ur -m chroot ~/buildroot` is another alternative (faster, no ptrace
-overhead) but needs you to mount `/proc`, `/dev`, `/sys` yourself.
+`unshare -Urm` + `chroot` needs nothing beyond util-linux and coreutils (no
+ptrace, no bwrap); `tools/prefix-run.sh --mode rootfs-native` does the binds
+for you (see `docs/paths.md`), and `build-in-rootfs.sh` falls back to it when
+bwrap is missing. `mmdebstrap` itself needs no admin either: install it with
+the userspace apt (`apt-get install mmdebstrap`), only `uidmap` (setuid
+`newuidmap`) comes from `admin/third-party/install-tools.sh`.
 
 ---
 

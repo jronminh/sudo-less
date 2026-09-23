@@ -4,39 +4,32 @@
 #
 #   ./scripts/env/build-in-rootfs.sh
 #   ROOTFS=~/buildroot PREFIX=~/.local ./scripts/env/build-in-rootfs.sh
+#   ROOTFS_MODE=rootfs-native ./scripts/env/build-in-rootfs.sh   # force the runner
 #
 # How it works
 # ------------
-# bubblewrap (bwrap) makes $ROOTFS the filesystem root using unprivileged user
-# namespaces, and bind-mounts the host's $HOME back in so the source tree and
-# $PREFIX stay on the host filesystem.
+# tools/prefix-run.sh --mode rootfs makes $ROOTFS the filesystem root in an
+# unprivileged user namespace (as namespace root) and binds the host's $HOME
+# back in, so the source tree and $PREFIX stay on the host filesystem. The
+# runner is bwrap when it works, else the native one (unshare + chroot,
+# util-linux + coreutils only), else proot.
 #
-# Why not proot: proot needs ptrace, and this host sets
-# kernel.yama.ptrace_scope=2 (ptrace restricted to CAP_SYS_PTRACE), so
-# ptrace(PTRACE_TRACEME) fails with EPERM. bwrap uses clone/unshare instead,
-# which is permitted. (`unshare -Ur -m chroot $ROOTFS` is an equivalent
-# alternative, but bwrap handles /proc, /dev and /sys for us.)
+# proot is last: it needs ptrace, and hosts with kernel.yama.ptrace_scope=2
+# (ptrace restricted to CAP_SYS_PTRACE) make ptrace(PTRACE_TRACEME) fail with
+# EPERM. bwrap and the native runner use unshare instead, which is permitted.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
 
 ROOTFS="${ROOTFS:-$HOME/buildroot}"
 
 [ -x "$ROOTFS/bin/sh" ] || die "no rootfs at $ROOTFS (run scripts/env/make-buildroot.sh)"
-command -v bwrap >/dev/null || die "bwrap not found"
 
 run_in_rootfs() {
-  bwrap \
-    --bind "$ROOTFS" / \
-    --dev-bind /dev /dev \
-    --proc /proc \
-    --ro-bind /sys /sys \
-    --bind /tmp /tmp \
-    --bind "$HOME" "$HOME" \
-    --chdir "$HOME" \
-    --setenv HOME "$HOME" \
-    --setenv PREFIX "$PREFIX" \
-    --setenv REPO "$REPO" \
-    "$@"
+  # prefix-run starts the rootfs from a clean environment; pass what the
+  # build scripts need explicitly, via the rootfs's own env(1).
+  (cd "$HOME" && export ROOTFS &&
+    "$REPO/tools/prefix-run.sh" --mode "${ROOTFS_MODE:-rootfs}" \
+      env PREFIX="$PREFIX" REPO="$REPO" "$@")
 }
 
 # fetch sources on the host so the rootfs needs no curl/wget

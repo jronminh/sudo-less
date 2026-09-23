@@ -15,7 +15,7 @@ Use it when you can't — or would rather not — install software system-wide.
 > [!CAUTION]
 > **AI-assisted and unaudited.** The scripts, patches and docs were written with
 > an AI assistant ([opencode](https://opencode.ai)). Read the code before you run
-> it — especially the root scripts under `admin/` and `third-party/`. This is not a security-reviewed
+> it — especially the root script under `admin/`. This is not a security-reviewed
 > artifact.
 
 ## Install
@@ -43,7 +43,7 @@ build yourself.
 
 A user created on a **standard Debian install, with no `sudo`**, installs and
 uses `.deb` packages from the supported sections into `~/.local`. The admin
-does a few one-time steps (`admin/`, `third-party/`) and nothing per package.
+does a one-time step (`admin/`) and nothing per package.
 
 Measured by:
 
@@ -140,7 +140,6 @@ recipes/       per-package notes (see docs/standard.md)
 tools/         prefix-run.sh (the overlay), deb2home.sh (extract without scripts)
 scripts/       build, setup and catalog helpers
 admin/         one-time root step that enables userspace: enable-userspace.sh
-third-party/   system packages the admin installs because they need root to work
 patches/       Termux's patches, verbatim
 dev/           tools for developing sudo-less (dsb test policy)
 docs/          all the detail
@@ -149,10 +148,9 @@ docs/          all the detail
 ## Disclaimer
 
 Provided **"as is", without warranty of any kind** (see [`LICENSE`](LICENSE)). The
-admin steps change system settings (user namespaces, subuid) and install setuid
-helpers, and builds can run as root inside a sandbox; read
-[`docs/methodology.md`](docs/methodology.md) and the `admin/` and `third-party/`
-scripts first. Parts were written with AI assistance and may contain
+admin step changes system settings (user namespaces, `PATH` for all users);
+read [`docs/methodology.md`](docs/methodology.md) and the `admin/` script first.
+Parts were written with AI assistance and may contain
 mistakes. You are responsible for your system and for keeping a recoverable admin
 path. Not affiliated with Debian or Termux.
 

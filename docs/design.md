@@ -50,7 +50,7 @@ adding a file, not editing a script.
 | **ecosystems** | per-language parts that plug into the stages: `shims/`, `classify.d/`, `integrate.d/`, and a one-time `install.sh` for global environment | [`ecosystems/`](../ecosystems/) |
 | **recipes** | exceptions only: a recipe overrides the classifier where it is wrong and proves it with `verify` | [`standard.md`](standard.md) |
 | **state** | `$PREFIX/var/lib/sudo-less/`: per package, its scope, mechanism and the wrappers it got, so everything can be explained and removed cleanly | — |
-| **admin steps** | one-time enablement (`admin/`) and the few system packages that need root to work (`third-party/`) | [`../third-party/`](../third-party/) |
+| **admin step** | one-time enablement: unprivileged user namespaces, `~/.local/bin` on `PATH` (`admin/enable-userspace.sh`) | [`../admin/`](../admin/) |
 
 What the user sees:
 

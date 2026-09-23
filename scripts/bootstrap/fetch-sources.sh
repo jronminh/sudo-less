@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Pre-download the source tarballs on the HOST, so the build container does
-# not need a downloader such as curl/wget inside it.
+# Pre-download the source tarballs, so a build sandbox does not need a
+# downloader such as curl/wget inside it.
 #
 # Caches into $SRC; the build scripts' fetch() then finds them and never calls
-# out. Run this before build-in-container.sh (it does).
+# out. build-on-host.sh runs it.
 source "$(dirname "$0")/../common.sh"
 
 fetch "$APT_URL"  "apt-$APT_VER.tar.gz"

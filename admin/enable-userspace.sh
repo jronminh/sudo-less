@@ -1,25 +1,23 @@
 #!/bin/bash
 # enable-userspace.sh
-# Run as the `mobian` user (the only sudo-capable account), once:
-#     sudo bash ~/sudo-less/admin/enable-userspace.sh [USER]
+# Run once, as an account that has sudo:
+#     bash admin/enable-userspace.sh USER
 #
-# One-time enablement so USER (default: master) can run software in userspace
+# One-time enablement so USER can run software in userspace
 # WITHOUT sudo, using base-system tools only (sysctl, usermod, install) — no
 # packages are installed. Admin steps here only enable userspace; they never
 # run the user's software as root.
 #   - unprivileged user namespaces (unshare -Ur, overlayfs in a userns >= 5.11):
 #     enough for `tools/prefix-run.sh --mode overlay-native`
-#   - subuid/subgid for USER (rootless containers)
 #   - ~/.local/bin on PATH for all users
 #   - USER's userspace dirs
 #
-# Setuid helpers (uidmap, fuse3) and podman are separate:
-# third-party/install-tools.sh. Unprivileged tools (bwrap)
-# the user installs with the userspace apt.
+# Nothing else is installed: unprivileged tools (bwrap, ...) the user
+# installs with the userspace apt.
 
 set -euo pipefail
 
-U="${1:-master}"
+U="${1:?usage: enable-userspace.sh USER}"
 id "$U" >/dev/null 2>&1 || { echo "no such user: $U" >&2; exit 1; }
 H="$(getent passwd "$U" | cut -d: -f6)"
 
@@ -33,10 +31,6 @@ printf '%s\n' \
   'user.max_user_namespaces = 14030' \
   | sudo tee /etc/sysctl.d/99-userns.conf >/dev/null
 sudo sysctl --system >/dev/null 2>&1 || true
-
-echo "==> ensuring subuid/subgid for $U"
-grep -q "^$U:" /etc/subuid 2>/dev/null || sudo usermod --add-subuids 165536-231071 "$U"
-grep -q "^$U:" /etc/subgid 2>/dev/null || sudo usermod --add-subgids 165536-231071 "$U"
 
 echo "==> adding ~/.local/bin to PATH (all users, login shells)"
 printf '%s\n' \
@@ -52,13 +46,9 @@ sudo -u "$U" mkdir -p "$H/.local/bin" "$H/.local/lib"
 
 echo
 echo "==> DONE."
-echo "subuid: $(grep "^$U:" /etc/subuid || echo none)"
-echo "subgid: $(grep "^$U:" /etc/subgid || echo none)"
 echo "userns: $(sudo -u "$U" unshare -Ur true 2>/dev/null && echo ok || echo FAILED)"
 echo
 echo "$U can now, WITHOUT sudo:"
 echo "  - run packages from ~/.local with the prefix overlaid on /usr,/etc:"
 echo "      tools/prefix-run.sh --mode overlay-native CMD"
 echo "  - install bwrap, ... with the userspace apt (apt-get install ...)"
-echo "  - for rootless podman, also run"
-echo "      third-party/install-tools.sh (setuid uidmap)"

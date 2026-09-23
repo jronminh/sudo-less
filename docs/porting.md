@@ -8,7 +8,6 @@ you own (`~/.local` by default), with a real dependency resolver and database.
 | you have | path | extra tooling needed |
 |---|---|---|
 | **root / sudo** (Debian-family) | `scripts/env/build-on-host.sh` | **none** beyond the build packages |
-| no root, but rootless containers | `scripts/env/build-in-container.sh` | rootless `podman` |
 
 The **root path is by far the lightest**: no user namespace, no subuid, no
 `podman`. If you have sudo, use it.
@@ -23,22 +22,24 @@ git clone <this repo> ~/sudo-less && cd ~/sudo-less
 That installs the build packages with `apt`, fetches the sources, builds apt
 and dpkg, installs them into `~/.local`, and writes the runtime config.
 
-### No-root path (rootless podman)
+### Advanced: building without root
 
-```sh
-./scripts/env/build-in-container.sh              # IMAGE=debian:bookworm to pin a suite
-```
+Most users never build: `bootstrap.sh` installs the prebuilt release. The
+repo scripts only the root path above, and CI runs that same script inside a
+`debian:bookworm` container. Without root, any Debian environment in which
+you can install `scripts/build-deps.list` and run `build-on-host.sh` will do,
+for example:
 
-### Other build environments
-
-Any Debian environment where the build packages
-(`scripts/build-deps.list`) can be installed will do. One more way without
-root, not scripted here: a rootfs made with `mmdebstrap --mode=unshare` and
-entered with `bwrap` or `unshare -Urm` + `chroot`. `--mode=unshare` maps the
-subuid range to root, so write the rootfs as a tarball to stdout and unpack
-it yourself (`--format=tar ... - > rootfs.tar`), since the mapped root cannot
-write into your `0700` home. Then run `scripts/bootstrap/build-apt.sh` and
-`build-dpkg.sh` inside it with `$HOME` bound in.
+- **a rootless container**: `podman run --rm -v "$PWD:$PWD" -w "$PWD"
+  debian:bookworm ./scripts/env/build-on-host.sh` (you are root inside; the
+  admin must have installed `podman` and `uidmap` and given you subuid/subgid);
+- **a rootfs** made with `mmdebstrap --mode=unshare` and entered with `bwrap`
+  or `unshare -Urm` + `chroot`. `--mode=unshare` maps the subuid range to
+  root, so write the rootfs as a tarball to stdout and unpack it yourself,
+  since the mapped root cannot write into your `0700` home;
+- **sudo-less itself**, in principle: install the build packages into
+  `~/.local` with the userspace apt, point `PKG_CONFIG_PATH` and the compiler
+  at the prefix, and build on the host. Untested.
 
 ## Prerequisites in detail
 
@@ -47,11 +48,7 @@ write into your `0700` home. Then run `scripts/bootstrap/build-apt.sh` and
   needs a downloader). The *result* only makes sense on dpkg-based systems,
   because `install-config.sh` seeds the local dpkg database from the host's
   `/var/lib/dpkg/status`.
-- **No-root paths only**: unprivileged user namespaces (`sysctl
-  kernel.unprivileged_userns_clone=1`), `/etc/subuid` + `/etc/subgid` for your
-  user, and (for podman) `newuidmap`/`newgidmap`, `fuse-overlayfs`,
-  `slirp4netns`.
-- **Disk/RAM**: ~1.5 GB for the build container + tree; ~2 GB RAM to build.
+- **Disk/RAM**: ~1.5 GB for the build tree; ~2 GB RAM to build.
 - **`gpgv`**: apt's signature verification needs a real `gpgv` binary at
   runtime (Debian ships it in its own `gpgv` package).
 

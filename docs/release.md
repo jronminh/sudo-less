@@ -39,10 +39,11 @@ hidden.
 
 Build releases in a container pinned to that suite, **not** on the host,
 which has whatever suite it happens to run. CI does this
-(`.github/workflows/build.yml`, `container: debian:bookworm`); by hand:
+(`.github/workflows/build.yml`, `container: debian:bookworm`); by hand, in
+any container runtime:
 
 ```sh
-IMAGE=debian:bookworm ./scripts/env/build-in-container.sh
+podman run --rm -v "$PWD:$PWD" -w "$PWD" debian:bookworm ./scripts/env/build-on-host.sh
 ```
 
 `package-prebuilt.sh` writes a `<asset>.buildinfo` recording the suite, arch,
@@ -58,7 +59,7 @@ The artifact *is* relocatable across users and prefixes: apt follows the config
 
 ```sh
 # 1. build in a CLEAN prefix against the pinned baseline suite (bookworm):
-IMAGE=debian:bookworm ./scripts/env/build-in-container.sh
+podman run --rm -v "$PWD:$PWD" -w "$PWD" debian:bookworm ./scripts/env/build-on-host.sh
 
 # 2. package it:
 ./scripts/bootstrap/package-prebuilt.sh   # -> dist/<asset>, .sha256, .buildinfo

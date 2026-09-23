@@ -2,9 +2,8 @@
 
 `master` has no `sudo` and no root. Everything below runs as `master` (uid
 1001) and stays inside the home directory. The privileged pieces are done once
-by `mobian`: `admin/enable-userspace.sh` (user namespaces, subuid/subgid,
-`~/.local/bin` on PATH; base tools only) and `third-party/install-tools.sh`
-(setuid `uidmap` and `fuse3` only). Unprivileged tools such as bwrap
+by `mobian`: `admin/enable-userspace.sh` (user namespaces, `~/.local/bin`
+on PATH; base tools only). Unprivileged tools such as bwrap
 `master` installs with the userspace apt.
 
 There are four levels of "no-root", from lightest to heaviest. Pick the
@@ -82,7 +81,7 @@ Notes:
 
 Goal: run `apt-get install` as `master`, installing `.deb`s into `~/.local`.
 
-1. Build env: `scripts/env/build-on-host.sh` (with root) or `scripts/env/build-in-container.sh`.
+1. Build env: `scripts/env/build-on-host.sh` (with root; without, see `docs/porting.md`).
 2. apt 2.8.1 + dpkg 1.22.6 built with Termux's patches → `~/.local`.
    Details and the exact retargeting in `docs/apt-dpkg-port.md`.
 3. Runtime config: `scripts/setup/install-config.sh` (sources.list, `apt.conf.d`,

@@ -11,8 +11,8 @@
 # dpkg (as you, so $PREFIX stays user-owned) -> write runtime config.
 #
 # This is the shortest path from a fresh Debian install to a working userspace
-# apt/dpkg. The container path (env/build-in-container.sh, rootless podman)
-# exists only for the case where you do NOT have root.
+# apt/dpkg. Without root, run it inside a container or rootfs in which you
+# are root (docs/porting.md, "Advanced: building without root").
 set -euo pipefail
 source "$(dirname "$0")/../common.sh"
 
@@ -21,7 +21,7 @@ if [ "$(id -u)" -eq 0 ]; then
 elif command -v sudo >/dev/null; then
   SUDO="sudo"
 else
-  die "no root and no sudo: use scripts/env/build-in-container.sh (rootless podman) instead"
+  die "no root and no sudo: run this inside a container where you are root (docs/porting.md)"
 fi
 
 log "installing build dependencies (as ${SUDO:-root})"

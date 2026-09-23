@@ -152,15 +152,13 @@ then our patch.
 
 ## Build
 
-With root, on the host; without, in a rootless podman container (see
-`porting.md`):
+With root, on the host (without root, see `porting.md`):
 
 ```sh
 ./scripts/env/build-on-host.sh
-./scripts/env/build-in-container.sh
 ```
 
-Then install the runtime config (done automatically by both scripts):
+Then install the runtime config (done automatically by the script):
 
 ```sh
 ./scripts/setup/install-config.sh [--reseed]

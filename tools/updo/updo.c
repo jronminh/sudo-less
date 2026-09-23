@@ -31,8 +31,8 @@ static const char usage_text[] =
 "  -p FILE         feed FILE to the command's stdin           (dsh -p)\n"
 "  -e FILE...      edit FILEs: the editor runs as you, the result is\n"
 "                  written back as the identity                (sudoedit)\n"
-"  -l [CMD]        what the identity is and may write; with CMD, where it\n"
-"                  resolves\n"
+"  -l [CMD]        what the identity is and may do (from updo.conf); with\n"
+"                  CMD, where it resolves and whether it is allowed\n"
 "  -D DIR          run in DIR (default: the current directory if the\n"
 "                  identity can enter it, else its home)\n"
 "  -u IDENT        use identity IDENT (default: updo); root is refused\n"
@@ -41,14 +41,10 @@ static const char usage_text[] =
 "  -h, --help      show this help\n"
 "\n"
 "The command gets your stdin, stdout and stderr themselves (no pty, no\n"
-"copying); updo exits with its status. Environment: TERM, COLORTERM, LANG,\n"
-"LANGUAGE, LC_* and --preserve-env. Socket: $UPDO_RUNDIR/IDENT.sock\n"
-"(default /run/updo, which must be owned by root).\n";
-
-#define SHELL_ONLY_PERSISTENT \
-    "if [ -n \"${UPDO_EPHEMERAL:-}\" ]; then echo \"updo: identity" \
-    " ${UPDO_IDENTITY} is per-call; a shell needs a persistent one (-u NAME)\" >&2;" \
-    " exit 1; fi; "
+"copying); updo exits with its status. What an identity may run, whether it\n"
+"has a shell, which variables pass (of TERM, COLORTERM, LANG, LANGUAGE,\n"
+"LC_* and --preserve-env) is decided by updod from /etc/updo/updo.conf.\n"
+"Socket: $UPDO_RUNDIR/IDENT.sock (default /run/updo, owned by root).\n";
 
 static const char *rundir = "/run/updo";
 static const char *ident = "updo";
@@ -97,14 +93,15 @@ static const int relayed[] = { SIGINT, SIGTERM, SIGHUP, SIGQUIT, SIGWINCH };
 #define NRELAYED (sizeof(relayed) / sizeof(relayed[0]))
 
 // Runs argv as the identity with the given fds; returns its exit status.
-static int run(struct list *argv, const char *cwd, int strict,
+static int run(const char *mode, struct list *argv, const char *cwd, int strict,
                struct list *env, const int fds[3]) {
     struct blob b = { 0 };
     put(&b, UPDO_VERSION);
+    put(&b, mode);
     put(&b, cwd);
     put(&b, strict ? "1" : "0");
     put_count(&b, argv->n);
-    for (size_t i = 0; i < argv->n; i++) put(&b, argv->v[i]);
+    for (size_t i = 0; argv->v && i < argv->n; i++) put(&b, argv->v[i]);
     put_count(&b, env->n);
     for (size_t i = 0; i < env->n; i++) put(&b, env->v[i]);
     if (b.n > UPDO_REQ_MAX) die("%s", "request too large");
@@ -175,30 +172,6 @@ static int run(struct list *argv, const char *cwd, int strict,
     return (unsigned char)reply[UPDO_MAGIC_LEN];
 }
 
-static void add_sh(struct list *argv, const char *script) {
-    add(argv, "/bin/sh");
-    add(argv, "-c");
-    add(argv, script);
-}
-
-// Interactive shell: bash reads our rc on fd 3, which sets the prompt last so
-// no profile can hide which identity this is. Its startup notice about job
-// control (there is no controlling terminal) goes to /dev/null.
-static void add_shell(struct list *argv, const char *rc) {
-    char *s;
-    if (isatty(0) && isatty(1)) {
-        if (asprintf(&s, SHELL_ONLY_PERSISTENT
-                "if command -v bash >/dev/null; then exec 4>&2; "
-                "exec bash --rcfile /dev/fd/3 -i 2>/dev/null 3<<'UPDO_RC'\n"
-                "exec 2>&4 4>&-\n%s\nPS1='%s> '\nUPDO_RC\n"
-                "else PS1='%s> ' exec sh -i; fi", rc, ident, ident) < 0) exit(1);
-    } else if (asprintf(&s, SHELL_ONLY_PERSISTENT "exec \"${SHELL:-/bin/sh}\"") < 0) {
-        exit(1);
-    }
-    add_sh(argv, s);
-    free(s);
-}
-
 static uint64_t hash_file(int fd) {
     uint64_t h = 1469598103934665603ULL;
     char buf[65536];
@@ -209,8 +182,9 @@ static uint64_t hash_file(int fd) {
     return h;
 }
 
-// sudoedit: copy out as the identity, edit as the caller, write back as the
-// identity into the same inode (owner and mode of an existing file stay).
+// sudoedit: updod reads the file as the identity, the caller edits a copy,
+// updod writes it back into the same inode (owner and mode of an existing
+// file stay).
 static int edit(int argc, char **argv, struct list *env) {
     const char *editor = getenv("SUDO_EDITOR");
     if (!editor || !*editor) editor = getenv("VISUAL");
@@ -222,21 +196,20 @@ static int edit(int argc, char **argv, struct list *env) {
     for (int i = 0; i < argc; i++) {
         char abs[PATH_MAX], cwd[PATH_MAX], tmp[PATH_MAX];
         if (argv[i][0] == '/') snprintf(abs, sizeof(abs), "%s", argv[i]);
-        else if (getcwd(cwd, sizeof(cwd))) snprintf(abs, sizeof(abs), "%s/%s", cwd, argv[i]);
-        else die("%s", "cannot resolve the current directory");
+        else if (!getcwd(cwd, sizeof(cwd))) die("%s", "cannot resolve the current directory");
+        else if (snprintf(abs, sizeof(abs), "%s/%s", cwd, argv[i]) >= (int)sizeof(abs))
+            die("path too long: %s", argv[i]);
         const char *base = strrchr(abs, '/') + 1;
         snprintf(tmp, sizeof(tmp), "%s/updo.XXXXXX-%s", tmpdir, base);
         int t = mkstemps(tmp, (int)strlen(base) + 1);
         if (t < 0) die("cannot create a temporary file in %s", tmpdir);
 
         struct list a = { 0 };
-        add_sh(&a, "if [ -e \"$1\" ]; then exec cat -- \"$1\"; fi");
-        add(&a, "updo");
         add(&a, abs);
         int devnull = open("/dev/null", O_RDONLY);
         int out[3] = { devnull, t, 2 };
-        if (run(&a, "/", 1, env, out) != 0) {
-            fprintf(stderr, "updo: cannot read %s\n", argv[i]);
+        int r = run("read", &a, "", 0, env, out);
+        if (r != 0 && r != 2) {                 // 2: a new file; else updod said why
             unlink(tmp); rc = 1; continue;
         }
         close(devnull);
@@ -260,12 +233,8 @@ static int edit(int argc, char **argv, struct list *env) {
             unlink(tmp); continue;
         }
         lseek(t, 0, SEEK_SET);
-        struct list w = { 0 };
-        add_sh(&w, "cat > \"$1\"");
-        add(&w, "updo");
-        add(&w, abs);
         int in[3] = { t, 1, 2 };
-        if (run(&w, "/", 1, env, in) != 0) {
+        if (run("write", &a, "", 0, env, in) != 0) {
             fprintf(stderr, "updo: cannot write %s; your edit is kept in %s\n", argv[i], tmp);
             rc = 1; continue;
         }
@@ -345,45 +314,11 @@ int main(int argc, char **argv) {
     }
 
     struct list rargv = { 0 };
-    switch (mode) {
-    case CMD:
-        for (int j = 0; j < nargs; j++) add(&rargv, args[j]);
-        break;
-    case LINE:
-        add_sh(&rargv, line);
-        break;
-    case SHELL:
-    case LOGIN:
-        if (nargs > 0) {
-            add_sh(&rargv, mode == SHELL ? "\"$@\"" :
-                "if command -v bash >/dev/null; then exec bash -lc '\"$@\"' \"$0\" \"$@\"; "
-                "else exec sh -lc '\"$@\"' \"$0\" \"$@\"; fi");
-            add(&rargv, "updo");
-            for (int j = 0; j < nargs; j++) add(&rargv, args[j]);
-        } else {
-            add_shell(&rargv, mode == SHELL ? "[ -r ~/.bashrc ] && . ~/.bashrc" :
-                "[ -r /etc/profile ] && . /etc/profile; for f in ~/.bash_profile ~/.profile;"
-                " do [ -r \"$f\" ] && { . \"$f\"; break; }; done");
-        }
-        break;
-    case LIST:
-        if (nargs > 0) {
-            add_sh(&rargv, "command -v -- \"$1\" || { echo \"updo: $1: not found\" >&2; exit 1; }");
-            add(&rargv, "updo");
-            add(&rargv, args[0]);
-        } else {
-            add_sh(&rargv,
-                "echo \"identity: $UPDO_IDENTITY\"; id; "
-                "grep -E '^(NoNewPrivs|CapEff):' /proc/self/status; "
-                "[ -n \"${UPDO_EPHEMERAL:-}\" ] && echo 'per-call identity (DynamicUser): no shells'; "
-                "echo writable:; findmnt -rn -o TARGET,OPTIONS | while read -r t o; do "
-                "case \",$o,\" in *,rw,*) case \"$t\" in /proc*|/sys*|/dev*) ;; "
-                "*) echo \"  $t\" ;; esac ;; esac; done | sort -u");
-        }
-        break;
-    case EDIT:
-        break;
-    }
+    static const char *wire[] = { "cmd", "shell", "login", "line", "", "list" };
+    const char *m = wire[mode];
+    if (mode == LINE) add(&rargv, line);
+    else if (mode == LIST && nargs > 0) { m = "which"; add(&rargv, args[0]); }
+    else if (mode != LIST) for (int j = 0; j < nargs; j++) add(&rargv, args[j]);
 
     char cwd[PATH_MAX] = "";
     int strict = 0;
@@ -397,5 +332,5 @@ int main(int argc, char **argv) {
     for (size_t j = 0; j < NRELAYED; j++) sigaction(relayed[j], &sa, NULL);
     // Ctrl-Z would stop only us and leave the command on the terminal
     signal(SIGTSTP, SIG_IGN);
-    return run(&rargv, cwd, strict, &env, fds);
+    return run(m, &rargv, cwd, strict, &env, fds);
 }

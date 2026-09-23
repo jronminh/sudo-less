@@ -3,10 +3,10 @@
 `updo` ("userspace do") is `sudo` for a bounded middle identity instead of
 the super user: same usage, never root.
 
-Status: **prototype.** Client and daemon exist (`tools/updo/`, C, no
-libraries) and pass their tests as `master` against runtime user units
-(`tools/updo/dev-backend.sh`, same uid on both ends, see "Prototype"). The
-admin side (system users, system units) is not installed.
+Status: **prototype.** Client, daemon, admin tool and a `.deb` exist
+(`tools/updo/`, C and sh, no libraries). They pass their tests as `master`
+against runtime user units (`updo-admin --dev`, same uid on both ends, see
+"Prototype"). The package is not installed system-wide yet.
 
 ## The core idea, taken from Android
 
@@ -30,18 +30,19 @@ Nothing else from Android (SELinux, adbd, pairing, `settings`) is copied.
 | Android (`fe2`) | role | `updo` | lives in |
 |---|---|---|---|
 | `dsh` | the command the user types | `updo` client | `tools/updo/`, userspace |
-| wireless debugging + pairing | who may reach the daemon | unix socket `root:master 0660`, caller uid re-checked with `SO_PEERCRED` | admin, once |
-| `adbd` / relaysh daemon | accepts a call, runs it, returns the status | `updo-<id>.socket` (`Accept=yes`) + `updod`, one instance per call, already running as the identity | admin, once |
+| wireless debugging + pairing | who may reach the daemon | unix socket `root:master 0660`, caller uid re-checked with `SO_PEERCRED` against `callers =` | `updo.conf` |
+| `adbd` / relaysh daemon | accepts a call, decides, runs it, returns the status | `updo-<id>.socket` (`Accept=yes`) + `updod`, one instance per call, already running as the identity | the `.deb` |
+| Android's fixed `shell` policy | what the shell may run | `commands =`, `shell =`, `edit =`, `env =`, `timeout =`, **configurable** | `updo.conf` |
 | uid 2000 `shell` | the bounded identity | `updo-<id>` system users (persistent), or a `DynamicUser` (per call) | admin, once per identity |
 | `shell`'s groups (`readproc`, `uhid`, `log`, …) | what the identity can reach | `SupplementaryGroups=`, group-owned setgid dirs | admin, per grant |
 | SELinux `shell` domain | a limit the identity cannot lift | systemd sandbox: `ProtectSystem=strict`, `ProtectHome`, `ReadWritePaths=`, `NoNewPrivileges`, no caps | admin, per identity |
 | platform services checking uid 2000 | the system decides, not the caller | the kernel (DAC, mount namespace, `no_new_privs`) | kernel |
-| `dsh status` | show the state | `updo -l` | client |
+| `dsh status` | show the state | `updo -l` (answered by `updod` from `updo.conf`) | client |
 
-So making `updo` real means building four things: the client and daemon (`tools/updo/`, done as a prototype),
-the enablement (`admin/native/enable-updo.sh`), a grant tool that creates one
-identity with its drop-in and refuses forbidden paths, and the recipe side
-(tier `limited`).
+Unlike Android's `shell`, the policy is not baked in: one file,
+`/etc/updo/updo.conf`, says who may call which identity and what it may do,
+and `updod` enforces it on every call. What is left to build is the recipe
+side (tier `limited`).
 
 ## Usage: `sudo` with a different target
 
@@ -73,8 +74,11 @@ Behaviour a `sudo` user expects, kept:
   programs); Ctrl-C and the other terminal signals are relayed;
 - the current directory is kept (sudo's default) when updo can enter it,
   else updo's home, with a warning;
-- the environment is reset to an allowlist (`PATH`, `TERM`, `LANG`, `LC_*`),
-  as sudo's `env_reset` does; `--preserve-env` adds to it;
+- the environment is reset, as sudo's `env_reset` does: the client offers
+  `TERM`, `COLORTERM`, `LANG`, `LANGUAGE`, `LC_*` and `--preserve-env`
+  variables, `updod` keeps those matching the identity's `env =`; `HOME`,
+  `PATH`, `USER`, `SHELL` are always the identity's, and `LD_*`, `ENV`,
+  `BASH_ENV` never pass;
 - `-e` works like `sudoedit`: the file is copied out, edited by `$EDITOR`
   running as **master**, and written back as updo, so the editor itself never
   runs with updo's rights;
@@ -87,9 +91,10 @@ scripting interface, without one it is a terminal.
   habits;
 - **the prompt names the identity**, `updo> ` or `lighttpd> `, set after every
   profile so nothing can hide it;
-- **shells need a persistent identity**: a per-call (`DynamicUser`) identity
-  refuses them, because what a shell creates would be left owned by a uid that
-  no longer exists (see "Identities");
+- **shells are opt-in per identity** (`shell = yes`), and need a persistent
+  identity: a per-call (`user = dynamic`) one refuses them, because what a
+  shell creates would be left owned by a uid that no longer exists (see
+  "Identities");
 - no job control inside the shell: the command has no controlling terminal
   (the terminal belongs to `master`'s session), so Ctrl-Z is ignored and
   `jobs`/`fg` do nothing.
@@ -105,23 +110,30 @@ Differences from sudo, on purpose:
 
 ## What bounds `updo`
 
-Three locks, all set by the admin once, all enforced by the kernel. None
-depends on what command `master` sends.
+Four locks, all written by the admin in `updo.conf`, all enforced by the
+kernel. None depends on what command `master` sends.
 
 | lock | mechanism | effect |
 |---|---|---|
 | **identity** | system user `updo`, its own group, plus only the groups that were deliberately granted | ordinary DAC: updo reaches what those groups reach, nothing more |
 | **filesystem** | the session runs in a systemd service with `ProtectSystem=strict`, `ProtectHome=read-only`, `PrivateTmp=yes`, and a `ReadWritePaths=` list | everything is read-only except the listed paths, **even if** DAC would allow a write |
-| **no way up** | `NoNewPrivileges=yes`, `RestrictSUIDSGID=yes`, empty `CapabilityBoundingSet=` (or one named capability via `AmbientCapabilities=`) | `sudo`, `su`, `pkexec` and every setuid binary lose their power inside; no capability can be regained |
+| **no way up** | `NoNewPrivileges=yes`, `RestrictSUIDSGID=yes`, empty `CapabilityBoundingSet=` (or allowlisted ones via `AmbientCapabilities=`) | `sudo`, `su`, `pkexec` and every setuid binary lose their power inside; no capability can be regained |
+| **commands** (when `commands =` is a list) | `updod` checks the resolved program; the unit gets `NoExecPaths=/` + `ExecPaths=` those programs, the libraries, `updod` and (with `shell = yes`) the shells | a shell, script or allowed program cannot `exec` anything off the list: the kernel answers `Permission denied` |
 
 The filesystem lock is what keeps rule "never feed root" honest: paths that
-root later executes (`/etc/sudoers*`, `/etc/systemd`, `/etc/tmpfiles.d`,
-`/etc/udev`, `/etc/pam.d`, `/etc/polkit-1`, `/etc/ld.so.preload`, cron) must
-never appear in `ReadWritePaths=`. The admin script refuses them.
+root later reads or executes (`/etc/sudoers*`, `/etc/systemd`,
+`/etc/tmpfiles.d`, `/etc/udev`, `/etc/pam.d`, `/etc/polkit-1`,
+`/etc/ld.so.*`, cron, `/etc/passwd` and friends, `/etc/apt`, `/var/lib/dpkg`,
+`/etc/updo` itself, `/usr`, `/boot`, …) must never be writable. `updo-admin`
+refuses a `write =` that equals, contains or lies under any of them, a
+root-equivalent group (`sudo`, `disk`, `docker`, `shadow`, …) and any
+capability off a short allowlist, and it warns when `commands =` names a
+program that runs other programs (`sh`, `python3`, `find`, `env`, …), since
+allowing it allows the rest of the list through it.
 
 The accepted trade-off, as with `dsh`: any process `master` runs can call
 `updo`. That is fine because updo's power is small, written down in one
-unit file, and reviewed.
+config file, and reviewed.
 
 ## How it is wired (native pieces only, no polkit, no ssh)
 
@@ -132,9 +144,11 @@ updo CMD  (client, as master)
 /run/updo/IDENT.sock   root:master 0660   ── only master can connect (kernel DAC)
    │  updo-IDENT.socket, Accept=yes: one service instance per call
    ▼
-updo-IDENT@.service   User=updo-IDENT (or DynamicUser) + the three locks
-   ExecStart=/usr/local/libexec/updod --allow-uid 1001 --name IDENT
-   │  SO_PEERCRED: caller uid must be 1001, checked before reading anything
+updo-IDENT@.service   User=updo-IDENT (or DynamicUser) + the four locks
+   ExecStart=/usr/libexec/updo/updod --identity IDENT
+   │  reads /etc/updo/updo.conf
+   │  SO_PEERCRED: caller must be in callers =, checked before reading anything
+   │  policy: mode allowed? command on the list? env filtered, timeout armed
    │  fork: setsid, dup2 the caller's fds onto 0/1/2, chdir, clean env, exec
    ▼
 CMD, as the identity, on master's own stdin/stdout/stderr
@@ -154,13 +168,18 @@ the kernel does the rest:
   descriptors themselves. Nothing is relayed or re-encoded, so there is
   nothing to get wrong about binary data, buffering, stderr or window size,
   and no pty to allocate.
-- **what the command is**: an argv, executed with `execvpe`, no shell in
-  between unless asked for (`-c`, `-s`, `-i`).
+- **what the command is**: an argv plus a mode (`cmd`, `shell`, `login`,
+  `line`, `list`, `which`, `read`, `write`). The client builds no scripts;
+  `updod` resolves the argv with the identity's `PATH`, checks it and
+  `execve`s it, with no shell in between unless the mode asks for one and the
+  identity allows it. Shells get their rc (prompt, profile) from `updod` on a
+  memfd; `-e` reads and writes the file inside `updod` itself.
 - **cleanup**: the per-call service's cgroup, so a killed client leaves no
   orphan.
 
-Also needed, checked by the admin script: `dev.tty.legacy_tiocsti = 0` (the
-default since Linux 6.2, and so here). The command holds `master`'s terminal;
+Also needed, set by the package (`/usr/lib/sysctl.d/60-updo.conf`) and
+checked by `updo-admin`: `dev.tty.legacy_tiocsti = 0` (the default since
+Linux 6.2, and so here). The command holds `master`'s terminal;
 with legacy `TIOCSTI` it could type into `master`'s shell after it exits.
 
 Rejected:
@@ -173,15 +192,20 @@ Rejected:
 - a setuid-to-identity helper: inherits `master`'s environment, fds and
   rlimits into a process with other rights.
 - polkit / `run0`: a rules engine outside the base system; `run0` targets root.
+- a long-running root daemon that switches to the identity itself: it would
+  be a second `sudo` to audit. systemd already holds the socket and starts
+  each call as the identity, so `updod` never has root to lose.
 
 ## Prototype (as master, no admin)
 
 `tools/updo/build.sh` builds `out/updo` and `out/updod`;
-`tools/updo/dev-backend.sh start` runs `updod` from runtime user units
-(`$XDG_RUNTIME_DIR`, gone at logout) with the same sandbox the real units
-will have, and prints the `UPDO_RUNDIR` to use. A user manager cannot switch
-users, so both ends are `master`: this tests the protocol, the client and the
-sandbox, not the separate uid. Results, 2026-09-23:
+`tools/updo/updo-admin --dev --config FILE apply` validates a `updo.conf`,
+copies it and `updod` under `$XDG_RUNTIME_DIR/updo-dev` (the sandbox hides
+`/tmp` and makes `$HOME` read-only), generates the same units the package
+generates, as runtime user units (gone at logout), and prints the
+`UPDO_RUNDIR` to use; `--dev stop` removes them. A user manager cannot switch
+users, so both ends are `master`: this tests the protocol, the policy, the
+client and the sandbox, not the separate uid. Results, 2026-09-23:
 
 | check | result |
 |---|---|
@@ -197,8 +221,14 @@ sandbox, not the separate uid. Results, 2026-09-23:
 | Ctrl-C | at the prompt: line cancelled, shell alive; during `updo sleep 30`: status 130 |
 | full-screen (`less`) | works |
 | client `kill -9` during a call | no orphan (cgroup) |
-| per-call identity (`--ephemeral`) | commands run; bare `updo` and piped shells refused |
-| `-e` | editor runs as the caller; write-back keeps inode and mode; unchanged file not written; a failed write keeps the edit and says where |
+| `shell = no` | `-s`, `-c`, bare `updo` refused with the reason; commands run |
+| `commands = /usr/bin/ls /usr/bin/id /usr/bin/cat` | `id`, `/bin/id` run; `touch` refused by `updod` ("not allowed … commands in updo.conf"); `updo -l touch` says so |
+| `shell = yes` + `commands = /usr/bin/id /usr/bin/sleep` | `updo -c 'id -u; ls /'`: `id` runs, `ls` gets `Permission denied` from the kernel (`ExecPaths=`), also at the interactive prompt |
+| `timeout = 2`, `updo sleep 5` | "timed out after 2s", status 124 |
+| `env = … FOO*` | `--preserve-env=FOOBAR,BAZ` passes `FOOBAR`, drops `BAZ` |
+| `edit = no` | `-e` refused |
+| `updo-admin check` on a bad file | 7 errors: dynamic + shell, relative command, `write` under `/etc/systemd` and `/usr`, group `sudo`, `CAP_SYS_ADMIN`; nothing applied |
+| `-e` | editor runs as the caller; write-back keeps inode and mode; a new file is created 0644; unchanged file not written; a read-only target keeps the edit and says where |
 | sandbox | `/etc`, `$HOME` read-only; the `ReadWritePaths=` dir writable; `NoNewPrivs: 1`, `CapEff: 0` |
 | `-u root` | refused |
 
@@ -206,8 +236,13 @@ Earlier findings that still hold: `ProtectSystem=strict` alone left `/home`
 writable, `ProtectHome=read-only` is also required; a plain
 `systemd-socket-activate` (no cgroup) leaves orphans, a socket unit does not.
 
-Not yet verified: a different uid on the far end (needs the system user),
-`DynamicUser=` with `updod`, `AmbientCapabilities=`.
+The package: `tools/updo/build-deb.sh` builds `updo_0.1.0_amd64.deb`;
+contents and generated system units checked (`updod --generate` with a test
+config: `User=`/`DynamicUser=`, `SocketGroup=`, caps, `ExecPaths=`).
+
+Not yet verified: the package installed system-wide, so a different uid on
+the far end, `DynamicUser=` with `updod`, `AmbientCapabilities=`, the
+generator at boot.
 
 ## Identities: persistent per grant, or one per call
 
@@ -234,36 +269,85 @@ only under `/var/lib` and `/run`. So per-call identities fit calls that
 **leave nothing behind**: reads, checks, one-off jobs, and they refuse shells.
 The default identity, `updo` with no `-u`, must open a shell, so it is a
 **static** user with no write grants beyond its own home; per-call
-identities are opt-in (`updod --ephemeral`).
+identities are opt-in (`user = dynamic`).
 
-**Per grant: a static user `updo-<name>`.** Created once with `useradd
---system`, with its own socket (`/run/updo/<name>.sock`), unit pair and
+**Per grant: a static user `updo-<name>`.** Created by `updo-admin apply`
+(`systemd-sysusers`), home `/var/lib/updo/<name>` (`StateDirectory=`), with
+its own socket (`/run/updo/<name>.sock`), unit pair and
 sandbox. Files it writes keep a stable owner, a later call can change them,
 and a grant for one package is not a grant for another. This is what tier
 `limited` uses: `javascript-common` gets `updo-lighttpd`, allowed to write
 `/etc/lighttpd` and nothing else.
 
 
-## Admin side (enable once)
+## Configuration: `/etc/updo/updo.conf`
 
-`admin/native/enable-updo.sh` would install:
+The policy is one file (plus `conf.d/*.conf`), shipped as a conffile with
+nothing enabled. Example:
 
-- `updod` to `/usr/local/libexec/updod` (built by `master` with
-  `tools/updo/build.sh`, reviewed, copied root-owned; it only ever runs as an
-  identity, never as root);
-- `/run/updo/` owned by root (`tmpfiles.d`), which the client insists on;
-- the default identity `updo`: `useradd --system`, `updo.socket` +
-  `updo@.service` with the three locks and nothing writable beyond its home;
-- a check that `dev.tty.legacy_tiocsti` is 0;
-- the grant tool, `admin/native/updo-grant.sh NAME [--rw PATH]... [--group G]...
-  [--cap CAP] [--ephemeral]`: creates `updo-NAME` (`useradd --system`, or
-  `DynamicUser=yes` with `--ephemeral`), its socket `/run/updo/NAME.sock`
-  (`root:master 0660`) and a `updo-NAME@.service` with the three locks and
-  exactly those grants. It refuses the forbidden paths and root-equivalent
-  groups, and each grant is reviewed on its own.
+```ini
+[global]
+callers = master                      # who may call (SO_PEERCRED)
+env     = TERM COLORTERM LANG LANGUAGE LC_*
 
-It never adds an updo identity to `sudo`, `disk`, `docker`, `lxd`, `shadow` or
-any other root-equivalent group.
+[identity updo]                       # the default: a shell, any command
+shell    = yes
+commands = *
+
+[identity lighttpd]                   # updo -u lighttpd ...
+write    = /etc/lighttpd
+commands = /usr/bin/mkdir /usr/bin/install /usr/bin/ln /usr/bin/rm
+
+[identity probe]                      # a new uid per call, nothing left behind
+user     = dynamic
+commands = /usr/bin/ping /usr/bin/ss
+caps     = CAP_NET_RAW
+timeout  = 60
+```
+
+Keys per identity: `user` (default `updo-NAME`; an existing user; or
+`dynamic`), `callers`, `shell` (default no), `edit` (default yes),
+`commands` (default `*`), `write`, `groups`, `caps`, `env`, `timeout`.
+Unknown keys and sections are errors. The full list is at the top of the
+shipped file and of `tools/updo/updo-conf.h`.
+
+Two consumers read it: `updod` on every call (callers, modes, commands, env,
+timeout), and the generator (`updod --generate`), which turns it into one
+`updo-NAME.socket` + `updo-NAME@.service` per identity that has callers
+(`User=`, `SupplementaryGroups=`, caps, the sandbox, `ReadWritePaths=`,
+`ExecPaths=`). Units are never edited by hand; they are regenerated at every
+boot and `daemon-reload`, so the file cannot drift from what runs. A file
+with errors enables nothing.
+
+## Admin side: the package is the admin step
+
+Installing `updo_VERSION_ARCH.deb` (`tools/updo/build-deb.sh`) replaces a
+hand-run enable script:
+
+| file | what |
+|---|---|
+| `/usr/bin/updo` | the client, for any user |
+| `/usr/libexec/updo/updod` | runs per call, as the identity, never as root |
+| `/usr/sbin/updo-admin` | `check`, `apply`, `list` |
+| `/usr/lib/systemd/system-generators/updo-generator` | units from `updo.conf` |
+| `/etc/updo/updo.conf`, `conf.d/` | the policy (conffile: kept on upgrade, removed on purge) |
+| `/usr/lib/sysctl.d/60-updo.conf` | `dev.tty.legacy_tiocsti = 0` |
+
+`postinst` sets the sysctl and runs `updo-admin apply`; with the shipped file
+that enables nothing. From then on the admin's part is one step per grant:
+
+```sh
+editor /etc/updo/updo.conf     # or drop a file into /etc/updo/conf.d/
+updo-admin apply               # check → create users (systemd-sysusers)
+                               # → daemon-reload (generator) → restart the
+                               # sockets, stop removed identities
+```
+
+`apply` validates first; with any error nothing changes. Removing the
+package stops the sockets; purging removes `/etc/updo` and `/var/lib/updo`,
+not the users (their uids may still own files). The package is unrelated to
+`admin/native/enable-userspace.sh`: that one enables the userspace tiers,
+this one only `updo`.
 
 ## Tier `limited`
 
@@ -273,8 +357,8 @@ root:
 
 | today `never` | with updo |
 |---|---|
-| `javascript-common`: postinst `mkdir -p /etc/lighttpd/conf-enabled` | **limited**: delegation `ReadWritePaths=/etc/lighttpd`; the recipe runs `updo -u lighttpd mkdir -p /etc/lighttpd/conf-enabled`, then `dpkg --configure` |
-| `screen`: `/run/screen`, group `utmp`, mode `0775` | **limited**: delegation `SupplementaryGroups=utmp` + a `/run/screen` path |
+| `javascript-common`: postinst `mkdir -p /etc/lighttpd/conf-enabled` | **limited**: delegation `[identity lighttpd] write = /etc/lighttpd`; the recipe runs `updo -u lighttpd mkdir -p /etc/lighttpd/conf-enabled`, then `dpkg --configure` |
+| `screen`: `/run/screen`, group `utmp`, mode `0775` | **limited**: delegation `groups = utmp` + `write = /run/screen` |
 | `screen`: `/etc/tmpfiles.d`, unit link, `update-rc.d` | **never**: root-executed config; the admin may ship a reviewed static file once instead |
 | services on ports < 1024 | no updo needed: `net.ipv4.ip_unprivileged_port_start` is an admin-once sysctl |
 | PAM, setuid | **never**: blocked by `NoNewPrivileges` and the forbidden list, by design |
@@ -287,5 +371,7 @@ recipe needs and name it when missing.
 
 - Audit: every call is a journal entry of its `updo-IDENT@<n>.service` (caller
   pid and uid, cwd, argv, exit status). Enough?
-- Ship `updod` as a `.deb` built from this repo, so the admin installs a
-  package rather than a copied binary?
+- Several callers share one socket mode `0666` (`SO_PEERCRED` still decides);
+  a per-identity caller group would keep the kernel DAC layer too. Worth it?
+- `commands =` matches programs, not arguments (as `dsh` has none either).
+  Argument patterns would need a real matcher; left out on purpose so far.

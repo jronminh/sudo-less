@@ -124,6 +124,7 @@ scripts/       build, setup and catalog helpers
 recipes/       per-package notes (see docs/standard.md)
 tools/         deb2home.sh, prefix-run.sh
 flatpak/       bridge for Flatpak apps (docs/flatpak-bridge.md)
+waydroid/      Waydroid fixes (docs/waydroid-mesa-debug.md)
 admin/         root-side scripts (example setup)
 patches/       Termux's patches, verbatim
 docs/          all the detail

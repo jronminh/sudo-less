@@ -1,0 +1,19 @@
+#!/bin/bash
+# Waydroid regenerates ~/.local/share/applications/waydroid.*.desktop with
+# NoDisplay=true baked in (single-window default), hiding them from the app
+# grid even though the files are present. Re-flip and refresh the cache.
+# Triggered by waydroid-desktop-fix.path; safe to run anytime, idempotent.
+set -u
+shopt -s nullglob
+
+changed=0
+for f in "$HOME/.local/share/applications/waydroid."*.desktop; do
+  if grep -q '^NoDisplay=true' "$f"; then
+    sed -i 's/^NoDisplay=true/NoDisplay=false/' "$f"
+    changed=1
+  fi
+done
+
+if [ "$changed" = 1 ]; then
+  update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1
+fi

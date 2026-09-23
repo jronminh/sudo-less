@@ -1,0 +1,72 @@
+# Where these patches come from
+
+sudo-less's apt and dpkg patches are a fork of Termux's, cut down to what a
+user-writable prefix on Debian needs ([`../docs/apt-dpkg-port.md`](../docs/apt-dpkg-port.md)).
+Each patch starts with an `Origin:`, `Change:` and `License:` header; the
+`series` file in each directory is the order they are applied in.
+
+**Base:** [termux-packages](https://github.com/termux/termux-packages)
+commit `91af886a0af1bcd0b9231cda883013027c3e9490` (2026-09), whose apt
+patches have not changed since `4e756e3` (2024-08-15) and whose dpkg patches
+not since `bd75fa6` (2025-08-07). Termux builds apt 2.8.1 and dpkg 1.22.6
+there. The Termux patches are GPL-2.0-or-later, like apt and dpkg.
+
+**Upstream now:** the series are rebased onto Debian's **apt 3.3.3** and
+**dpkg 1.23.11** (sid, 2026-09). dpkg 1.23 re-indented its code with tabs
+and reworded its messages, so every dpkg patch was redone by hand, with
+the same changes.
+
+## apt
+
+| Termux patch | here | why |
+|---|---|---|
+| `0000-cmake-fix` | dropped | build-system changes for the NDK; on Debian `-DWITH_TESTS=OFF` is all that is needed |
+| `0001-no-macro-redef` | dropped | apt 3.3 builds with GCC 16 without it (was `0002-no-ramfs-magic-redef`) |
+| `0002-no-locales` | dropped | acts only under `__ANDROID__`, which apt is not built with |
+| `0003-no-srv-records` | dropped | same |
+| `0004-no-hardcoded-paths` | `0001-prefix-paths` | adapted: the prefix paths, a native need. The `apt-key` hunks went with `apt-key` (removed in apt 3.1); the bug-report hunks for `dmesg`/`df` are dropped, since the report runs the host's tools either way |
+| `0005-http2-fix` | `0002-http2-status-line` | kept verbatim |
+| `0006-no-init-arch-tuple` | dropped | acts only under `__ANDROID__` |
+| `0007-aptkey-no-root` | dropped | `apt-key` is gone in apt 3.1 |
+| `0008-fix-function-args` | `0003-socklen-t` | kept verbatim |
+| `0009-update-error-messages` | dropped | Termux's own messages, only under `__ANDROID__` |
+| `0010-prevent-usage-as-root` | `0004-refuse-root` | kept, without the `apt-key` hunk: the userspace apt never runs as root |
+| `0011-keep-downloaded-packages` | dropped | Debian's default (do not keep `.deb` files) saves the user's disk |
+| `0012-ndk-r27` | dropped | an NDK compiler fix |
+| `0013-fix-patterns` | dropped | renames apt's search patterns away from Debian's documented names |
+| (sudo-less) `0008-gcc16-fixes` | dropped | apt 3.3 builds with GCC 16 without it |
+
+## dpkg
+
+Termux's dpkg patches guard their changes with `#ifndef __ANDROID__`, and
+sudo-less used to build dpkg with `-D__ANDROID__`, which switched on every
+Android branch. Now only the changes a prefix needs are kept, as plain
+patches, and nothing is built with `__ANDROID__`.
+
+| Termux patch | here | why |
+|---|---|---|
+| `dbmodify_dont_require_root` | `0001-no-superuser-check` | adapted: no guard. A native need |
+| `src-archives.c` | `0002-no-chown` (with the next) | adapted: only the `chown`/`fchown`/`lchown` removals. Not taken: `rename` instead of hard links and the symlink-size warnings, both Android specifics |
+| `src-statoverride-main.c` | `0002-no-chown` | adapted: no guard |
+| `src-help.c` | `0003-no-ldconfig-check` | adapted: no guard; `ldconfig` is not on a user's `PATH`, and a prefix never runs it |
+| `configure.diff` | dropped | fixed the architecture for Termux's cross build; a native build detects it |
+| `lib-dpkg-atomic-file.c`, `src-configure.c` | dropped | `rename` instead of hard links: Android specifics |
+| `lib-dpkg-path-remove.c` | dropped | an `EROFS` case of Android's read-only `/` |
+| `mandoc_hook` | dropped | Termux uses mandoc; Debian uses man-db |
+| `scripts-dpkg-scanpackages.pl` | dropped | a Termux path in a tool sudo-less does not use |
+
+## sudo-less's own
+
+Numbered from `0100`, so Termux-derived patches keep their place.
+
+| patch | what |
+|---|---|
+| `0100-relocatable` | patch A: dpkg finds its prefix from `/proc/self/exe` and relocates the config dir and default admin dir compiled in under the build prefix; `dpkg-maintscript-helper` and `dpkg-realpath` find `share/dpkg` next to themselves |
+| `0101-no-setuid` | patch C: unpacking clears setuid and setgid bits, statoverrides included |
+| `0102-relative-symlinks` | inside an install root, symlinks from `.deb` files and from `update-alternatives` are made relative, so they resolve in the root, not on the host; a `.deb` link to a file only the host has stays absolute |
+
+## Updating
+
+Upstream apt and dpkg are followed: when Debian moves to a new version,
+rebase the `series` onto it. When Termux changes a patch that is kept here,
+compare it against this table.

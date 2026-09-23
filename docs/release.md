@@ -3,16 +3,15 @@
 `bootstrap.sh` is the **supported** way to use sudo-less. It fetches a prebuilt,
 patched apt/dpkg for your architecture, checks its hash, unpacks it into
 `$PREFIX` (`~/.local`) and configures it. No root, no build, no namespaces —
-nothing beyond `curl` (or `wget`), `tar` and a writable `$PREFIX`. That is the
-floor tier; see [`standard.md`](standard.md) for what it does and does not
-promise.
+nothing beyond `curl` (or `wget`), `tar` and a writable `$PREFIX`; see
+[`standard.md`](standard.md) for what it does and does not promise.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/jronminh/sudo-less/main/bootstrap.sh | bash
 ```
 
-Building from source (the three paths in [`porting.md`](porting.md)) and the
-`overlay`/`rootfs`/`gui` tiers are **experimental** — kept and documented, but
+Building from source ([`porting.md`](porting.md)), the overlay and GUI apps
+are **experimental** — kept and documented, but
 not the promise.
 
 ## Trust model: pinned inputs, verifiable output
@@ -20,8 +19,9 @@ not the promise.
 There is no signature to trust. Instead the inputs are pinned and public, so the
 output is reproducible and you can check it yourself:
 
-- **apt 2.8.1** and **dpkg 1.22.6**, with the **verbatim** Termux patch sets
-  (`patches/apt/termux/`, `patches/dpkg/termux/`) plus one local apt fix.
+- **apt 3.3.3** and **dpkg 1.23.11**, with sudo-less's patches
+  (`patches/apt/series`, `patches/dpkg/series`), a fork of Termux's; see
+  `patches/UPSTREAM.md`.
 - The build is the same scripted, no-fork build the repo already uses
   (`scripts/bootstrap/build-apt.sh`, `build-dpkg.sh`).
 - Each release asset ships a `.sha256`; `bootstrap.sh` verifies it and refuses
@@ -37,12 +37,13 @@ run on bookworm and newer. That is the real compatibility limit: anything older
 than bookworm (older glibc) is not supported, and this is stated rather than
 hidden.
 
-Build releases with the rootfs path pinned to that suite — **not**
-`build-on-host`, which inherits whatever the host happens to run:
+Build releases in a container pinned to that suite, **not** on the host,
+which has whatever suite it happens to run. CI does this
+(`.github/workflows/build.yml`, `container: debian:bookworm`); by hand, in
+any container runtime:
 
 ```sh
-SUITE=bookworm ./scripts/env/make-buildroot.sh
-./scripts/env/build-in-rootfs.sh
+podman run --rm -v "$PWD:$PWD" -w "$PWD" debian:bookworm ./scripts/env/build-on-host.sh
 ```
 
 `package-prebuilt.sh` writes a `<asset>.buildinfo` recording the suite, arch,
@@ -58,8 +59,7 @@ The artifact *is* relocatable across users and prefixes: apt follows the config
 
 ```sh
 # 1. build in a CLEAN prefix against the pinned baseline suite (bookworm):
-SUITE=bookworm ./scripts/env/make-buildroot.sh
-./scripts/env/build-in-rootfs.sh
+podman run --rm -v "$PWD:$PWD" -w "$PWD" debian:bookworm ./scripts/env/build-on-host.sh
 
 # 2. package it:
 ./scripts/bootstrap/package-prebuilt.sh   # -> dist/<asset>, .sha256, .buildinfo
@@ -83,11 +83,12 @@ or a specific tag with `--version`.
 
 ## Scope
 
-- **Supported:** the floor tier (`direct`/`env`) via this route.
-- **Experimental:** source builds, and the `overlay`/`rootfs`/`gui` tiers.
-- **Out of scope:** `tier never` packages (32-bit-only, self-updating,
-  services, PAM/setuid) — see `recipes/` and [`standard.md`](standard.md).
+- **Supported:** packages in scope whose mechanism is `none` or `env`, via
+  this route.
+- **Experimental:** source builds, the overlay, and GUI apps.
+- **Out of scope:** scope `admin` and `never` (services, system users,
+  setuid, 32-bit-only, self-updating); see [`standard.md`](standard.md).
 
-One tier is supported at a time, deliberately: with one maintainer, only one
-tier can be *vouched for*. Another tier graduates from experimental to supported
-only when it is verified and stable.
+One thing is supported at a time, deliberately: with one maintainer, only
+so much can be *vouched for*. A mechanism graduates from experimental to
+supported only when it is verified and stable.

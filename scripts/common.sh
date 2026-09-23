@@ -6,12 +6,16 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PREFIX="${PREFIX:-$HOME/.local}"
 SRC="${SRC:-$REPO/src}"
 
-APT_VER="${APT_VER:-2.8.1}"
-DPKG_VER="${DPKG_VER:-1.22.6}"
+APT_VER="${APT_VER:-3.3.3}"
+DPKG_VER="${DPKG_VER:-1.23.11}"
+# The apt source tarball's SHA-1, which is also its snapshot.debian.org name.
+APT_SHA1="${APT_SHA1:-f4f5406a434df5f18c885871d77197e682b20447}"
 
 # Where to fetch sources. salsa.debian.org is often blocked (403/Varnish PoW),
-# so use the upstream mirrors that publish the same release tags.
-APT_URL="${APT_URL:-https://github.com/Debian/apt/archive/refs/tags/$APT_VER.tar.gz}"
+# and the GitHub mirror of apt stopped at 3.1.x, so apt comes from
+# snapshot.debian.org, whose file URLs are permanent; dpkg from its
+# maintainer's GitHub mirror, which publishes the release tags.
+APT_URL="${APT_URL:-https://snapshot.debian.org/file/$APT_SHA1}"
 DPKG_URL="${DPKG_URL:-https://github.com/guillemj/dpkg/archive/refs/tags/$DPKG_VER.tar.gz}"
 
 # Architecture (no hardcoding): prefer dpkg's answer, else map uname -m.
@@ -52,12 +56,12 @@ fetch() { # fetch URL FILE
 # The build dependency package list (one per line, comments/blank ignored).
 build_pkgs() { grep -vE '^\s*(#|$)' "$REPO/scripts/build-deps.list"; }
 
-apply_patches() { # apply_patches DIR
+apply_series() { # apply_series DIR: the patches listed in DIR/series, in order
   local dir="$1" p
-  shopt -s nullglob
-  for p in "$dir"/*.patch; do
-    log "patch $(basename "$p")"
-    patch -p1 -f --no-backup-if-mismatch < "$p"
-  done
-  shopt -u nullglob
+  [ -f "$dir/series" ] || die "no series file in $dir"
+  while read -r p; do
+    case "$p" in ''|'#'*) continue ;; esac
+    log "patch $p"
+    patch -p1 -f --no-backup-if-mismatch < "$dir/$p"
+  done < "$dir/series"
 }

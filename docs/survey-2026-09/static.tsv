@@ -1,0 +1,697 @@
+section	package	install_verdict	runtime	reason
+admin	apt-verify	OK	overlay	section=admin
+admin	arpwatch	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+admin	fai-client	UNLIKELY	never	deps: debconf
+admin	fence-agents-vmware-soap	OK	overlay	section=admin
+admin	fence-agents-wti	OK	overlay	section=admin
+admin	golang-github-etcd-io-gofail-dev	OK	direct	section=admin
+admin	ikiwiki-hosting-dns	OK	overlay	section=admin
+admin	ldap-git-backup	OK	direct	section=admin
+admin	libpam-cgfs	UNLIKELY	never	paths: /usr/share/pam-configs/
+admin	mbmon	UNLIKELY	never	deps: init-system-helpers script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+admin	ophcrack	OK	direct	section=admin
+admin	sedutil	OK	overlay	section=admin
+cli-mono	cli-common-dev	OK	overlay	section=cli-mono
+cli-mono	hexbox	OK	overlay	section=cli-mono
+cli-mono	libhexbox1.5-cil	OK	direct	section=cli-mono
+cli-mono	liblog4net-cil-dev	OK	direct	section=cli-mono
+cli-mono	liblog4net1.2-cil	OK	direct	section=cli-mono
+cli-mono	libmono-cecil-cil	OK	direct	section=cli-mono
+cli-mono	libmono-cecil-cil-dev	OK	direct	section=cli-mono
+cli-mono	libopentk-cil-dev	OK	direct	section=cli-mono
+cli-mono	libopentk1.1-cil	OK	direct	section=cli-mono
+cli-mono	mono-libraries	OK	direct	section=cli-mono
+cli-mono	mono-runtime	RISKY	overlay	script: update-alternatives
+cli-mono	openmcdf	OK	overlay	section=cli-mono
+comm	airspyhf	OK	overlay	section=comm
+comm	asterisk-mysql	OK	direct	section=comm
+comm	binkd	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+comm	ipp-usb	UNLIKELY	never	script: systemctl
+comm	janus-demos	OK	direct	section=comm
+comm	mgetty-docs	OK	direct	section=comm
+comm	mgetty-voice	OK	overlay	section=comm
+comm	obexftp	OK	overlay	section=comm
+comm	twinkle-common	OK	direct	section=comm
+comm	vvmplayer	RISKY	overlay	paths: /etc/xdg/autostart/,/usr/share/dbus-1/
+comm	wmbusmeters	UNLIKELY	never	deps: adduser script: adduser,systemctl
+comm	wvdial	UNLIKELY	never	deps: debconf script: Debconf,debconf
+database	fis-gtm	OK	direct	section=database
+database	kexi-mysql-driver	OK	direct	section=database
+database	mariadb-client-compat	OK	direct	section=database
+database	mariadb-client-core	OK	overlay	section=database
+database	mariadb-plugin-provider-lzma	OK	direct	section=database
+database	pgloader	OK	direct	section=database
+database	postgresql-18-pg-ivm	OK	direct	section=database
+database	postgresql-18-q3c	OK	direct	section=database
+database	postgresql-18-stat-log	OK	direct	section=database
+database	postgresql-comparator	OK	overlay	section=database
+database	siridb-server	UNLIKELY	never	script: debconf,systemctl
+database	sqlcipher	OK	overlay	section=database
+debug	binutils-i686-linux-gnu-dbg	OK	direct	section=debug
+debug	binutils-mips64-linux-gnuabin32-dbg	OK	direct	section=debug
+debug	binutils-mips64el-linux-gnuabi64-dbg	OK	direct	section=debug
+debug	gnumach-image-1.8-amd64-smp-dbg	OK	direct	section=debug
+debug	grub-coreboot-dbg	OK	direct	section=debug
+debug	grub-emu-dbg	OK	direct	section=debug
+debug	hylafax-client-dbg	OK	direct	section=debug
+debug	lib32stdc++6-11-dbg	OK	direct	section=debug
+debug	libbinutils-dbg	OK	direct	section=debug
+debug	libstdc++6-15-dbg	OK	direct	section=debug
+debug	libx32stdc++6-12-dbg	OK	direct	section=debug
+debug	xen-utils-4.20-dbg	OK	direct	section=debug
+devel	filtermail	OK	overlay	section=devel
+devel	gcc-14-multilib-mipsisa32r6el-linux-gnu	OK	direct	section=devel
+devel	gcc-15-x86-64-linux-gnux32	RISKY	overlay	script: update-alternatives paths: /usr/libexec/
+devel	gfortran-11-multilib	OK	direct	section=devel
+devel	gnat-12-sparc64-linux-gnu	OK	overlay	section=devel
+devel	gobjc-mingw-w64-ucrt64	OK	direct	section=devel
+devel	lib32stdc++-16-dev-ppc64-cross	OK	direct	section=devel
+devel	libstdc++-14-dev-arm64-cross	OK	direct	section=devel
+devel	linux-libc-dev-armel-cross	OK	direct	section=devel
+devel	msp430mcu	OK	direct	section=devel
+devel	siftool	OK	overlay	section=devel
+devel	voltron	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+doc	cflow-doc	OK	direct	section=doc
+doc	libbeansbinding-java-doc	OK	direct	section=doc
+doc	libburn-doc	OK	direct	section=doc
+doc	libghc-servant-server-doc	OK	direct	section=doc
+doc	libkf5filemetadata-doc	OK	direct	section=doc
+doc	libxmltooling-doc	OK	direct	section=doc
+doc	monodoc-hexbox-manual	OK	direct	section=doc
+doc	python-django-split-settings-doc	OK	direct	section=doc
+doc	python-libpysal-doc	OK	direct	section=doc
+doc	secilc-doc	OK	direct	section=doc
+doc	starlink-task-java-doc	OK	direct	section=doc
+doc	zoneminder-doc	OK	direct	section=doc
+editors	elpa-ag	OK	direct	section=editors
+editors	elpa-delight	OK	direct	section=editors
+editors	elpa-subed	OK	direct	section=editors
+editors	fte	RISKY	overlay	script: update-alternatives
+editors	ncurses-hexedit	OK	direct	section=editors
+editors	neovim	RISKY	overlay	script: update-alternatives paths: /usr/libexec/
+editors	ng-cjk	OK	direct	section=editors
+editors	texmacs	OK	direct	section=editors
+editors	texworks	OK	overlay	section=editors
+editors	vim-addon-manager	OK	overlay	section=editors
+editors	vim-eblook	OK	direct	section=editors
+editors	vim-tabular	OK	direct	section=editors
+education	algobox	OK	overlay	section=education
+education	artikulate	OK	overlay	section=education
+education	auto-multiple-choice	RISKY	overlay	paths: /usr/libexec/
+education	auto-multiple-choice-common	RISKY	overlay	paths: /usr/libexec/
+education	fisicalab.app	OK	direct	section=education
+education	fracatux	RISKY	direct	script: py3compile
+education	gcompris-qt	OK	direct	section=education
+education	kanadic	OK	direct	section=education
+education	progvis	OK	direct	section=education
+education	progvis-examples	OK	direct	section=education
+education	umps3	OK	overlay	section=education
+education	whitakers-words-data	OK	direct	section=education
+electronics	atlc-examples	OK	direct	section=electronics
+electronics	drawtiming	OK	direct	section=electronics
+electronics	fritzing	OK	overlay	section=electronics
+electronics	lepton-eda	OK	overlay	section=electronics
+electronics	libghdl-6-0-0	OK	direct	section=electronics
+electronics	librnd4t64	OK	direct	section=electronics
+electronics	nextpnr-himbaechel-gatemate	OK	direct	section=electronics
+electronics	nextpnr-himbaechel-gowin-chipdb	OK	direct	section=electronics
+electronics	pcb-rnd-core	OK	overlay	section=electronics
+electronics	pulseview	OK	direct	section=electronics
+electronics	sdcc-libraries	OK	direct	section=electronics
+electronics	xschem	OK	overlay	section=electronics
+embedded	log2ram	UNLIKELY	never	script: systemctl
+embedded	make-dynpart-mappings	RISKY	direct	paths: /usr/lib/systemd/
+embedded	matchbox	OK	direct	section=embedded
+embedded	matchbox-window-manager	RISKY	overlay	script: update-alternatives
+embedded	openocd	RISKY	overlay	paths: /usr/lib/udev/
+embedded	qtestsign	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+embedded	rkflashtool	OK	direct	section=embedded
+embedded	swugenerator	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+embedded	swupdate	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+embedded	swupdate-www	OK	direct	section=embedded
+embedded	urjtag	OK	overlay	section=embedded
+embedded	urjtag-common	OK	direct	section=embedded
+fonts	dvi2ps-fontdata-three	OK	direct	section=fonts
+fonts	font-manager-common	OK	direct	section=fonts
+fonts	fonts-century-catalogue	OK	direct	section=fonts
+fonts	fonts-monoid-halftight	OK	direct	section=fonts
+fonts	fonts-schraubenkiste	OK	direct	section=fonts
+fonts	fonts-taml	OK	direct	section=fonts
+fonts	fonts-taml-tamu	OK	direct	section=fonts
+fonts	fonts-terminus-otb	OK	direct	section=fonts
+fonts	psftools	OK	overlay	section=fonts
+fonts	vfit	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+fonts	xfonts-cronyx-koi8u-75dpi	RISKY	direct	script: update-fonts
+fonts	xfonts-thai-manop	RISKY	direct	script: update-fonts
+games	colobot-common	OK	direct	section=games
+games	davegnukem	OK	direct	section=games
+games	gamine-data	OK	direct	section=games
+games	gnome-mahjongg	RISKY	direct	paths: /usr/share/dbus-1/
+games	kshisen	OK	direct	section=games
+games	lgeneral-data	OK	direct	section=games
+games	lierolibre-data	OK	direct	section=games
+games	mupen64plus-data	OK	direct	section=games
+games	peg-solitaire	OK	direct	section=games
+games	penguin-command	OK	direct	section=games
+games	wesnoth-1.18-tools	OK	direct	section=games
+games	xpuzzles	RISKY	direct	paths: /usr/libexec/
+gnome	dmz-cursor-theme	RISKY	direct	script: update-alternatives
+gnome	eog-plugin-send-by-mail	OK	direct	section=gnome
+gnome	evolution	OK	overlay	section=gnome
+gnome	gnome-activity-journal	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+gnome	gnome-extra-icons	OK	direct	section=gnome
+gnome	gnome-genius	OK	overlay	section=gnome
+gnome	gnome-shell-extension-flypie	OK	direct	section=gnome
+gnome	gnome-shell-extension-manager	OK	overlay	section=gnome
+gnome	gnome-sound-recorder	OK	direct	section=gnome
+gnome	passes-gtk	RISKY	overlay	script: py3compile
+gnome	ptyxis	RISKY	overlay	script: update-alternatives paths: /usr/libexec/,/usr/share/dbus-1/
+gnome	ukui-gtk-theme	OK	direct	section=gnome
+gnu-r	r-bioc-affyio	OK	direct	section=gnu-r
+gnu-r	r-cran-argparser	OK	direct	section=gnu-r
+gnu-r	r-cran-conflicted	OK	direct	section=gnu-r
+gnu-r	r-cran-ellipsis	OK	direct	section=gnu-r
+gnu-r	r-cran-ff	OK	direct	section=gnu-r
+gnu-r	r-cran-httptest2	OK	direct	section=gnu-r
+gnu-r	r-cran-jrc	OK	direct	section=gnu-r
+gnu-r	r-cran-mlmrev	OK	direct	section=gnu-r
+gnu-r	r-cran-pan	OK	direct	section=gnu-r
+gnu-r	r-cran-pbdzmq	OK	direct	section=gnu-r
+gnu-r	r-cran-taxize	OK	direct	section=gnu-r
+gnu-r	r-cran-wk	OK	direct	section=gnu-r
+gnustep	addressmanager.app	OK	direct	section=gnustep
+gnustep	adun.app	OK	direct	section=gnustep
+gnustep	batmon.app	OK	direct	section=gnustep
+gnustep	edenmath.app	OK	direct	section=gnustep
+gnustep	gnustep-gui-common	OK	direct	section=gnustep
+gnustep	gworkspace-libs	OK	direct	section=gnustep
+gnustep	gworkspace.app	OK	overlay	section=gnustep
+gnustep	pikopixel.app	OK	direct	section=gnustep
+gnustep	terminal.app	OK	direct	section=gnustep
+gnustep	textedit.app	OK	direct	section=gnustep
+gnustep	volumecontrol.app	OK	direct	section=gnustep
+gnustep	zipper.app	OK	direct	section=gnustep
+golang	golang-bitbucket-creachadair-shell-dev	OK	direct	section=golang
+golang	golang-github-armon-go-proxyproto-dev	OK	direct	section=golang
+golang	golang-github-catppuccin-go-dev	OK	direct	section=golang
+golang	golang-github-coreos-go-systemd-dev	OK	direct	section=golang
+golang	golang-github-google-go-tdx-guest-dev	OK	direct	section=golang
+golang	golang-github-gucumber-gucumber-dev	OK	direct	section=golang
+golang	golang-github-influxdata-influxdb1-client-dev	OK	direct	section=golang
+golang	golang-github-jacobsa-util-dev	OK	direct	section=golang
+golang	golang-github-kubernetes-gengo-dev	OK	direct	section=golang
+golang	golang-github-ryanuber-go-glob-dev	OK	direct	section=golang
+golang	golang-github-shenwei356-breader-dev	OK	direct	section=golang
+golang	golang-github-uber-go-tally-dev	OK	direct	section=golang
+graphics	gem-plugin-sgi	OK	direct	section=graphics
+graphics	heif-thumbnailer	OK	direct	section=graphics
+graphics	jbigkit-bin	OK	overlay	section=graphics
+graphics	libtiff-tools	OK	overlay	section=graphics
+graphics	monado-cli	OK	direct	section=graphics
+graphics	ocrmypdf	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+graphics	openscad-mcad	OK	direct	section=graphics
+graphics	tesseract-ocr-ind	OK	direct	section=graphics
+graphics	tesseract-ocr-kaz	OK	direct	section=graphics
+graphics	tesseract-ocr-script-mlym	OK	direct	section=graphics
+graphics	tesseract-ocr-srp	OK	direct	section=graphics
+graphics	trimage	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+hamradio	ax25mail-utils	OK	overlay	section=hamradio
+hamradio	cw	UNLIKELY	never	deps: debconf script: debconf,dpkg-statoverride
+hamradio	cwdaemon	UNLIKELY	never	script: /etc/init.d,systemctl,update-rc.d
+hamradio	gnss-sdr	OK	overlay	section=hamradio
+hamradio	gqrx-sdr	OK	direct	section=hamradio
+hamradio	libdmrconf0	OK	direct	section=hamradio
+hamradio	psk31lx	OK	overlay	section=hamradio
+hamradio	pythonprop	RISKY	overlay	script: py3compile,update-icon-caches paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+hamradio	soapysdr-module-hydrasdr	OK	direct	section=hamradio
+hamradio	soapysdr-module-osmosdr	OK	direct	section=hamradio
+hamradio	soapysdr0.8-module-volkconverters	OK	direct	section=hamradio
+hamradio	voacapl	OK	overlay	section=hamradio
+haskell	libghc-attoparsec-iso8601-dev	OK	direct	section=haskell
+haskell	libghc-classy-prelude-conduit-prof	OK	direct	section=haskell
+haskell	libghc-comonad-prof	OK	direct	section=haskell
+haskell	libghc-control-monad-free-prof	OK	direct	section=haskell
+haskell	libghc-libmpd-dev	OK	direct	section=haskell
+haskell	libghc-lzma-dev	OK	direct	section=haskell
+haskell	libghc-pipes-dev	OK	direct	section=haskell
+haskell	libghc-pointedlist-prof	OK	direct	section=haskell
+haskell	libghc-resource-pool-prof	OK	direct	section=haskell
+haskell	libghc-rvar-dev	OK	direct	section=haskell
+haskell	libghc-store-core-prof	OK	direct	section=haskell
+haskell	libghc-text-conversions-dev	OK	direct	section=haskell
+httpd	libapache2-mod-log-slow	OK	direct	section=httpd
+httpd	libapache2-mod-neko	OK	direct	section=httpd
+httpd	libapache2-mod-sts	OK	direct	section=httpd
+httpd	libapache2-mod-xsendfile	OK	direct	section=httpd
+httpd	libnginx-mod-http-dav-ext	OK	direct	section=httpd
+httpd	libnginx-mod-http-eval	OK	direct	section=httpd
+httpd	libnginx-mod-http-srcache-filter	OK	direct	section=httpd
+httpd	libnginx-mod-stream	OK	direct	section=httpd
+httpd	lighttpd-mod-maxminddb	OK	direct	section=httpd
+httpd	mini-httpd	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+httpd	nghttp2-proxy	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+httpd	nginx-core	OK	direct	section=httpd
+interpreters	cpp-16-for-build	OK	direct	section=interpreters
+interpreters	cpp-sh4-linux-gnu	OK	direct	section=interpreters
+interpreters	erlang-base	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl
+interpreters	erlang-odbc	OK	direct	section=interpreters
+interpreters	gforth	OK	overlay	section=interpreters
+interpreters	gjs	OK	direct	section=interpreters
+interpreters	janet	OK	direct	section=interpreters
+interpreters	lua-moses	OK	direct	section=interpreters
+interpreters	lua-say	OK	direct	section=interpreters
+interpreters	nqp	OK	overlay	section=interpreters
+interpreters	tcl	RISKY	direct	script: update-alternatives
+interpreters	tcl-ttkthemes	OK	direct	section=interpreters
+introspection	gir1.2-agsgui-9.0	OK	direct	section=introspection
+introspection	gir1.2-caja-2.0	OK	direct	section=introspection
+introspection	gir1.2-clapper-0.0	OK	direct	section=introspection
+introspection	gir1.2-colord-1.0	OK	direct	section=introspection
+introspection	gir1.2-fcitxg-1.0	OK	direct	section=introspection
+introspection	gir1.2-ggit-1.0	RISKY	direct	paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+introspection	gir1.2-glib-2.0	OK	direct	section=introspection
+introspection	gir1.2-gsound-1.0	OK	direct	section=introspection
+introspection	gir1.2-gtk-vnc-2.0	OK	direct	section=introspection
+introspection	gir1.2-gupnp-1.6	OK	direct	section=introspection
+introspection	gir1.2-modulemd-2.0	RISKY	direct	paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+introspection	gir1.2-spiceclientgtk-3.0	OK	direct	section=introspection
+java	libcdkr-java	OK	env	section=java
+java	libfindbugs-annotations-java	OK	env	section=java
+java	libgeronimo-validation-1.1-spec-java	OK	env	section=java
+java	libidw-java	OK	env	section=java
+java	libjakarta-el-api-java	OK	env	section=java
+java	libjavassist-java	OK	env	section=java
+java	libjjml-jni	OK	direct	section=java
+java	libjlayer-java	OK	env	section=java
+java	libkryo-java	OK	env	section=java
+java	libmath-numeric-tower-clojure	OK	env	section=java
+java	libmaven-invoker-plugin-java	OK	direct	section=java
+java	libopenjfx-jni	OK	direct	section=java
+javascript	libjs-jquery-ui-theme-pepper-grinder	OK	direct	section=javascript
+javascript	node-array-from	OK	direct	section=javascript
+javascript	node-color-convert	OK	direct	section=javascript
+javascript	node-doctrine	OK	direct	section=javascript
+javascript	node-grunt-contrib-coffee	OK	direct	section=javascript
+javascript	node-jszip	OK	direct	section=javascript
+javascript	node-mqtt	OK	direct	section=javascript
+javascript	node-multicast-dns	OK	direct	section=javascript
+javascript	node-stack-trace	OK	direct	section=javascript
+javascript	node-tslib	OK	direct	section=javascript
+javascript	node-wide-align	OK	direct	section=javascript
+javascript	yarnpkg	OK	direct	section=javascript
+kde	basket-data	OK	direct	section=kde
+kde	bibletime	OK	overlay	section=kde
+kde	gambas3-gb-qt6-wayland	OK	direct	section=kde
+kde	kalarm	RISKY	direct	paths: /etc/xdg/autostart/,/usr/share/dbus-1/,/usr/share/polkit-1/
+kde	kglobalacceld	RISKY	direct	paths: /etc/xdg/autostart/,/usr/lib/systemd/
+kde	kid3	OK	overlay	section=kde
+kde	kinit	OK	overlay	section=kde
+kde	peruse-common	OK	direct	section=kde
+kde	plasma-browser-integration	OK	overlay	section=kde
+kde	plasma-discover-backend-snap	RISKY	direct	paths: /usr/share/dbus-1/,/usr/share/polkit-1/
+kde	sddm-theme-debian-maui	RISKY	direct	script: update-alternatives
+kde	xsettings-kde	OK	overlay	section=kde
+kernel	linux-base-7.1.13+deb14-cloud-amd64	UNLIKELY	never	paths: /lib/modules/
+kernel	linux-base-7.1.6+deb14-amd64	UNLIKELY	never	paths: /lib/modules/
+kernel	linux-binary-7.1.3+deb14-rt-amd64	OK	direct	section=kernel
+kernel	linux-binary-7.1.7+deb14-cloud-amd64	OK	direct	section=kernel
+kernel	linux-binary-unsigned-7.1.3+deb14-cloud-amd64	UNLIKELY	never	paths: /lib/modules/
+kernel	linux-binary-unsigned-7.1.4+deb14-cloud-amd64	UNLIKELY	never	paths: /lib/modules/
+kernel	linux-binary-unsigned-7.1.5+deb14-amd64	UNLIKELY	never	paths: /lib/modules/
+kernel	linux-headers-7.1.10+deb14-cloud-amd64	UNLIKELY	never	paths: /lib/modules/
+kernel	linux-headers-7.1.3+deb14-amd64	UNLIKELY	never	paths: /lib/modules/
+kernel	linux-headers-7.1.3+deb14-cloud-amd64	UNLIKELY	never	paths: /lib/modules/
+kernel	linux-image-7.1.10+deb14-cloud-amd64	UNLIKELY	never	deps: initramfs-tools
+kernel	rapiddisk	UNLIKELY	never	script: systemctl
+libdevel	lib32gphobos-16-dev-ppc64-cross	OK	direct	section=libdevel
+libdevel	libchardet-dev	OK	direct	section=libdevel
+libdevel	libdi-dev	OK	direct	section=libdevel
+libdevel	libdmlc-dev	OK	direct	section=libdevel
+libdevel	libheartbeat2-dev	OK	direct	section=libdevel
+libdevel	libn32objc-16-dev-mips64r6el-cross	OK	direct	section=libdevel
+libdevel	libnacl-dev	OK	direct	section=libdevel
+libdevel	libstdc++-12-pic	OK	direct	section=libdevel
+libdevel	libupsclient-dev	OK	direct	section=libdevel
+libdevel	nlinline-dev	OK	direct	section=libdevel
+libdevel	plasma-wayland-protocols	OK	direct	section=libdevel
+libdevel	qt6-shadertools-doc-dev	OK	direct	section=libdevel
+libs	fonts-gr-framework	OK	direct	section=libs
+libs	libcsiphash-1-0	OK	direct	section=libs
+libs	libgnat-15	OK	direct	section=libs
+libs	libgnatcoll-omp2	OK	direct	section=libs
+libs	libgts-0.7-5t64	OK	direct	section=libs
+libs	libkeduvocdocument-data	OK	direct	section=libs
+libs	libkf5notifyconfig-data	OK	direct	section=libs
+libs	libkf6i18nlocaledata6	OK	direct	section=libs
+libs	libklipper6	OK	direct	section=libs
+libs	librados2	OK	direct	section=libs
+libs	libsignon-extension1	OK	direct	section=libs
+libs	qt6-shader-baker	OK	direct	section=libs
+lisp	cl-diagnostic-msgs	OK	direct	section=lisp
+lisp	cl-ftp	OK	direct	section=lisp
+lisp	cl-ironclad	OK	direct	section=lisp
+lisp	cl-lparallel	OK	direct	section=lisp
+lisp	cl-unicode	OK	direct	section=lisp
+lisp	cl-webactions	OK	direct	section=lisp
+lisp	ecl	OK	overlay	section=lisp
+lisp	elpa-assess	OK	direct	section=lisp
+lisp	elpa-migemo	OK	direct	section=lisp
+lisp	irony-server	OK	overlay	section=lisp
+lisp	slib	OK	overlay	section=lisp
+lisp	timidity-el	OK	direct	section=lisp
+localization	firefox-esr-l10n-da	OK	direct	section=localization
+localization	firefox-esr-l10n-nl	OK	direct	section=localization
+localization	firefox-esr-l10n-vi	OK	direct	section=localization
+localization	firefox-l10n-sq	OK	direct	section=localization
+localization	firefox-l10n-tl	OK	direct	section=localization
+localization	libgphoto2-l10n	OK	direct	section=localization
+localization	libparted-i18n	OK	direct	section=localization
+localization	libreoffice-l10n-ko	OK	direct	section=localization
+localization	libreoffice-l10n-pt	OK	direct	section=localization
+localization	libvirt-l10n	OK	direct	section=localization
+localization	meteo-qt-l10n	OK	direct	section=localization
+localization	thunderbird-l10n-cak	OK	direct	section=localization
+mail	biabam	OK	direct	section=mail
+mail	chasquid	UNLIKELY	never	script: adduser,systemctl
+mail	claws-mail-litehtml-viewer	OK	direct	section=mail
+mail	claws-mail-multi-notifier	OK	direct	section=mail
+mail	gnustep-addresses-goodies	OK	overlay	section=mail
+mail	lei	OK	direct	section=mail
+mail	mimefilter	OK	overlay	section=mail
+mail	mutt	RISKY	overlay	script: update-alternatives
+mail	perdition-odbc	UNLIKELY	never	script: /etc/init.d,invoke-rc.d
+mail	pop3browser	OK	direct	section=mail
+mail	postfwd	UNLIKELY	never	deps: adduser script: /etc/init.d,adduser,invoke-rc.d,systemctl,update-rc.d
+mail	xcite	OK	direct	section=mail
+math	fricas-graphics	OK	direct	section=math
+math	fricas-test	OK	overlay	section=math
+math	gretl-common	OK	direct	section=math
+math	libsbml5-octave	OK	direct	section=math
+math	octave-doctest	OK	direct	section=math
+math	octave-nlopt	OK	direct	section=math
+math	primesieve	OK	direct	section=math
+math	qalculate-gtk	RISKY	overlay	script: update-alternatives paths: /usr/libexec/,/usr/share/dbus-1/
+math	qalculate-qt	RISKY	overlay	script: update-alternatives
+math	scotch-64	OK	overlay	section=math
+math	singular-data	RISKY	direct	script: update-icon-caches
+math	sptag	OK	overlay	section=math
+metapackages	astro-virtual-observatory	UNLIKELY	never	script: DEBCONF,debconf
+metapackages	games-content-dev	UNLIKELY	never	script: DEBCONF,debconf
+metapackages	jupyter	OK	direct	section=metapackages
+metapackages	librem5-tweaks	UNLIKELY	never	script: systemctl
+metapackages	libreoffice	OK	direct	section=metapackages
+metapackages	med-bio	UNLIKELY	never	script: DEBCONF,debconf
+metapackages	med-practice	UNLIKELY	never	script: DEBCONF,debconf
+metapackages	mupen64plus-audio-all	OK	direct	section=metapackages
+metapackages	pan-powder	UNLIKELY	never	script: DEBCONF,debconf
+metapackages	reform-desktop-minimal	OK	direct	section=metapackages
+metapackages	science-all	OK	direct	section=metapackages
+metapackages	sucrose	OK	direct	section=metapackages
+misc	fp-units-castle-game-engine	OK	overlay	section=misc
+misc	libhsm-bin	OK	overlay	section=misc
+misc	libjuman-perl	OK	env	section=misc
+misc	libotr5-bin	OK	overlay	section=misc
+misc	lomiri-flashcards-app	OK	direct	section=misc
+misc	nodm	UNLIKELY	never	deps: debconf,init-system-helpers script: /etc/init.d,debconf,invoke-rc.d,systemctl,update-rc.d paths: /etc/pam.d/
+misc	opencpn-data	RISKY	direct	paths: /usr/lib/udev/
+misc	qrazercfg-applet	OK	direct	section=misc
+misc	rosout	OK	direct	section=misc
+misc	signing-party	OK	overlay	section=misc
+misc	sioyek	OK	direct	section=misc
+misc	swtpm-libs	OK	direct	section=misc
+net	ahcpd	UNLIKELY	never	deps: init-system-helpers script: /etc/init.d,invoke-rc.d,update-rc.d
+net	fireqos	UNLIKELY	never	deps: init-system-helpers script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+net	freeipa-common	OK	direct	section=net
+net	libpmix-bin	OK	overlay	section=net
+net	msva-perl	RISKY	env	script: update-alternatives
+net	nagios4-core	UNLIKELY	never	script: /etc/init.d,debconf,invoke-rc.d
+net	network-manager-iodine-gnome	RISKY	overlay	paths: /usr/libexec/
+net	openvpn3-client	UNLIKELY	never	script: systemctl
+net	proftpd-mod-pgsql	OK	direct	section=net
+net	radvdump	OK	direct	section=net
+net	sipcrack	OK	overlay	section=net
+net	zsync	OK	overlay	section=net
+news	canlock	OK	overlay	section=news
+news	inn	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+news	innduct	OK	overlay	section=news
+news	jamnntpd	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+news	leafnode	UNLIKELY	never	deps: debconf script: debconf,systemctl
+news	slrn	UNLIKELY	never	deps: debconf script: debconf,systemctl
+news	sn	UNLIKELY	never	deps: debconf script: debconf
+news	statnews	OK	direct	section=news
+news	suck	UNLIKELY	never	deps: debconf script: debconf
+news	terminews	OK	overlay	section=news
+news	tin	UNLIKELY	never	deps: debconf script: debconf
+news	uucpsend	RISKY	direct	paths: /usr/lib/tmpfiles.d/
+ocaml	libcoq-interval	OK	direct	section=ocaml
+ocaml	liblablgl-ocaml-dev	OK	overlay	section=ocaml
+ocaml	libllvm-22-ocaml-dev	OK	direct	section=ocaml
+ocaml	libmarkup-lwt-ocaml-dev	OK	direct	section=ocaml
+ocaml	libmulticore-magic-ocaml-dev	OK	direct	section=ocaml
+ocaml	libppx-base-ocaml-dev	OK	overlay	section=ocaml
+ocaml	libppx-sexp-conv-ocaml	OK	direct	section=ocaml
+ocaml	libreactivedata-ocaml	OK	direct	section=ocaml
+ocaml	libstdcompat-ocaml	OK	direct	section=ocaml
+ocaml	libstdlib-ocaml	OK	direct	section=ocaml
+ocaml	ocaml-interp	OK	overlay	section=ocaml
+ocaml	ocamlbuild	OK	overlay	section=ocaml
+oldlibs	clutter-1.0-tests	RISKY	overlay	paths: /usr/libexec/
+oldlibs	libclutter-1.0-dev	OK	direct	section=oldlibs
+oldlibs	libclutter-1.0-doc	OK	direct	section=oldlibs
+oldlibs	libcogl-common	OK	direct	section=oldlibs
+oldlibs	libcogl-doc	OK	direct	section=oldlibs
+oldlibs	libdb1-compat	OK	overlay	section=oldlibs
+oldlibs	libdbus-glib-1-dev	OK	direct	section=oldlibs
+oldlibs	libgail18t64	OK	direct	section=oldlibs
+oldlibs	libidl-2-0	OK	direct	section=oldlibs
+oldlibs	libjpeg62	OK	direct	section=oldlibs
+oldlibs	libsdl-sge	OK	direct	section=oldlibs
+oldlibs	libvte-dev	OK	direct	section=oldlibs
+otherosfs	cen64	OK	direct	section=otherosfs
+otherosfs	dumpet	OK	direct	section=otherosfs
+otherosfs	dvdisaster	OK	overlay	section=otherosfs
+otherosfs	fatsort	OK	direct	section=otherosfs
+otherosfs	kiwi-dracut-oem-repart	OK	direct	section=otherosfs
+otherosfs	kiwi-systemdeps-bootloaders	OK	direct	section=otherosfs
+otherosfs	libesedb-utils	OK	overlay	section=otherosfs
+otherosfs	libhivex-bin	OK	overlay	section=otherosfs
+otherosfs	osslsigncode	OK	overlay	section=otherosfs
+otherosfs	uml-utilities	UNLIKELY	never	deps: adduser script: /etc/init.d,adduser,dpkg-statoverride,invoke-rc.d,update-rc.d
+otherosfs	yabause-qt	RISKY	overlay	script: update-alternatives
+otherosfs	zmakebas	OK	direct	section=otherosfs
+perl	libbrowser-open-perl	OK	env	section=perl
+perl	libconvert-uulib-perl	OK	env	section=perl
+perl	libcql-parser-perl	OK	env	section=perl
+perl	libcrypt-openssl-x509-perl	OK	env	section=perl
+perl	libexception-class-dbi-perl	OK	env	section=perl
+perl	libgeohash-perl	OK	env	section=perl
+perl	libipc-sharelite-perl	OK	env	section=perl
+perl	libjira-rest-perl	OK	env	section=perl
+perl	libnet-httpserver-perl	OK	env	section=perl
+perl	libreadonlyx-perl	OK	env	section=perl
+perl	libtext-charwidth-perl	OK	env	section=perl
+perl	libtie-cache-perl	OK	env	section=perl
+php	php-dompdf-svg-lib	OK	direct	section=php
+php	php-horde-sessionhandler	OK	direct	section=php
+php	php-illuminate-contracts	OK	direct	section=php
+php	php-pda-pheanstalk	OK	direct	section=php
+php	php-psr-clock	OK	direct	section=php
+php	php-ramsey-collection	OK	direct	section=php
+php	php-symfony-go-ip-notifier	OK	direct	section=php
+php	php-symfony-mailgun-mailer	OK	direct	section=php
+php	php-symfony-simple-textin-notifier	OK	direct	section=php
+php	php-twig-intl-extra	OK	direct	section=php
+php	php8.4-interbase	OK	direct	section=php
+php	phpunit-environment	OK	direct	section=php
+python	live-clone	RISKY	overlay	script: py3compile,update-icon-caches paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/,/usr/share/polkit-1/
+python	python3-bluetooth-adapters	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-hmmlearn	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-mako	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-mccabe	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-pint-xarray	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-pyomop	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-slicerator	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-snappy	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-tabledata	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	python3-yamlfix	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+python	tryton-modules-sale-supply	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+ruby	hiera-eyaml-puppetserver	OK	direct	section=ruby
+ruby	puma	OK	overlay	section=ruby
+ruby	ruby-azure-storage-common	OK	direct	section=ruby
+ruby	ruby-bundler	OK	overlay	section=ruby
+ruby	ruby-circuitbox	OK	direct	section=ruby
+ruby	ruby-dry-types	OK	direct	section=ruby
+ruby	ruby-llm-schema	OK	direct	section=ruby
+ruby	ruby-money	OK	direct	section=ruby
+ruby	ruby-nanoc-cli	OK	direct	section=ruby
+ruby	ruby-net-http-digest-auth	OK	direct	section=ruby
+ruby	ruby-rack-accept	OK	direct	section=ruby
+ruby	ruby-sentry-sidekiq	OK	direct	section=ruby
+rust	librust-askama-dev	OK	direct	section=rust
+rust	librust-crc-dev	OK	direct	section=rust
+rust	librust-find-crate-dev	OK	direct	section=rust
+rust	librust-gix-url-dev	OK	direct	section=rust
+rust	librust-nibble-vec-dev	OK	direct	section=rust
+rust	librust-rawpointer-dev	OK	direct	section=rust
+rust	librust-reference-counted-singleton-dev	OK	direct	section=rust
+rust	librust-rspolib-dev	OK	direct	section=rust
+rust	librust-tracing-log-dev	OK	direct	section=rust
+rust	librust-typemap-ors-dev	OK	direct	section=rust
+rust	librust-vte-dev	OK	direct	section=rust
+rust	librust-wezterm-input-types-dev	OK	direct	section=rust
+science	astrometry-data-tycho2-10-19	OK	direct	section=science
+science	flextra	RISKY	direct	script: update-alternatives
+science	gasic	RISKY	direct	script: py3compile
+science	gyoto-bin	OK	overlay	section=science
+science	libmcpl-dev	OK	direct	section=science
+science	minimap2	OK	direct	section=science
+science	mricron	OK	overlay	section=science
+science	opendrop	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+science	python3-pybigwig	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+science	relion-gui	OK	overlay	section=science
+science	vsearch	OK	direct	section=science
+science	weka	OK	overlay	section=science
+shells	bash-static	UNLIKELY	never	deps: passwd
+shells	cleo	OK	env	section=shells
+shells	fish	RISKY	overlay	script: update-menus
+shells	fish-common	OK	direct	section=shells
+shells	fizsh	OK	direct	section=shells
+shells	mksh	UNLIKELY	never	script: debconf
+shells	xonsh	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+shells	yash	RISKY	overlay	script: update-menus
+shells	zplug	OK	direct	section=shells
+shells	zsh	RISKY	overlay	script: update-alternatives
+shells	zsh-common	RISKY	direct	script: update-menus
+shells	zsh-static	RISKY	overlay	script: update-alternatives
+sound	adlibtracker2	OK	overlay	section=sound
+sound	enlex-data	OK	direct	section=sound
+sound	espeak-ng	OK	overlay	section=sound
+sound	exaile	RISKY	direct	paths: /usr/share/dbus-1/
+sound	lsp-plugins-vst3	OK	direct	section=sound
+sound	mopidy-alsamixer	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+sound	pd-slip	OK	direct	section=sound
+sound	qsampler	OK	overlay	section=sound
+sound	rplay-server	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d
+sound	sndiod	UNLIKELY	never	script: /etc/init.d,invoke-rc.d,systemctl,update-rc.d,useradd
+sound	tuxguitar-jack	OK	direct	section=sound
+sound	xmms2-plugin-smb	OK	direct	section=sound
+tasks	task-albanian-desktop	OK	direct	section=tasks
+tasks	task-amharic	OK	direct	section=tasks
+tasks	task-blendsel	OK	direct	section=tasks
+tasks	task-chinese-s	OK	direct	section=tasks
+tasks	task-hamradio-blend	OK	direct	section=tasks
+tasks	task-icelandic-kde-desktop	OK	direct	section=tasks
+tasks	task-italian	OK	direct	section=tasks
+tasks	task-kazakh-kde-desktop	OK	direct	section=tasks
+tasks	task-marathi-desktop	OK	direct	section=tasks
+tasks	task-polish-desktop	OK	direct	section=tasks
+tasks	task-spanish-kde-desktop	OK	direct	section=tasks
+tasks	task-turkish-desktop	OK	direct	section=tasks
+tex	asymptote-x11	RISKY	direct	script: py3compile
+tex	chktex	OK	direct	section=tex
+tex	csv2latex	OK	direct	section=tex
+tex	jabref	OK	overlay	section=tex
+tex	latex-cjk-chinese	OK	direct	section=tex
+tex	latexml	OK	env	section=tex
+tex	mlpost	OK	direct	section=tex
+tex	purifyeps	OK	overlay	section=tex
+tex	stex	OK	direct	section=tex
+tex	texlive-binaries	RISKY	overlay	script: update-alternatives
+tex	texlive-lang-all	OK	direct	section=tex
+tex	xdvik-ja	RISKY	overlay	script: update-alternatives
+text	apvlv	OK	direct	section=text
+text	dblatex	RISKY	overlay	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+text	dict-freedict-fra-por	UNLIKELY	never	script: invoke-rc.d
+text	dict-freedict-nld-lit	UNLIKELY	never	script: invoke-rc.d
+text	dict-freedict-nld-rus	UNLIKELY	never	script: invoke-rc.d
+text	hyphen-nl	OK	direct	section=text
+text	myspell-sq	OK	direct	section=text
+text	mythes-sk	OK	direct	section=text
+text	openprinting-ppds	OK	direct	section=text
+text	printer-driver-m2300w	OK	overlay	section=text
+text	qpdf	OK	direct	section=text
+text	wcanadian-insane	UNLIKELY	never	deps: debconf script: debconf
+utils	electrum	OK	direct	section=utils
+utils	fcitx5-module-punctuation	OK	direct	section=utils
+utils	gnupg-pkcs11-scd	OK	overlay	section=utils
+utils	libpam-sss	UNLIKELY	never	paths: /usr/share/pam-configs/
+utils	pixelmed-apps	OK	overlay	section=utils
+utils	read-edid	OK	overlay	section=utils
+utils	rgxg	OK	direct	section=utils
+utils	seccomp	OK	direct	section=utils
+utils	sedsed	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+utils	sync-ui	OK	overlay	section=utils
+utils	wfuzz	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+utils	zipcmp	OK	direct	section=utils
+vcs	cvsd	UNLIKELY	never	deps: adduser,debconf,init-system-helpers script: /etc/init.d,CHROOT,Chroot,adduser,chroot,debconf,invoke-rc.d,systemctl,update-rc.d
+vcs	cvsweb	OK	direct	section=vcs
+vcs	elpa-with-editor	OK	direct	section=vcs
+vcs	git-absorb	OK	direct	section=vcs
+vcs	git-all	OK	direct	section=vcs
+vcs	git-crecord	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+vcs	git-ftp	OK	direct	section=vcs
+vcs	git-secret	OK	direct	section=vcs
+vcs	git-svn	OK	env	section=vcs
+vcs	python3-klaus	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+vcs	svn2cl	OK	direct	section=vcs
+vcs	tkrev	OK	overlay	section=vcs
+video	dragonplayer	OK	overlay	section=video
+video	ffmpeg-progress-yield	OK	direct	section=video
+video	fluster	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+video	harvid	OK	direct	section=video
+video	imagination-common	OK	direct	section=video
+video	kodi-eventclients-common	OK	direct	section=video
+video	obs-transition-table	OK	direct	section=video
+video	photofilmstrip	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+video	pipewire-pulse	RISKY	direct	paths: /usr/lib/systemd/
+video	vdr	UNLIKELY	never	deps: adduser,debconf,init-system-helpers script: /etc/init.d,adduser,debconf,invoke-rc.d,systemctl,update-rc.d
+video	vdr-plugin-svdrpservice	OK	direct	section=video
+video	voctomix-core	RISKY	direct	script: py3compile
+web	bluefish-plugins	OK	direct	section=web
+web	ceilometer-common	UNLIKELY	never	deps: adduser,debconf script: /etc/init.d,ADDUSER,DEBCONF,Debconf,adduser,debconf,invoke-rc.d,update-rc.d
+web	chai	OK	direct	section=web
+web	compass-blueprint-plugin	OK	direct	section=web
+web	gosa-help-en	OK	direct	section=web
+web	librust-oxrdf-dev	OK	direct	section=web
+web	multiwatch	OK	direct	section=web
+web	parser3-cgi	OK	overlay	section=web
+web	phpsysinfo	UNLIKELY	never	deps: debconf script: /etc/init.d,Debconf,debconf,invoke-rc.d
+web	shaarli	OK	direct	section=web
+web	tdiary	OK	direct	section=web
+web	trac-tickettemplate	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+x11	appmenu-registrar	RISKY	overlay	paths: /usr/libexec/,/usr/share/dbus-1/
+x11	caja-admin	RISKY	direct	paths: /usr/share/polkit-1/
+x11	comixcursors-righthanded-opaque	RISKY	direct	script: update-alternatives
+x11	compiz-plugins-extra	OK	direct	section=x11
+x11	eviacam	UNLIKELY	never	script: debconf
+x11	joy2key	OK	direct	section=x11
+x11	lomiri-polkit-agent	RISKY	direct	paths: /usr/lib/systemd/,/usr/libexec/
+x11	mate-desktop-common	OK	direct	section=x11
+x11	sway	OK	overlay	section=x11
+x11	twm	RISKY	overlay	script: update-alternatives,update-menus
+x11	uim-gtk3-immodule	OK	direct	section=x11
+x11	xcape	OK	direct	section=x11
+xfce	libxfce4util-bin	OK	direct	section=xfce
+xfce	libxfce4util-common	OK	direct	section=xfce
+xfce	libxfce4windowing-common	OK	direct	section=xfce
+xfce	parole-dev	OK	direct	section=xfce
+xfce	xfce4-dev-tools	OK	direct	section=xfce
+xfce	xfce4-fsguard-plugin	OK	direct	section=xfce
+xfce	xfce4-helpers	OK	direct	section=xfce
+xfce	xfce4-places-plugin	OK	overlay	section=xfce
+xfce	xfce4-screenshooter	OK	overlay	section=xfce
+xfce	xfce4-taskmanager	OK	overlay	section=xfce
+xfce	xfce4-verve-plugin	OK	direct	section=xfce
+xfce	xfce4-windowck-plugin	OK	direct	section=xfce
+zope	python3-zc.buildout	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.component	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.configuration	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.deprecation	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.event	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.exceptions	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.hookable	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.interface	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.location	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.proxy	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.schema	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/
+zope	python3-zope.testrunner	RISKY	direct	script: py3compile paths: /usr/lib/python3/,/usr/lib/python3/dist-packages/

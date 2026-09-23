@@ -11,17 +11,17 @@
 # Overrides (env): PREFIX, REPO_SLUG, BASE_URL, APT_VER, DPKG_VER.
 # Requires: bash, curl or wget, tar, sha256sum. Nothing else.
 #
-# This is the supported path (docs/standard.md): the floor tier, reached with
+# This is the supported path (docs/standard.md): mechanisms none and env, reached with
 # no capability beyond curl + tar + a writable $PREFIX. Building from source,
-# and the overlay/rootfs/gui tiers, are experimental.
+# the overlay and GUI apps, are experimental.
 set -euo pipefail
 
 PREFIX="${PREFIX:-$HOME/.local}"
 REPO_SLUG="${REPO_SLUG:-jronminh/sudo-less}"
 VERSION="${VERSION:-}"                       # empty = the latest release
 BASE_URL="${BASE_URL:-}"                     # override the whole release base
-APT_VER="${APT_VER:-2.8.1}"
-DPKG_VER="${DPKG_VER:-1.22.6}"
+APT_VER="${APT_VER:-3.3.3}"
+DPKG_VER="${DPKG_VER:-1.23.11}"
 
 DRY=0
 VERIFY_ONLY=0

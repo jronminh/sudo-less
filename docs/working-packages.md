@@ -6,7 +6,7 @@ Empirically tested against the ported `apt 2.8.1` + `dpkg 1.22.6` on this box
 
 The reason a package can install cleanly and still fail is that relocating a
 `.deb` does not rewrite paths compiled into its binaries; see
-[`paths.md`](paths.md) for the model and [`tools/prefix-run.sh`](../tools/prefix-run.sh)
+[`mechanisms.md`](mechanisms.md) for the model and [`tools/prefix-run.sh`](../tools/prefix-run.sh)
 for the runtime fix. `scripts/catalog/check-package.sh --runtime` labels each package
 `direct`, `env`, `overlay`, or `never` (an `interp=`/`shebang:` hint on `env`
 and `overlay` says which gap — see [`standard.md`](standard.md) and #7).
@@ -53,7 +53,7 @@ fixes)** signals:
   - ships systemd units / `init.d` / `udev` / dbus / polkit / `tmpfiles.d`,
     or `/usr/libexec/`;
   - **`py3compile` postinst / `/usr/lib/python3/dist-packages/` files** — pure
-    Python app. `shims/py3compile` fixes the install, and
+    Python app. `ecosystems/python/shims/py3compile` fixes the install, and
     `install-config.sh`'s `.pth` fixes `sys.path` (#5) — see `ranger.recipe`.
 - **OK** — none of the above.
 
@@ -70,13 +70,13 @@ the system). Only packages the system lacks are actually installed into
 | `shellcheck` `shfmt` | static-ish analyzers |
 | `sqlite3` | CLI + lib |
 | `patchelf` `strace` `ltrace` | dev/debug tools |
-| `ranger` | pure-Python app — was "usually broken" (see below); fixed by `shims/py3compile` + `install-config.sh`'s `.pth`, see `recipes/ranger.recipe` and #5 |
+| `ranger` | pure-Python app — was "usually broken" (see below); fixed by `ecosystems/python/shims/py3compile` + `install-config.sh`'s `.pth`, see `recipes/ranger.recipe` and #5 |
 | `pmarkdown` | pure-Perl CLI — `PERL5LIB`, see `recipes/pmarkdown.recipe` and #7 |
 | `yard` | Ruby (pulls in a fresh interpreter) — run via `tools/prefix-run.sh --mode overlay`, see `recipes/yard.recipe` and #7 |
 | `openjdk-25-jre-headless` | Java — apt install is a **dead end** (root-only `/etc/.java` postinst, no safe shim target); extracted with `tools/deb2home.sh` instead (bypasses maintainer scripts entirely), then `JAVA_HOME`. See `recipes/openjdk-25-jre-headless.recipe` and #7 |
 | `prismlauncher` | GUI app — needs `contrib` added to `sources.list.d` (it's not in `main`) and a one-time seeded-Qt6 unlock; run via `tools/prefix-run.sh --gui`. Verified on a live Mobian/Phosh session: window rendered, logged into a Minecraft account, downloaded a modded instance, and **the game itself launched and ran with no visible problems (GL + audio working)** — #8's full acceptance bar. See `recipes/prismlauncher.recipe` and #8 |
-| `golang-go` | **floor tier**, not even `env` — `go version` and a real `go run` both work with zero env vars (self-locates from argv[0], same trick as `java`). See `recipes/golang-go.recipe` and #6 |
-| `nodejs` | **not** floor-fixable, despite looking like a floor candidate — needs `LD_LIBRARY_PATH` for `libnode.so`, then a hardcoded `/usr/share/nodejs/undici/...` path that no env var reaches; needs `overlay`. See `recipes/nodejs.recipe` and #6 |
+| `golang-go` | mechanism `none`, not even `env` — `go version` and a real `go run` both work with zero env vars (self-locates from argv[0], same trick as `java`). See `recipes/golang-go.recipe` and #6 |
+| `nodejs` | **not** fixable by environment alone, despite looking like it — needs `LD_LIBRARY_PATH` for `libnode.so`, then a hardcoded `/usr/share/nodejs/undici/...` path that no env var reaches; needs `overlay`. See `recipes/nodejs.recipe` and #6 |
 
 General rule: **leaf, user-space binaries with no root-needing maintainer
 script** install and run. A postinst blocker or interpreter search-path gap
@@ -166,7 +166,7 @@ can't relocate those any better than apt can.
   and dpkg's `--instdir` is not chrooted. It doesn't write to the system as
   non-root (no privilege), but the alternatives it records are not useful in the
   prefix.
-- `apt-key`/signature verification needs a real `gpgv` on PATH.
+- Signature verification uses the host's `sqv` (apt 3.x; with apt 2.8.1 it needed `gpgv`).
 - Binary names differ from package names for several tools (`batcat`,
   `fdfind`, `rg`).
 

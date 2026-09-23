@@ -4,5 +4,5 @@
 # reachable unprivileged, so `dpkg --configure` fails outright.
 package  screen
 install  unlikely
-tier     never
+scope      never
 note     root-only postinst (creates /run/screen, /lib/systemd/system, calls update-rc.d) — no unprivileged path; use the system's screen instead

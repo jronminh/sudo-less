@@ -12,18 +12,10 @@ need admin rights, and you can undo everything by deleting one folder.
 
 Use it when you can't — or would rather not — install software system-wide.
 
-> [!WARNING]
-> **If you remove your own admin access, keep a way back in.** This project can
-> de-privilege a user on purpose. On a single-user machine that can lock you out
-> of `sudo`; it's recoverable (boot a GRUB `init=/bin/bash` shell and run
-> `admin/native/unlock.sh`) but needs physical access. Make sure at least one account
-> still has a working privileged path, and back up first. See
-> [`docs/hardening.md`](docs/hardening.md) and [`docs/roles.md`](docs/roles.md).
-
 > [!CAUTION]
 > **AI-assisted and unaudited.** The scripts, patches and docs were written with
 > an AI assistant ([opencode](https://opencode.ai)). Read the code before you run
-> it — especially the root scripts under `admin/`. This is not a security-reviewed
+> it — especially the root script under `admin/`. This is not a security-reviewed
 > artifact.
 
 ## Install
@@ -47,14 +39,33 @@ download is checked against a published hash; see
 [`docs/release.md`](docs/release.md) for how the trust works and how to verify a
 build yourself.
 
+## Goal
+
+A user created on a **standard Debian install, with no `sudo`**, installs and
+uses `.deb` packages from the supported sections into `~/.local`. The admin
+does a one-time step (`admin/`) and nothing per package.
+
+Measured by:
+
+1. **A new user works at once:** `bootstrap.sh`, then `apt-get update && apt-get
+   install PKG`, on a fresh standard install.
+2. **Coverage per section:** the share of randomly sampled packages that
+   install and run, per supported Debian section, re-measured each release.
+3. **A clear boundary:** which sections are the admin's, and which packages are
+   `never` and why.
+
 ## Does it work for my package?
 
-**Works well:** command-line tools, languages and interpreters (Python, Perl,
-Ruby, Java), development libraries (`-dev`), fonts, and single-binary apps.
+It depends first on the package's Debian **section**
+([`docs/standard.md`](docs/standard.md#scope-by-debian-section)):
 
-**Doesn't work:** packages that need root *to install* (services, `systemd`,
-`adduser`, `debconf`) and setuid/PAM/kernel packages. GUI and 32-bit apps are
-hit-and-miss.
+- **Supported:** libraries and `-dev`, languages (`python`, `perl`, `ruby`,
+  `java`, `rust`, `golang`, `javascript`, …; see [`ecosystems/`](ecosystems/)),
+  `utils`, `text`, `editors`, `doc`, `fonts`, science, graphics, sound, video,
+  games, and desktop apps.
+- **The admin's:** `admin`, `kernel`, `net` and `mail` servers, `database` and
+  `httpd` servers, `tasks`, `metapackages`, and anything that creates a system
+  user or ships a service, in any section.
 
 Check any package *before* installing it:
 
@@ -79,8 +90,8 @@ system, just use `apt`.
 
 ## How it works
 
-`apt` and `dpkg` are the real Debian programs (**apt 2.8.1**, **dpkg 1.22.6**)
-plus [Termux](https://github.com/termux/termux-packages)'s patches, rebuilt to
+`apt` and `dpkg` are the real Debian programs (**apt 3.3.3**, **dpkg 1.23.11**)
+plus a few patches forked from [Termux](https://github.com/termux/termux-packages)'s, rebuilt to
 install into `~/.local`. Your copy keeps its own package database, separate from
 the system's, and treats everything already on the system as already installed —
 so it only fetches what you actually ask for. Neither program is a fork.
@@ -98,18 +109,20 @@ this repo.
 
 ## Going deeper
 
-- [`docs/paths.md`](docs/paths.md) — why some packages need extra help, and how.
-- [`docs/standard.md`](docs/standard.md) — which packages are supported, and how
-  each one is checked.
+- [`docs/design.md`](docs/design.md) — the whole solution on one page: the
+  pipeline sudo-less hangs on apt's hooks, its parts, and what exists today.
+- [`docs/survey-2026-09.md`](docs/survey-2026-09.md) — a random sample by
+  Debian section: what installs today and what blocks the rest.
+- [`docs/standard.md`](docs/standard.md) — scope by Debian section, recipes,
+  and how each package is checked.
+- [`ecosystems/`](ecosystems/) — what each language needs (Python, Java, Perl,
+  Ruby).
+- [`docs/mechanisms.md`](docs/mechanisms.md) — how packages are made to run: environment variables and the overlay (for contributors).
 - [`docs/porting.md`](docs/porting.md) — building apt/dpkg yourself.
-- [`docs/mobile.md`](docs/mobile.md) — Mobian phones and tablets.
-- [`docs/flatpak-bridge.md`](docs/flatpak-bridge.md) — letting a Flatpak app talk
-  to a program you installed here.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
-- [`docs/system-resources.md`](docs/system-resources.md) — what Termux and Waydroid
-  need from the system: unprivileged, fakeable, or admin-once.
-- [`docs/dsb.md`](docs/dsb.md) — an optional [dsb](https://github.com/jronminh/dsb)
-  policy (bounded middle identities, never root) for developing sudo-less.
+- [`docs/prior-art.md`](docs/prior-art.md) — Termux and proot-distro: the same problem from the other end, and what we took from them.
+- [`dev/`](dev/) — tools for developing sudo-less, such as a
+  [dsb](https://github.com/jronminh/dsb) policy with a clean test account.
 
 ## Status
 
@@ -123,29 +136,23 @@ tricks) is experimental. See [`docs/release.md`](docs/release.md).
 
 ```
 bootstrap.sh   one-command install (fetches prebuilt apt/dpkg)
-apt-dpkg/      apt/dpkg setup: config, database seeding, small shims
-scripts/       build, setup and catalog helpers
+apt-dpkg/      apt/dpkg setup: config, database seeding
+ecosystems/    per-language support: install hooks, shims, notes (python, java, perl, ruby)
 recipes/       per-package notes (see docs/standard.md)
-tools/         deb2home.sh, prefix-run.sh
-flatpak/       bridge for Flatpak apps (docs/flatpak-bridge.md)
-admin/         one-time root-side setup that enables userspace (never runs your software)
-  native/        base system only: enable-userspace (userns, subuid), unlock
-  third-party/   only what needs root to work: install-tools (setuid uidmap, fuse3)
-  dsb/           optional policy for dsb (docs/dsb.md)
-  verify-privs.sh  read-only check of the setup, run as the daily user
-patches/       Termux's patches, verbatim
-extras/        device-specific, NOT part of the supported core (this machine only)
-  device/        root setup: SMART, desktop, Waydroid install
-  waydroid/      Waydroid fixes (docs/waydroid-mesa-debug.md)
+tools/         prefix-run.sh (the overlay), deb2home.sh (extract without scripts)
+scripts/       build, setup and catalog helpers
+admin/         one-time root step that enables userspace: enable-userspace.sh
+patches/       apt/dpkg patches: a fork of Termux's (patches/UPSTREAM.md)
+dev/           tools for developing sudo-less (dsb test policy)
 docs/          all the detail
 ```
 
 ## Disclaimer
 
-Provided **"as is", without warranty of any kind** (see [`LICENSE`](LICENSE)). It
-deliberately changes how privilege works on your machine and can run builds as
-root inside a sandbox; read [`docs/methodology.md`](docs/methodology.md) and the
-`admin/` scripts first. Parts were written with AI assistance and may contain
+Provided **"as is", without warranty of any kind** (see [`LICENSE`](LICENSE)). The
+admin step changes system settings (user namespaces, `PATH` for all users);
+read [`docs/methodology.md`](docs/methodology.md) and the `admin/` script first.
+Parts were written with AI assistance and may contain
 mistakes. You are responsible for your system and for keeping a recoverable admin
 path. Not affiliated with Debian or Termux.
 
@@ -154,7 +161,6 @@ path. Not affiliated with Debian or Termux.
 Built by **jronminh** with **deepseek-v4-flash** ([opencode](https://opencode.ai))
 as pairing assistant — see [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
 
-[GPL-3.0-or-later](LICENSE). The patches under `patches/apt/termux/` and
-`patches/dpkg/termux/` are taken verbatim from
-[`termux/termux-packages`](https://github.com/termux/termux-packages) and remain
-under their original GPL-2.0-or-later terms.
+[GPL-3.0-or-later](LICENSE). The patches under `patches/` are a fork of
+[`termux/termux-packages`](https://github.com/termux/termux-packages)'s and remain
+under their original GPL-2.0-or-later terms (`patches/UPSTREAM.md`).

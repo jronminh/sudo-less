@@ -1,0 +1,16 @@
+Origin: termux-packages 91af886 packages/apt/0008-fix-function-args.patch
+Change: verbatim; getsockopt() length as socklen_t.
+License: GPL-2.0-or-later
+
+diff --git a/methods/connect.cc b/methods/connect.cc
+--- a/methods/connect.cc
++++ b/methods/connect.cc
+@@ -199,7 +199,7 @@ ResultState Connection::CheckError()
+ {
+    // Check the socket for an error condition
+    unsigned int Err;
+-   unsigned int Len = sizeof(Err);
++   socklen_t Len = sizeof(Err);
+    if (getsockopt(Fd->Fd(), SOL_SOCKET, SO_ERROR, &Err, &Len) != 0)
+    {
+       _error->Errno("getsockopt", _("Failed"));

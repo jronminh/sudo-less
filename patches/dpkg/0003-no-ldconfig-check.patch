@@ -1,0 +1,15 @@
+Origin: termux-packages 91af886 packages/dpkg/src-help.c.patch
+Change: adapted: without #ifndef __ANDROID__. dpkg checks at start that ldconfig is on PATH, which /sbin is not for a user; a prefix never runs ldconfig.
+License: GPL-2.0-or-later
+
+diff --git a/src/main/help.c b/src/main/help.c
+--- a/src/main/help.c
++++ b/src/main/help.c
+@@ -95,7 +95,6 @@ checkpath(void)
+ 		"update_dyld_shared_cache",
+ #elif defined(__GLIBC__) || defined(__UCLIBC__) || \
+       defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+-		"ldconfig",
+ #endif
+ #if BUILD_START_STOP_DAEMON
+ 		"start-stop-daemon",

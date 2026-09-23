@@ -11,9 +11,8 @@
 # reason than assumed: prefix-run.sh's plain overlay mode already passes
 # through DISPLAY/WAYLAND_DISPLAY/XDG_RUNTIME_DIR by accident, because its
 # base bind is the *entire* host / (`--ro-bind / /`) before overlaying
-# /usr,/etc — rootfs mode replaces / outright and would NOT see the session
-# without --gui's explicit $XDG_RUNTIME_DIR bind. --gui also refuses clearly
-# with no session, which nothing did before.
+# /usr,/etc. --gui makes the $XDG_RUNTIME_DIR bind explicit and refuses
+# clearly with no session, which nothing did before.
 #
 # Verified for real, not just launched and assumed: logged into a Minecraft
 # account, downloaded a modded instance, and launched the game itself
@@ -25,6 +24,7 @@
 # problem never came up for the game itself.
 package  prismlauncher
 install  ok
-tier     gui
+mechanism  overlay
+gui        yes
 verify   tools/prefix-run.sh --gui prismlauncher --version
 note     needs `sid contrib` in sources.list.d and a one-time `lock-seeded.sh unlock`/`lock` for a newer Qt6; see #8

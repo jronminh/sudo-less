@@ -1,0 +1,29 @@
+Origin: termux-packages 91af886 packages/apt/0005-http2-fix.patch
+Change: verbatim; accepts an 'HTTP/2 200' status line.
+License: GPL-2.0-or-later
+
+diff --git a/methods/basehttp.cc b/methods/basehttp.cc
+--- a/methods/basehttp.cc
++++ b/methods/basehttp.cc
+@@ -95,7 +95,12 @@ bool RequestState::HeaderLine(string const &Line)			/*{{{*/
+       // Evil servers return no version
+       if (Line[4] == '/')
+       {
+-	 int const elements = sscanf(Line.c_str(),"HTTP/%3u.%3u %3u%359[^\n]",&Major,&Minor,&Result,Code);
++	 int elements = sscanf(Line.c_str(),"HTTP/%3u %3u[^\n]",&Major,&Result);
++	 if (elements == 2 && Major == 2) {
++	     Minor = 0;
++	     Code[0] = '\0';
++	 } else {
++	 elements = sscanf(Line.c_str(),"HTTP/%3u.%3u %3u%359[^\n]",&Major,&Minor,&Result,Code);
+ 	 if (elements == 3)
+ 	 {
+ 	    Code[0] = '\0';
+@@ -104,6 +109,7 @@ bool RequestState::HeaderLine(string const &Line)			/*{{{*/
+ 	 }
+ 	 else if (elements != 4)
+ 	    return _error->Error(_("The HTTP server sent an invalid reply header"));
++	 }
+       }
+       else
+       {

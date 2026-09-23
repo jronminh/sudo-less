@@ -5,5 +5,5 @@
 # not something a package needing it can avoid at install time.
 package  javascript-common
 install  unlikely
-tier     never
+scope      never
 note     root-only postinst (mkdir -p /etc/lighttpd/conf-enabled, apache2_invoke enconf) — no unprivileged path

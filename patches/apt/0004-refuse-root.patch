@@ -1,0 +1,49 @@
+Origin: termux-packages 91af886 packages/apt/0010-prevent-usage-as-root.patch
+Change: adapted: without the apt-key hunk (apt-key left apt in 3.1). apt refuses to run as root, so the userspace apt never touches the system. Native need.
+License: GPL-2.0-or-later
+
+diff --git a/cmdline/apt-get.cc b/cmdline/apt-get.cc
+--- a/cmdline/apt-get.cc
++++ b/cmdline/apt-get.cc
+@@ -440,6 +440,11 @@ static std::vector<aptDispatchWithHelp> GetCommands()			/*{{{*/
+ 									/*}}}*/
+ int main(int argc,const char *argv[])					/*{{{*/
+ {
++   if (getuid() == 0) {
++      std::cout << "Ability to run this command as root has been disabled permanently for safety purposes." << std::endl;
++      return 1;
++   }
++
+    // Parse the command line and initialize the package library
+    CommandLine CmdL;
+    auto const Cmds = ParseCommandLine(CmdL, APT_CMD::APT_GET, &_config, &_system, argc, argv, &ShowHelp, &GetCommands);
+diff --git a/cmdline/apt-mark.cc b/cmdline/apt-mark.cc
+--- a/cmdline/apt-mark.cc
++++ b/cmdline/apt-mark.cc
+@@ -432,6 +432,11 @@ static std::vector<aptDispatchWithHelp> GetCommands()			/*{{{*/
+ 									/*}}}*/
+ int main(int argc,const char *argv[])					/*{{{*/
+ {
++   if (getuid() == 0) {
++      std::cout << "Ability to run this command as root has been disabled permanently for safety purposes." << std::endl;
++      return 1;
++   }
++
+    CommandLine CmdL;
+    auto const Cmds = ParseCommandLine(CmdL, APT_CMD::APT_MARK, &_config, &_system, argc, argv, &ShowHelp, &GetCommands);
+ 
+diff --git a/cmdline/apt.cc b/cmdline/apt.cc
+--- a/cmdline/apt.cc
++++ b/cmdline/apt.cc
+@@ -266,6 +266,11 @@ static std::vector<aptDispatchWithHelp> GetCommands()			/*{{{*/
+ 									/*}}}*/
+ int main(int argc, const char *argv[])					/*{{{*/
+ {
++   if (getuid() == 0) {
++      std::cout << "Ability to run this command as root has been disabled permanently for safety purposes." << std::endl;
++      return 1;
++   }
++
+    CommandLine CmdL;
+    auto const Cmds = ParseCommandLine(CmdL, APT_CMD::APT, &_config, &_system, argc, argv, &ShowHelp, &GetCommands);
+ 

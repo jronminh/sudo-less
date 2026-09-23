@@ -37,7 +37,9 @@ done
 
 # 2. the in-repo runtime files install-config.sh needs to configure it
 mkdir -p "$STAGE/share/sudo-less"
-for d in apt-dpkg config shims python; do
+# tools/: prefix-run.sh and deb2home.sh, which a bootstrap user needs for
+# the overlay and for packages apt cannot install
+for d in apt-dpkg config ecosystems tools; do
   cp -a "$REPO/$d" "$STAGE/share/sudo-less/$d"
 done
 mkdir -p "$STAGE/share/sudo-less/scripts"

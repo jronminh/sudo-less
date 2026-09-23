@@ -8,11 +8,9 @@ you own (`~/.local` by default), with a real dependency resolver and database.
 | you have | path | extra tooling needed |
 |---|---|---|
 | **root / sudo** (Debian-family) | `scripts/env/build-on-host.sh` | **none** beyond the build packages |
-| no root, but user namespaces + subuid | `scripts/env/make-buildroot.sh` + `scripts/env/build-in-rootfs.sh` | `mmdebstrap`, `bwrap` |
-| no root, but rootless containers | `scripts/env/build-in-container.sh` | rootless `podman` |
 
 The **root path is by far the lightest**: no user namespace, no subuid, no
-`podman`, no `mmdebstrap`, no `bwrap`. If you have sudo, use it.
+`podman`. If you have sudo, use it.
 
 ### Root path (fresh Debian + sudo)
 
@@ -24,23 +22,24 @@ git clone <this repo> ~/sudo-less && cd ~/sudo-less
 That installs the build packages with `apt`, fetches the sources, builds apt
 and dpkg, installs them into `~/.local`, and writes the runtime config.
 
-### No-root path (userns + rootfs)
+### Advanced: building without root
 
-Requires your admin to enable user namespaces and give you subuid/subgid
-(see `../admin/native/enable-userspace.sh`) and to install `uidmap`
-(`../admin/third-party/install-tools.sh`). The rootfs tools themselves need
-no root: `apt-get install bubblewrap mmdebstrap` puts them in `~/.local`. Then:
+Most users never build: `bootstrap.sh` installs the prebuilt release. The
+repo scripts only the root path above, and CI runs that same script inside a
+`debian:bookworm` container. Without root, any Debian environment in which
+you can install `scripts/build-deps.list` and run `build-on-host.sh` will do,
+for example:
 
-```sh
-./scripts/env/make-buildroot.sh        # builds a real Debian rootfs, no root
-./scripts/env/build-in-rootfs.sh       # builds inside it via bwrap
-```
-
-### No-root path (rootless podman)
-
-```sh
-./scripts/env/build-in-container.sh
-```
+- **a rootless container**: `podman run --rm -v "$PWD:$PWD" -w "$PWD"
+  debian:bookworm ./scripts/env/build-on-host.sh` (you are root inside; the
+  admin must have installed `podman` and `uidmap` and given you subuid/subgid);
+- **a rootfs** made with `mmdebstrap --mode=unshare` and entered with `bwrap`
+  or `unshare -Urm` + `chroot`. `--mode=unshare` maps the subuid range to
+  root, so write the rootfs as a tarball to stdout and unpack it yourself,
+  since the mapped root cannot write into your `0700` home;
+- **sudo-less itself**, in principle: install the build packages into
+  `~/.local` with the userspace apt, point `PKG_CONFIG_PATH` and the compiler
+  at the prefix, and build on the host. Untested.
 
 ## Prerequisites in detail
 
@@ -49,14 +48,9 @@ no root: `apt-get install bubblewrap mmdebstrap` puts them in `~/.local`. Then:
   needs a downloader). The *result* only makes sense on dpkg-based systems,
   because `install-config.sh` seeds the local dpkg database from the host's
   `/var/lib/dpkg/status`.
-- **No-root paths only**: unprivileged user namespaces (`sysctl
-  kernel.unprivileged_userns_clone=1`), `/etc/subuid` + `/etc/subgid` for your
-  user, and (for podman) `newuidmap`/`newgidmap`, `fuse-overlayfs`,
-  `slirp4netns`. `kernel.yama.ptrace_scope` does **not** matter — we use
-  `bwrap`, not `proot`.
-- **Disk/RAM**: ~1.5 GB for a rootfs + build tree; ~2 GB RAM to build.
-- **`gpgv`**: apt's signature verification needs a real `gpgv` binary at
-  runtime (Debian ships it in its own `gpgv` package).
+- **Disk/RAM**: ~1.5 GB for the build tree; ~2 GB RAM to build.
+- **`sqv`**: apt verifies signatures with the host's `sqv` (Debian's
+  default verifier, in its own `sqv` package).
 
 ## Build dependencies
 
@@ -75,7 +69,7 @@ superset for the *current* suite, which is fine.
 | setting | default | override |
 |---|---|---|
 | install prefix | `$HOME/.local` | `PREFIX=/somewhere` |
-| apt / dpkg version | `2.8.1` / `1.22.6` | `APT_VER`, `DPKG_VER` |
+| apt / dpkg version | `3.3.3` / `1.23.11` (apt also needs `APT_SHA1`) | `APT_VER`, `DPKG_VER` |
 | source cache dir | `<repo>/src` | `SRC=/path` |
 | architecture | auto-detected (`dpkg --print-architecture`, else `uname -m`) | `DEB_ARCH=`, `DEB_CPU=` |
 | dpkg tuple data | `/usr/share/dpkg` | `-DDPKG_DATADIR` in `build-apt.sh` |

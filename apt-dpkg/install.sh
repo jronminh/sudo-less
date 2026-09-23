@@ -21,6 +21,7 @@ done
 log "prefix: $PREFIX"
 
 mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/apt.conf.d" \
+         "$PREFIX/etc/dpkg/dpkg.cfg.d" \
          "$PREFIX/etc/apt/preferences.d" \
          "$PREFIX/var/lib/apt/lists/partial" \
          "$PREFIX/var/cache/apt/archives/partial" \
@@ -33,6 +34,8 @@ install -m 0644 "$REPO/config/sources.list"                  "$PREFIX/etc/apt/so
 sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/00local-prefix.in" \
   > "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/dpkg/dpkg.cfg.in" > "$PREFIX/etc/dpkg/dpkg.cfg"
+chmod 0644 "$PREFIX/etc/dpkg/dpkg.cfg"
 
 # refresh the desktop-entry cache after installs so GUI packages' .desktop
 # files actually show up in app grids, not just on disk (see
@@ -41,10 +44,10 @@ sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/01update-desktop-database.in
   > "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 
-# apt's gpgv verifier needs a gpgv binary (Debian ships gpgv in its own package)
-if ! command -v gpgv >/dev/null; then
-  log "note: gpgv not found on PATH; apt-key verification will fail"
-  log "      install it, e.g.: extract the 'gpgv' .deb into $PREFIX/bin"
+# apt verifies signatures with the host's sqv (Debian's default verifier)
+if ! command -v sqv >/dev/null; then
+  log "note: sqv not found on PATH; apt-get update cannot verify signatures"
+  log "      install it, e.g.: extract the 'sqv' .deb into $PREFIX"
 fi
 
 STATUS="$PREFIX/var/lib/dpkg/status"
@@ -62,10 +65,11 @@ fi
 # upgrade/remove them into/from the prefix. Our own installs stay upgradable.
 bash "$REPO/scripts/setup/lock-seeded.sh" lock
 
-# Install recipe shims (scripts a recipe's `shim` key requires on PATH ahead
-# of the real one; see docs/standard.md).
+# Install each ecosystem's shims (scripts a recipe's `shim` key requires on
+# PATH ahead of the real one; see docs/standard.md and ecosystems/).
 mkdir -p "$PREFIX/bin"
-for s in "$REPO/shims/"*; do
+for s in "$REPO"/ecosystems/*/shims/*; do
+  [ -f "$s" ] || continue
   install -m 0755 "$s" "$PREFIX/bin/$(basename "$s")"
 done
 

@@ -4,7 +4,7 @@
 #
 #   ./scripts/catalog/check-package.sh PKG [PKG...]
 #   ./scripts/catalog/check-package.sh --meta PKG      # index metadata only (no download)
-#   ./scripts/catalog/check-package.sh --runtime PKG   # also classify the runtime tier
+#   ./scripts/catalog/check-package.sh --runtime PKG   # also predict the mechanism (docs/mechanisms.md)
 #
 # Method (cache-only, nothing is executed or installed):
 #   * apt index metadata (Section/Priority/Essential/Depends) via apt-cache show
@@ -18,7 +18,7 @@
 #   RISKY     installs, but ships/uses system integration (may partly misbehave)
 #   UNLIKELY  a hard blocker: root-only postinst step, python app, service deps
 #
-# --runtime adds a line per package saying how it must be run (see docs/paths.md
+# --runtime adds a line per package saying how it must be run (see docs/mechanisms.md
 # and docs/standard.md's tier contract):
 #   direct    relocatable: PATH (+ LD_LIBRARY_PATH) is enough
 #   env       an interpreter's own default module search path misses $PREFIX
@@ -27,7 +27,7 @@
 #   overlay   binaries reference /etc or /usr/share|lib|libexec by absolute
 #             path, or a script's shebang names an interpreter not on this
 #             host (would only land under $PREFIX) — run it through
-#             tools/prefix-run.sh (or a complete rootfs)
+#             tools/prefix-run.sh
 #   never     a hard blocker above; not runnable this way
 #   unknown   no .deb available to scan (--meta, or download failed)
 set -uo pipefail
@@ -59,7 +59,7 @@ HARD_DEPS='init-system-helpers|adduser|debconf|initramfs-tools|sysvinit-core|pas
 
 # SOFT: commonly non-fatal (Debian wraps these, or they only warn), system
 # integration that doesn't stop the binaries running, or a blocker this repo
-# already ships a fix for (py3compile: shims/py3compile + install-config.sh's
+# already ships a fix for (py3compile: ecosystems/python/shims/py3compile + install-config.sh's
 # .pth puts $PREFIX/usr/lib/python3/dist-packages on sys.path — see #5).
 SOFT_SCRIPT='update-alternatives|update-menus|update-desktop-database|install-info|update-mime|update-mime-database|gtk-update-icon-cache|update-fonts|update-xmlcatalog|update-catalog|update-dictcommon|update-icon-caches|py3compile'
 SOFT_FILES='/usr/lib/systemd/|/lib/systemd/|/etc/init.d/|/usr/libexec/|/usr/lib/udev/|/etc/dbus-1/|/usr/share/polkit-1/|/usr/lib/tmpfiles.d/|/etc/default/|/usr/share/dbus-1/|/etc/xdg/autostart/|/usr/lib/python3/dist-packages/|/usr/lib/python3/'

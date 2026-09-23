@@ -5,7 +5,9 @@ A field study of two runtimes that live next to this repo's goal, run live on
 
 - **Termux** — a Linux userland inside an Android app, with no root at all
   (phone `fe2`: Android 16 / SDK 36, kernel 5.10, aarch64, Termux 0.119.0-beta.3
-  F-Droid build).
+  F-Droid build), plus Android's `shell` uid through `dsh` (a wireless-ADB
+  bridge, [termux-adb-bridge](https://github.com/jronminh/termux-adb-bridge))
+  and a live proot-distro 5.9.0 install.
 - **Waydroid** — Android in an LXC container on this Debian host (read-only
   inspection through the admin account; the container was running).
 
@@ -25,23 +27,23 @@ buckets:
 
 ## 1. Termux: no root, no namespaces, no FHS
 
-### What the sandbox gives (and does not)
+### 1.1 What the sandbox gives (and does not)
 
 | resource | observed on `fe2` |
 |---|---|
 | identity | one app uid (`u0_a663` = 10663), no capabilities (`CapEff`/`CapBnd` = 0) |
 | SELinux | domain `untrusted_app_27`, because the app targets SDK **28** (`TERMUX_APP__TARGET_SDK=28`) |
 | seccomp | filter mode (`Seccomp: 2`), set by Android's zygote |
-| user namespaces | none: `unshare -Ur` → `Invalid argument` |
+| user namespaces | none: `unshare -Ur` → `Invalid argument`; the kernel is built without `CONFIG_USER_NS` (`/proc/config.gz`, read at shell uid) |
 | ptrace | no Yama file; ptrace between one's own processes works (proot's basis) |
 | filesystem root | `/` unreadable; no `/usr`; `/bin` → `/system/bin`, `/etc` → `/system/etc` |
 | hardlinks | `ln a b` → `Permission denied` (SELinux on `app_data_file`) |
-| `/proc` | own processes only; `/proc/stat`, `/proc/version`, `/proc/net/tcp` denied |
+| `/proc` | mounted `hidepid=invisible,gid=3009` (`readproc`): own processes only (13 vs 910 at shell uid); `/proc/stat`, `/proc/version`, `/proc/net/tcp` denied by SELinux, not by mode bits |
 | devices | `/dev/fuse`, `/dev/dri/*` denied; `/dev/kvm` absent; `/dev/ashmem`, binder reachable |
 | network | ports < 1024 denied (`sshd` listens on 8022); outbound fine |
 | setuid | none in the prefix; there is no second uid to switch to |
 
-### How Termux lives with that
+### 1.2 How Termux lives with that
 
 Termux changes **the software**, not the system:
 
@@ -64,10 +66,93 @@ Termux changes **the software**, not the system:
    world under `$PREFIX/glibc` (its own `ld-linux-aarch64.so.1`) next to the
    bionic one. Two ABIs coexist because each carries its own interpreter
    path.
-5. **Root is only ever faked** (`proot -0`, via proot-distro; not installed
-   on this phone). proot's `--link2symlink` and its fake `/proc/stat`,
-   `/proc/version` entries exist *because* of the hardlink and `/proc`
-   restrictions above (see "Prior art: proot-distro" in `docs/methodology.md`).
+5. **Root is only ever faked**, by proot (§1.3).
+
+### 1.3 proot-distro, live
+
+proot-distro 5.9.0 with proot 5.1.107.94, Alpine 3.24.2 minirootfs installed from
+a local tarball (`proot-distro install --name alpine FILE`, 2 s). Layout:
+`$PREFIX/var/lib/proot-distro/containers/alpine/{rootfs,shm,sysdata}`.
+
+The `proot` command line it builds (read from `/proc/<pid>/cmdline`, `$T` =
+`/data/data/com.termux/files`):
+
+```
+proot --kill-on-exit --link2symlink --sysvipc -L --change-id=0:0
+      --kernel-release=...6.17.0-PRoot-Distro...  --rootfs=.  --cwd=/root
+      --bind=/dev --bind=/proc --bind=/sys --bind=/dev/urandom:/dev/random
+      --bind=<c>/sysdata/sys_empty:/sys/fs/selinux
+      --bind=<c>/sysdata/{loadavg,stat,uptime,version,vmstat}:/proc/...
+      --bind=<c>/sysdata/sysctl_*:/proc/sys/{kernel/cap_last_cap,fs/inotify/max_user_watches,kernel/overflow[ug]id}
+      --bind=<c>/shm:/dev/shm
+      --bind=/data/app --bind=/data/dalvik-cache --bind=/storage/self/primary:/sdcard ...
+      --bind=$T/home --bind=/apex --bind=/system --bind=/vendor ... --bind=$T/usr
+```
+
+`--rootfs=.` is deliberate: proot-distro `chdir`s into the rootfs through a
+directory descriptor it has already checked, so a symlink swapped in later
+cannot redirect it.
+
+What the guest sees:
+
+| probe | result | how |
+|---|---|---|
+| `id` | `uid=0(root)`, but `/proc/self/status` `Uid: 10663`, `CapEff: 0`, `TracerPid` = proot | `--change-id=0:0`, all in the tracer |
+| `uname -r`, `/proc/version` | `6.17.0-PRoot-Distro` | `--kernel-release` + a bound file |
+| `/proc/stat`, `/proc/loadavg`, `/proc/uptime` | plausible static values | files under `sysdata/` bound over the denied host ones |
+| `/proc/mounts` | the **host's** (Android `erofs` `/`) | not faked |
+| other `/proc` entries (`cmdline`, `modules`, …) | `Permission denied` | not faked |
+| `ln a b` | works, link count 2, same inode shown | `--link2symlink`: backing file under `/.l2s`, both names become symlinks |
+| `chown 123:456 f` | exit 0, owner stays `0:0` | faked success, nothing stored |
+| `mknod n c 1 3` | exit 0, no node created | faked success |
+| `/dev/shm` | writable, private per container | `<c>/shm` bind (Android has no shm) |
+
+Cost (same phone, wall clock): `login -- true` ≈ 0.85 s startup; 300
+`exec`s ≈ 6.1 s inside vs ≈ 6.9 s for bionic `true` outside (exec is slow on
+this phone either way); `find -ls` over the rootfs ×5 ≈ 0.16 s inside after
+startup vs 0.20 s outside. The ptrace tax shows up per syscall-heavy process
+start, not in steady I/O.
+
+Two lessons carry over to the Debian host even though proot itself does not
+run there (`ptrace_scope=2`):
+
+- the **fake `/proc` file list** is the list of things software actually reads
+  and a sandbox tends to deny. Our namespaced runners bind the real `/proc`,
+  so none of it is needed today, but it is the checklist if a tier ever
+  hides `/proc`;
+- **"success without effect"** (`chown`, `mknod`) is how proot keeps dpkg
+  happy. Our userspace dpkg gets the same result by skipping `chown` at
+  build time (`__ANDROID__`, `docs/apt-dpkg-port.md`); inside a user
+  namespace `chown` is real but limited to mapped ids.
+
+### 1.4 Android's middle tier: the `shell` uid (`dsh`)
+
+Between the app sandbox and root, Android has `shell` (uid 2000, what `adb
+shell` gets). On `fe2` it is reachable from Termux via `dsh`, which runs a
+command through a wireless-ADB bridge. Compared with the app:
+
+| | Termux app (10663) | `shell` (2000) |
+|---|---|---|
+| SELinux domain | `untrusted_app_27` | `shell` |
+| seccomp | filter | none |
+| capabilities | none | none effective (bounding: `setuid`, `setgid`, `sys_nice`) |
+| user namespaces | no | no (kernel) |
+| `/proc` | own processes, `stat`/`version` denied | all processes (`readproc`), `stat`/`version`/`config.gz` readable |
+| groups | app, storage, `inet` | + `log`, `adb`, `uhid`, `readproc`, `net_bw_stats`, … |
+| system settings | read-only, few | `settings`, `device_config`, `dumpsys`, `pm`, `am` |
+
+It is used as a one-time enabler, exactly our `admin/` shape: here
+`settings_enable_monitor_phantom_procs` is `false` (the Android 12+ phantom
+process killer is off, so Termux's background daemons such as `sshd` survive).
+Termux never runs its software as `shell`; it asks `shell` to change a
+setting once and then runs as the app. It is not root either: no
+namespaces, no mounts, no module loading.
+
+(Aside, from the same session: DNS failed on the phone for every uid, `shell`
+included, while IP traffic worked; the network had Private DNS `hostname`
+plus the Tailscale VPN active. The packages and rootfs above were fetched on
+the Debian host and copied over. That is a network fault, not a sandbox
+limit.)
 
 ### Termux in buckets
 
@@ -76,7 +161,9 @@ Termux changes **the software**, not the system:
 | install packages | apt/dpkg relocated to the prefix | **F** (relocation) |
 | FHS paths (`/usr`, `/bin/sh`) | rebuild + `termux-exec` exec shim | **F** |
 | exec from writable dir | old target SDK (policy loophole) | **A** (granted by the platform, by app manifest) |
-| root, chown, device nodes | proot fakes them, slowly | **F** (ptrace) |
+| root, hardlinks, `/proc` files | proot + proot-distro fake them (§1.3) | **F** (ptrace) |
+| chown, device nodes | reported as success, not performed (§1.3) | **N** |
+| background processes surviving | phantom-process killer disabled once at shell uid (§1.4) | **A** |
 | namespaces, FUSE, GPU nodes, low ports | none | **N** |
 
 **Lesson for this repo.** Termux proves the "change the software, not the
@@ -166,6 +253,8 @@ proposed below.
    boot-time or config change (module, subuid size, AppArmor profile, udev),
    the same shape as `admin/native/enable-userspace.sh`. None of it runs
    master's software.
+   Android has the same three layers (app → `shell` → root, §1.4) and uses the
+   middle one the same way: change a setting once, run as the app afterwards.
 3. **Proposed work** (to become issues):
    - *Spike: unprivileged Waydroid.* Userns with an idmap into a ≥ 100000 subuid
      range, images extracted to a dir, overlay native, `pasta` networking, binder

@@ -61,6 +61,9 @@ sudo-less explain PKG    # why it is in or out of scope, and how it runs
 sudo-less doctor         # user namespaces, signature verification, wedged packages
 ```
 
+The evidence behind these choices, and the baseline they are measured
+against: [`survey-2026-09.md`](survey-2026-09.md).
+
 ## Principles
 
 1. **One classifier.** Scope and mechanism are decided in one place, from the

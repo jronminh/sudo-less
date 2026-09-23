@@ -111,6 +111,8 @@ this repo.
 
 - [`docs/design.md`](docs/design.md) — the whole solution on one page: the
   pipeline sudo-less hangs on apt's hooks, its parts, and what exists today.
+- [`docs/survey-2026-09.md`](docs/survey-2026-09.md) — a random sample by
+  Debian section: what installs today and what blocks the rest.
 - [`docs/standard.md`](docs/standard.md) — the tiers, the supported sections,
   and how each package is checked.
 - [`ecosystems/`](ecosystems/) — what each language needs (Python, Java, Perl,

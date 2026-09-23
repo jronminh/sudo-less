@@ -1,0 +1,130 @@
+section	package	result	detail
+libs	libcsiphash-1-0	OK-nobin	install=OK run=na (no binary)
+libs	libklipper6	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+libs	libgnatcoll-omp2	OK-nobin	install=OK run=na (no binary)
+libdevel	libn32objc-16-dev-mips64r6el-cross	OK-nobin	install=OK run=na (no binary)
+libdevel	nlinline-dev	OK-nobin	install=OK run=na (no binary)
+libdevel	libdi-dev	OK-nobin	install=OK run=na (no binary)
+devel	linux-libc-dev-armel-cross	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+devel	libstdc++-14-dev-arm64-cross	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+devel	gobjc-mingw-w64-ucrt64	OK-nobin	install=OK run=na (no binary)
+debug	hylafax-client-dbg	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+debug	libstdc++6-15-dbg	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+debug	xen-utils-4.20-dbg	F-script	install=FAIL install: cannot create directory ‘/var/log/xen’: Operation not permitted
+introspection	gir1.2-clapper-0.0	OK-nobin	install=OK run=na (no binary)
+introspection	gir1.2-fcitxg-1.0	OK-nobin	install=OK run=na (no binary)
+introspection	gir1.2-spiceclientgtk-3.0	F-script	install=FAIL dpkg: error processing archive /tmp/apt-dpkg-install-Fq8G1k/0-spice-client-glib-usb-acl-helper_0.42-4+b1_amd64.deb (--unpack):
+vcs	git-svn	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+vcs	git-secret	OK-direct	install=OK run: git-secret=direct
+vcs	git-all	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+python	python3-bluetooth-adapters	OK-nobin	install=OK run=na (no binary)
+python	python3-slicerator	OK-nobin	install=OK run=na (no binary)
+python	python3-yamlfix	OK-direct	install=OK run: yamlfix=direct
+perl	libipc-sharelite-perl	OK-nobin	install=OK run=na (no binary)
+perl	libexception-class-dbi-perl	OK-nobin	install=OK run=na (no binary)
+perl	libtext-charwidth-perl	sys	install=OK run=na (system copy)
+ruby	ruby-sentry-sidekiq	runfail	install=OK run: test=fail[/var/lib/dsb/sl-fresh/.local/usr/share/rubygems-integration/all/gems/s]
+ruby	ruby-money	runfail	install=OK run: rbs=fail[ruby:_error_while_loading_shared_libraries:_libruby-3.3.so.3.3:_cannot] rubocop=fail[ruby:_error_while_loading_shared_libraries:_libruby-3.3.so.3.3:_cannot]
+ruby	ruby-bundler	partial	install=OK run: bundle=overlay bundler=overlay console.tt=fail[timeout:_failed_to_run_command_‘/var/lib/dsb/sl-fresh/.local/usr/sha]
+rust	librust-wezterm-input-types-dev	OK-nobin	install=OK run=na (no binary)
+rust	librust-typemap-ors-dev	OK-nobin	install=OK run=na (no binary)
+rust	librust-vte-dev	OK-nobin	install=OK run=na (no binary)
+golang	golang-github-google-go-tdx-guest-dev	OK-nobin	install=OK run=na (no binary)
+golang	golang-github-jacobsa-util-dev	OK-nobin	install=OK run=na (no binary)
+golang	golang-github-armon-go-proxyproto-dev	network	install=FAIL E: Failed to fetch http://deb.debian.org/debian/pool/main/g/golang-github-armon-go-proxyproto/golang-github-armon-go-proxyproto-dev_0.1.0-1_all.deb  Cannot initiate the connection to deb.
+haskell	libghc-pointedlist-prof	network	install=FAIL E: Failed to fetch http://deb.debian.org/debian/pool/main/g/gmp/libgmpxx4ldbl_6.3.0%2bdfsg-5%2bb2_amd64.deb  Cannot initiate the connection to deb.debian.org:80 (2a04:4e42:48::644). - con
+haskell	libghc-classy-prelude-conduit-prof	F-script	install=FAIL /var/lib/dsb/sl-fresh/.local/var/lib/dpkg/info/ghc.postinst: 31: /usr/bin/ghc: not found
+haskell	libghc-comonad-prof	F-script	install=FAIL /var/lib/dsb/sl-fresh/.local/var/lib/dpkg/info/ghc.postinst: 31: /usr/bin/ghc: not found
+javascript	node-jszip	OK-nobin	install=OK run=na (no binary)
+javascript	node-array-from	OK-nobin	install=OK run=na (no binary)
+javascript	node-wide-align	OK-nobin	install=OK run=na (no binary)
+java	libjavassist-java	OK-nobin	install=OK run=na (no binary)
+java	libopenjfx-jni	OK-nobin	install=OK run=na (no binary)
+java	libjlayer-java	OK-nobin	install=OK run=na (no binary)
+php	php-symfony-go-ip-notifier	OK-nobin	install=OK run=na (no binary)
+php	php-horde-sessionhandler	OK-nobin	install=OK run=na (no binary)
+php	php-ramsey-collection	OK-nobin	install=OK run=na (no binary)
+ocaml	libstdcompat-ocaml	OK-nobin	install=OK run=na (no binary)
+ocaml	libstdlib-ocaml	OK-nobin	install=OK run=na (no binary)
+ocaml	libmarkup-lwt-ocaml-dev	OK-nobin	install=OK run=na (no binary)
+lisp	irony-server	OK-overlay	install=OK run: irony-server=overlay
+lisp	elpa-migemo	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+lisp	ecl	OK-overlay	install=OK run: ecl=overlay ecl-config=direct
+gnu-r	r-cran-conflicted	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+gnu-r	r-cran-wk	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+gnu-r	r-bioc-affyio	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+interpreters	erlang-odbc	runfail	install=OK run: odbcserver=fail[/var/lib/dsb/sl-fresh/.local/usr/lib/erlang/lib/odbc-2.17/priv/bin/odb]
+interpreters	lua-moses	OK-nobin	install=OK run=na (no binary)
+interpreters	cpp-16-for-build	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+utils	pixelmed-apps	F-script	install=FAIL mkdir: cannot create directory ‘/etc/.java’: Read-only file system
+utils	zipcmp	runfail	install=OK run: zipcmp=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/zipcmp:_error_while_loading_share]
+utils	sedsed	OK-direct	install=OK run: sedsed=direct
+text	apvlv	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+text	hyphen-nl	OK-nobin	install=OK run=na (no binary)
+text	dblatex	F-script	install=FAIL dpkg: error processing package tex-common (--configure):
+editors	vim-addon-manager	OK-overlay	install=OK run: vam=overlay vim-addon-manager=overlay vim-addons=overlay
+editors	texworks	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+editors	ng-cjk	runfail	install=OK run: ng-cjk=fail[panic:_aborting_due_to_terminal_initialize_failure]
+shells	bash-static	OK-direct	install=OK run: bash-static=direct
+shells	yash	F-script	install=FAIL cat: /var/lib/dsb/sl-fresh/.local/etc/shells: No such file or directory
+shells	fish-common	OK-nobin	install=OK run=na (no binary)
+doc	starlink-task-java-doc	OK-nobin	install=OK run=na (no binary)
+doc	python-django-split-settings-doc	OK-nobin	install=OK run=na (no binary)
+doc	monodoc-hexbox-manual	F-script	install=FAIL dpkg: error processing package libgdiplus (--configure):
+fonts	fonts-taml-tamu	OK-nobin	install=OK run=na (no binary)
+fonts	fonts-terminus-otb	OK-nobin	install=OK run=na (no binary)
+fonts	font-manager-common	OK-nobin	install=OK run=na (no binary)
+localization	firefox-esr-l10n-da	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+localization	libvirt-l10n	OK-nobin	install=OK run=na (no binary)
+localization	libreoffice-l10n-ko	F-script	install=FAIL dpkg: error processing package libreoffice-common (--configure):
+tex	latexml	F-script	install=FAIL dpkg: error processing package tex-common (--configure):
+tex	csv2latex	OK-direct	install=OK run: csv2latex=direct
+tex	purifyeps	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+science	gyoto-bin	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+science	mricron	runfail	install=OK run: mricron=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/mricron:_9:_exec:_/usr/lib/mricro]
+science	flextra	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+math	qalculate-gtk	OK-overlay	install=OK run: qalculate-gtk=overlay
+math	scotch-64	runfail	install=OK run: acpl_64=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/acpl_64:_error_while_loading_shar] amk_ccc_64=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/amk_ccc_64:_error_while_loading_s] amk_fft2_64
+math	octave-nlopt	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+graphics	libtiff-tools	runfail	install=OK run: fax2ps=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/fax2ps:_invalid_option_--_'-'] fax2tiff=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/fax2tiff:_invalid_option_--_'-'] pal2rgb=fail[/var/li
+graphics	heif-thumbnailer	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+graphics	ocrmypdf	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+sound	mopidy-alsamixer	F-script	install=FAIL update-xmlcatalog: error: local catalog /usr/share/xml/docutils/catalog.xml not found
+sound	espeak-ng	OK-overlay	install=OK run: espeak-ng=overlay speak-ng=overlay
+sound	tuxguitar-jack	F-script	install=FAIL mkdir: cannot create directory ‘/etc/.java’: Read-only file system
+video	obs-transition-table	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+video	kodi-eventclients-common	OK-nobin	install=OK run=na (no binary)
+video	voctomix-core	OK-direct	install=OK run: voctocore=direct
+games	davegnukem	runfail	install=OK run: davegnukem=fail[/var/lib/dsb/sl-fresh/.local/usr/games/davegnukem:_error_while_loading]
+games	penguin-command	OK-overlay	install=OK run: penguin-command=overlay
+games	wesnoth-1.18-tools	runfail	install=OK run: pacman-cross=fail[/var/lib/dsb/sl-fresh/.local/usr/share/games/wesnoth/1.18/utils/docker]
+electronics	lepton-eda	partial	install=OK run: lepton-archive=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/lepton-archive:_2:_exec:_/usr/bin] lepton-attrib=overlay lepton-cli=overlay
+electronics	librnd4t64	OK-nobin	install=OK run=na (no binary)
+electronics	atlc-examples	OK-nobin	install=OK run=na (no binary)
+hamradio	soapysdr0.8-module-volkconverters	OK-nobin	install=OK run=na (no binary)
+hamradio	psk31lx	runfail	install=OK run: psk31lx=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/psk31lx:_invalid_option_--_'-']
+hamradio	cwdaemon	OK-overlay	install=OK run: cwdaemon=overlay
+education	progvis-examples	OK-nobin	install=OK run=na (no binary)
+education	artikulate	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+education	progvis	runfail	install=OK run: progvis=fail[Could_not_find_progvis.main]
+embedded	matchbox-window-manager	partial	install=OK run: matchbox-remote=fail[Cant_connect_to_display:_(null)] matchbox-window-manager=overlay
+embedded	rkflashtool	partial	install=OK run: rkcrc=fail[/var/lib/dsb/sl-fresh/.local/usr/bin/rkcrc:_invalid_option_--_'-'] rkflashtool=fail[rkflashtool:_info:_rkflashtool_v5.2] rkmisc=direct
+embedded	log2ram	F-script	install=FAIL dpkg: error processing package log2ram (--configure):
+x11	lomiri-polkit-agent	OK-nobin	install=OK run=na (no binary)
+x11	eviacam	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+x11	twm	F-script	install=FAIL chmod: cannot access '/usr/bin/update-menus': No such file or directory
+gnome	gnome-extra-icons	OK-nobin	install=OK run=na (no binary)
+gnome	gnome-shell-extension-manager	OK-direct	install=OK run: extension-manager=direct
+gnome	eog-plugin-send-by-mail	OK-nobin	install=OK run=na (no binary)
+kde	kalarm	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+kde	plasma-browser-integration	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+kde	sddm-theme-debian-maui	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+xfce	xfce4-dev-tools	partial	install=OK run: xdt-autogen=direct xdt-check-abi=fail[Usage:_/var/lib/dsb/sl-fresh/.local/usr/bin/xdt-check-abi_SYMBOL_FILE_] xdt-csource=direct
+xfce	xfce4-taskmanager	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+xfce	parole-dev	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+web	shaarli	F-held	install=FAIL E: Unable to correct problems, you have held broken packages.
+web	ceilometer-common	F-script	install=FAIL dpkg: error processing archive /tmp/apt-dpkg-install-6sXUZP/162-ceilometer-common_1%3a27.0.0~rc1-2_all.deb (--unpack):
+web	compass-blueprint-plugin	OK-nobin	install=OK run=na (no binary)
+comm	asterisk-mysql	F-script	install=FAIL mkdir: cannot create directory ‘/etc/freetds’: Read-only file system
+comm	wmbusmeters	F-script	install=FAIL dpkg: error processing package wmbusmeters (--configure):
+comm	mgetty-docs	OK-nobin	install=OK run=na (no binary)

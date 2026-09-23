@@ -106,6 +106,8 @@ this repo.
 - [`docs/flatpak-bridge.md`](docs/flatpak-bridge.md) — letting a Flatpak app talk
   to a program you installed here.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
+- [`docs/system-resources.md`](docs/system-resources.md) — what Termux and Waydroid
+  need from the system: unprivileged, fakeable, or admin-once.
 
 ## Status
 

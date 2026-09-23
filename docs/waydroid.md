@@ -16,6 +16,9 @@ runs unprivileged (`../extras/waydroid/patch-services-jar.sh`, done on the phone
 (`../extras/device/waydroid-install-framework-overlay.sh`). A separate SystemUI NPE
 still crash-loops multi-window; single-window is the stable daily state.
 
+Which of its resources need root, and which could move to userspace:
+[`system-resources.md`](system-resources.md) §2.
+
 Official docs: https://docs.waydro.id/usage/install-on-desktops
 Installer script: `~/sudo-less/extras/device/waydroid-install.sh` — run with
 `sudo bash ~/sudo-less/extras/device/waydroid-install.sh`.

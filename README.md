@@ -108,7 +108,7 @@ this repo.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
 - [`docs/system-resources.md`](docs/system-resources.md) — what Termux and Waydroid
   need from the system: unprivileged, fakeable, or admin-once.
-- [`docs/shell-tier.md`](docs/shell-tier.md) — design: `slsh`, a dsh-like command
+- [`docs/updo.md`](docs/updo.md) — design: `updo` (userspace do), a sudo-like command
   that runs as a bounded middle identity (tier `limited`).
 
 ## Status

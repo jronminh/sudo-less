@@ -22,7 +22,7 @@ dsb-admin apply
 | identity | grant | used for |
 |---|---|---|
 | `dsb` (default) | none: a shell, any command, its own home | the everyday middle identity from dsb's shipped config |
-| `sl-fresh` | none: a shell, any command, its own home `/var/lib/dsb/sl-fresh` | testing the supported install path as a new user meets it: no `~/.local`, no `PATH` or dotfiles of `master` |
+| `sl-fresh` | `namespaces = yes` (bwrap/unshare for `prefix-run.sh`), a shell, any command, its own home `/var/lib/dsb/sl-fresh` | testing the supported install path as a new user meets it: no `~/.local`, no `PATH` or dotfiles of `master` |
 | `sl-journal` | group `systemd-journal`, only `journalctl` | reading the system journal while developing: effects of `admin/*.sh`, system units, Waydroid, dsb's own audit trail |
 
 ```sh
@@ -65,8 +65,9 @@ against the two `never` recipes it was meant for, it does not hold:
 | `javascript-common` | postinst `mkdir -p /etc/lighttpd/conf-enabled` | lighttpd starts as root and its config can run commands as root (`include_shell`): **a write grant on `/etc/lighttpd` is root**. Even `commands = mkdir` alone allows `mkdir -m 777`, after which anyone can drop config there. | a path shim redirecting `/etc/lighttpd` into `$PREFIX` (tier `direct`), or the admin creating the empty, root-owned directory once |
 | `screen` | `/run/screen` in group `utmp`, `/etc/tmpfiles.d`, a unit link, `update-rc.d` | most of it is root-executed config, refused by design; `dpkg --configure` still fails | stays `never`; the system's `screen` (or `SCREENDIR` with a userspace build) |
 
-The rule behind it, now also in dsb (`dsb-admin` warns on any `write =`
-under `/etc`): a daemon's config directory is root, because the daemon
-starts as root and reads it. Grant data, never config. Packages that need
+The rule behind it, now also in dsb (`dsb-admin` refuses any `write` under
+`/etc`, and `write =` outside data directories no package owns; see dsb's
+`docs/standards.md`): a daemon's config directory is root, because the
+daemon starts as root and reads it. Grant data, never config. Packages that need
 more than their own data are services, which `docs/standard.md` already
 puts out of scope.

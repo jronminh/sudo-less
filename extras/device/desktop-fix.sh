@@ -1,7 +1,7 @@
 #!/bin/bash
 # desktop-fix.sh
 # Run as the `mobian` user (the only sudo-capable account):
-#     sudo bash ~/sudo-less/admin/device/desktop-fix.sh
+#     sudo bash ~/sudo-less/extras/device/desktop-fix.sh
 #
 # No options: it just applies every desktop fix for this box
 # (Phosh on phoc/wlroots, Intel GeminiLake UHD 600).

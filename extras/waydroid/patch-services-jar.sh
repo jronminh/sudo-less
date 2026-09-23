@@ -6,7 +6,7 @@
 #
 # Unprivileged: needs only java + baksmali/smali. It does NOT touch the live
 # Waydroid install; deploy the result with
-# admin/device/waydroid-install-framework-overlay.sh (run as the admin account).
+# extras/device/waydroid-install-framework-overlay.sh (run as the admin account).
 #
 # Usage:
 #   patch-services-jar.sh [SRC_JAR] [OUT_JAR]

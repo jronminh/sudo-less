@@ -54,7 +54,7 @@ Two-persona split on this box.
 - `~/.local/bin/smartctl` → `/usr/sbin/smartctl` symlink: Debian's
   `/etc/profile` keeps `/usr/sbin` off a non-root `PATH`, so this makes
   `smartctl` work by name for `master`.
-- Install/revert script: `~/sudo-less/admin/device/smart-install.sh`.
+- Install/revert script: `~/sudo-less/extras/device/smart-install.sh`.
 
 ## What `master` may do (polkit grants)
 

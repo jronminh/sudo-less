@@ -1,12 +1,12 @@
 #!/bin/bash
 # waydroid-install-framework-overlay.sh
 # Run as the `mobian` admin (the only sudo-capable account):
-#     sudo bash ~/sudo-less/admin/device/waydroid-install-framework-overlay.sh [JAR] [--restart]
+#     sudo bash ~/sudo-less/extras/device/waydroid-install-framework-overlay.sh [JAR] [--restart]
 #
 # Installs a patched services.jar into Waydroid's overlay, where it shadows
 # the copy inside the read-only Android image. This is the one privileged step
 # of the freeform divide-by-zero fix (docs/waydroid-mesa-debug.md §15); build
-# the jar unprivileged with waydroid/patch-services-jar.sh first.
+# the jar unprivileged with extras/waydroid/patch-services-jar.sh first.
 #
 # Default JAR: /home/master/waydroid-work-backup/patched-services/services.patched.jar
 # Revert:      rm /var/lib/waydroid/overlay/system/framework/services.jar
@@ -33,7 +33,7 @@ SRC=${SRC:-/home/master/waydroid-work-backup/patched-services/services.patched.j
 DST=/var/lib/waydroid/overlay/system/framework/services.jar
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "must run as root. Use: sudo bash ~/sudo-less/admin/device/waydroid-install-framework-overlay.sh" >&2
+  echo "must run as root. Use: sudo bash ~/sudo-less/extras/device/waydroid-install-framework-overlay.sh" >&2
   exit 1
 fi
 [ -r "$SRC" ] || { echo "source jar not readable: $SRC" >&2; exit 1; }

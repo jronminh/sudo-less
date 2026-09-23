@@ -1,7 +1,7 @@
 #!/bin/bash
 # waydroid-install.sh
 # Run as the `mobian` user (the only sudo-capable account):
-#     sudo bash ~/sudo-less/admin/device/waydroid-install.sh
+#     sudo bash ~/sudo-less/extras/device/waydroid-install.sh
 #
 # Installs waydroid from the official Debian repo, loads the binder
 # module, initializes the Android images, and enables the container
@@ -24,7 +24,7 @@ sudo -v
 
 # --------------------------------------------------------- 1. root check --
 if [ "$(id -u)" -ne 0 ]; then
-  warn "this script must be run as root. Use: sudo bash ~/sudo-less/admin/device/waydroid-install.sh"
+  warn "this script must be run as root. Use: sudo bash ~/sudo-less/extras/device/waydroid-install.sh"
   exit 1
 fi
 

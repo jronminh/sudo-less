@@ -150,8 +150,8 @@ pure Java and needs **no root** — on this box it ran on the phone
 Only the final `install` into the root-owned overlay needs the admin account,
 and that is a single `cp`. Worked example (a one-line divide-by-zero guard in
 `services.jar`): `docs/waydroid-mesa-debug.md` §15, with
-`waydroid/patch-services-jar.sh` (unprivileged build) and
-`admin/device/waydroid-install-framework-overlay.sh` (the one root drop).
+`extras/waydroid/patch-services-jar.sh` (unprivileged build) and
+`extras/device/waydroid-install-framework-overlay.sh` (the one root drop).
 
 ---
 

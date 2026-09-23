@@ -3,7 +3,7 @@
 # Run as ROOT from a GRUB recovery / single-user shell to regain access
 # to the `mobian` admin account (or run the toolchain prep) without a login.
 #
-# Usage:  bash ~/sudo-less/admin/unlock.sh [status|passwd|unlock|prep|addmaster|shell]
+# Usage:  bash ~/sudo-less/admin/native/unlock.sh [status|passwd|unlock|prep|addmaster|shell]
 
 set -uo pipefail
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin

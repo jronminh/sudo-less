@@ -55,7 +55,9 @@ The same three privilege tiers the build scripts already use apply at *runtime*.
 | tier | mode | mechanism | extra deps | kernel |
 |---|---|---|---|---|
 | root | `rootfs` | `chroot` a complete rootfs | none | none |
+| root | `admin/native/overlay-run.sh` | `unshare` + `mount -t overlay`; the command drops to the user | none (util-linux) | overlayfs |
 | no root, userns | `overlay` | `bwrap` overlays `$PREFIX/{usr,etc}` on `/usr`,`/etc` | `bubblewrap` | userns + overlayfs ≥ 5.11 |
+| no root, userns | `overlay-native` | the same overlay via `unshare -Urm` + `mount -t overlay` | none (util-linux ≥ 2.38) | userns + overlayfs ≥ 5.11 |
 | no root, no userns | `rootfs` | `proot -R` a complete rootfs | `proot` (1 static bin) | **none** |
 | nothing available | `env` | export `LD_LIBRARY_PATH`/`XDG_DATA_DIRS`/`PATH` | none | none |
 
@@ -80,6 +82,44 @@ bwrap --ro-bind / / \
 `--tmp-overlay` (bubblewrap ≥ 0.9.0) gives an ephemeral writable upper layer, so
 writes to `/etc` don't touch the host. Overlaying is required rather than
 `--bind "$PREFIX/usr" /usr`: a bind would *hide* the system libraries.
+
+### Native overlay: no third-party tools
+
+bwrap is a convenience, not a requirement: `unshare` and `mount` are util-linux
+(base system) and overlayfs is the kernel. `--mode overlay-native` builds the
+same stack with nothing else. In `auto` mode it is picked when bwrap is missing
+or its probe fails:
+
+```sh
+U=$(id -u) G=$(id -g) unshare -Urm --propagation private bash -c '
+  ovl=$(mktemp -d); mount -t tmpfs -o mode=0700 tmpfs "$ovl"
+  mkdir "$ovl/up" "$ovl/wk"
+  mount -t overlay overlay \
+    -o "lowerdir=$PREFIX/usr:/usr,upperdir=$ovl/up,workdir=$ovl/wk" /usr
+  exec unshare -U --map-user="$U" --map-group="$G" -- "$@"' _ CMD
+```
+
+- **`lowerdir` is leftmost-wins**, the reverse of bwrap's `--overlay-src` order:
+  `$PREFIX/usr:/usr`, not `/usr:$PREFIX/usr`.
+- `unshare -Ur` makes you uid 0 inside the namespace, which some programs
+  refuse (userspace apt does). After mounting, a nested user namespace
+  (`--map-user`, util-linux ≥ 2.38) maps the command back to your own uid.
+- `$PREFIX` must not contain `:` or `,` (overlayfs option syntax) and must not
+  live under `/usr` or `/etc` (a layer can't be an ancestor of the mount point).
+
+**With root and no userns**, use `admin/native/overlay-run.sh` (run with sudo as
+the admin). The obvious way, `unshare -m` followed by mounts and `exec` in a
+root shell, is a privilege escalation: once `/usr` is overlaid with a
+user-owned tree, every binary root execs in that namespace (`mount` helpers,
+`setpriv`, even `ld.so` and libc) may be the user's file. So the script never
+execs as root inside it. The namespace is pinned to a file under `/run`.
+`mount -N` (loaded from the host) enters it only for `mount(2)`, and `-i`
+skips `mount.<type>` helpers. `nsenter --setuid/--setgid` drops to the user
+before exec'ing the command. Verified on this machine with a hostile prefix: a
+planted `usr/sbin/mount.overlay` and an `etc/ld.so.preload` never ran as root,
+the command ran as the user, and host `/usr`/`/etc` were untouched.
+nsenter's setuid clears supplementary groups (`video`, `render`, `audio`), so
+use `prefix-run.sh` for GUI/GPU apps.
 
 ## GUI/session passthrough: `--gui`
 

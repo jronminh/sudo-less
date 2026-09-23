@@ -27,7 +27,7 @@ and dpkg, installs them into `~/.local`, and writes the runtime config.
 ### No-root path (userns + rootfs)
 
 Requires your admin to enable user namespaces and give you subuid/subgid
-(see `../admin/admin-prep.sh` for what that entails). Then:
+(see `../admin/third-party/admin-prep.sh` for what that entails). Then:
 
 ```sh
 ./scripts/env/make-buildroot.sh        # builds a real Debian rootfs, no root

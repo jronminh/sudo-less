@@ -169,7 +169,7 @@ install waydroid` (as `mobian`; more than just `waydroid` had been purged —
 ## 11. Resolution bugs on a HiDPI screen (2026-09-22)
 
 This panel is HiDPI: `DSI-1`, physical mode 1920x1200, Wayland output
-`scale: 2` → logical 960x600 (matches `admin/desktop-fix.sh`'s own
+`scale: 2` → logical 960x600 (matches `admin/device/desktop-fix.sh`'s own
 `[output:DSI-1] scale = 2` in `/etc/phosh/phoc.ini`). Two separate bugs
 followed from that, in opposite directions:
 
@@ -378,7 +378,7 @@ root needed for the build itself.**
 
 **Deploy — one root drop.** `/var/lib/waydroid/overlay` is root-owned, so the
 copy is the single privileged step:
-[`../admin/waydroid-install-framework-overlay.sh`](../admin/waydroid-install-framework-overlay.sh)
+[`../admin/device/waydroid-install-framework-overlay.sh`](../admin/device/waydroid-install-framework-overlay.sh)
 (as `mobian`) installs the jar to
 `/var/lib/waydroid/overlay/system/framework/services.jar`, where it shadows
 the image's copy via the rootfs overlay

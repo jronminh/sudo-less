@@ -2,7 +2,7 @@
 
 `master` has no `sudo` and no root. Everything below runs as `master` (uid
 1001) and stays inside the home directory. The privileged pieces are done once
-by `mobian` via `admin/admin-prep.sh` (subuid/subgid, user namespaces, uidmap,
+by `mobian` via `admin/third-party/admin-prep.sh` (subuid/subgid, user namespaces, uidmap,
 fuse-overlayfs, `~/.local/bin` on PATH).
 
 There are four levels of "no-root", from lightest to heaviest. Pick the
@@ -150,7 +150,7 @@ Only the final `install` into the root-owned overlay needs the admin account,
 and that is a single `cp`. Worked example (a one-line divide-by-zero guard in
 `services.jar`): `docs/waydroid-mesa-debug.md` §15, with
 `waydroid/patch-services-jar.sh` (unprivileged build) and
-`admin/waydroid-install-framework-overlay.sh` (the one root drop).
+`admin/device/waydroid-install-framework-overlay.sh` (the one root drop).
 
 ---
 

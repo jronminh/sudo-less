@@ -16,7 +16,7 @@ Use it when you can't — or would rather not — install software system-wide.
 > **If you remove your own admin access, keep a way back in.** This project can
 > de-privilege a user on purpose. On a single-user machine that can lock you out
 > of `sudo`; it's recoverable (boot a GRUB `init=/bin/bash` shell and run
-> `admin/unlock.sh`) but needs physical access. Make sure at least one account
+> `admin/native/unlock.sh`) but needs physical access. Make sure at least one account
 > still has a working privileged path, and back up first. See
 > [`docs/hardening.md`](docs/hardening.md) and [`docs/roles.md`](docs/roles.md).
 
@@ -125,7 +125,11 @@ recipes/       per-package notes (see docs/standard.md)
 tools/         deb2home.sh, prefix-run.sh
 flatpak/       bridge for Flatpak apps (docs/flatpak-bridge.md)
 waydroid/      Waydroid fixes (docs/waydroid-mesa-debug.md)
-admin/         root-side scripts (example setup)
+admin/         root-side scripts (example setup), run as the admin:
+  native/        root + base system only (util-linux, kernel): overlay-run, unlock
+  third-party/   root, installs extra packages: admin-prep
+  device/        root, this machine only: SMART, desktop, Waydroid
+  verify-privs.sh  read-only check of the setup, run as the daily user
 patches/       Termux's patches, verbatim
 docs/          all the detail
 ```

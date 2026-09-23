@@ -13,7 +13,7 @@ Two-persona split on this box (Debian forky/sid, host `mobian`, x86_64).
 - Owns privileged services: smartmontools + `cap_sys_rawio`, Waydroid, the
   setuid container stack (`newuidmap`/`newgidmap`).
 - SSH admin account; runs the root-side prep in `../admin/` once:
-  `sudo bash ~/sudo-less/admin/admin-prep.sh [--with-podman]`.
+  `sudo bash ~/sudo-less/admin/third-party/admin-prep.sh [--with-podman]`.
 
 ## `master` (uid 1001) — unprivileged daily user
 
@@ -55,6 +55,6 @@ would require `mobian`'s password. Do not rely on it.
 - Never `sudo`/`su` as `master` (always fails: "not in the sudoers file").
 - **Keep at least one working privileged path.** On a single-user device,
   de-privileging the only user can soft-lock you out of `sudo`/root; recover
-  with a GRUB `init=/bin/bash` shell + `../admin/unlock.sh`.
+  with a GRUB `init=/bin/bash` shell + `../admin/native/unlock.sh`.
 - Never weaken host hardening.
 - Root/admin changes go through `mobian`, ideally via a script in `../admin/`.

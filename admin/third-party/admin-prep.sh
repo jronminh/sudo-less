@@ -1,7 +1,7 @@
 #!/bin/bash
 # admin-prep.sh
 # Run as the `mobian` user (the only sudo-capable account):
-#     sudo bash ~/sudo-less/admin/admin-prep.sh [--with-podman]
+#     sudo bash ~/sudo-less/admin/third-party/admin-prep.sh [--with-podman]
 #
 # One-shot root-level prep so `master` can do everything WITHOUT sudo:
 #   - userspace toolchain (git/rg/jq/python venv/build tools)

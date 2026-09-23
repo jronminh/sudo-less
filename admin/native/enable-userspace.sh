@@ -13,8 +13,9 @@
 #   - ~/.local/bin on PATH for all users
 #   - USER's userspace dirs
 #
-# Extra tools (bwrap, uidmap, mmdebstrap, proot, podman) are separate:
-# admin/third-party/install-tools.sh.
+# Setuid helpers (uidmap, fuse3) and podman are separate:
+# admin/third-party/install-tools.sh. Unprivileged tools (bwrap, mmdebstrap)
+# the user installs with the userspace apt.
 
 set -euo pipefail
 
@@ -58,5 +59,6 @@ echo
 echo "$U can now, WITHOUT sudo:"
 echo "  - run packages from ~/.local with the prefix overlaid on /usr,/etc:"
 echo "      tools/prefix-run.sh --mode overlay-native CMD"
-echo "  - for bwrap, rootless containers and mmdebstrap, also run"
-echo "      admin/third-party/install-tools.sh"
+echo "  - install bwrap, mmdebstrap, ... with the userspace apt (apt-get install ...)"
+echo "  - for mmdebstrap --mode=unshare and rootless podman, also run"
+echo "      admin/third-party/install-tools.sh (setuid uidmap)"

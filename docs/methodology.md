@@ -4,7 +4,8 @@
 1001) and stays inside the home directory. The privileged pieces are done once
 by `mobian`: `admin/native/enable-userspace.sh` (user namespaces, subuid/subgid,
 `~/.local/bin` on PATH; base tools only) and `admin/third-party/install-tools.sh`
-(uidmap, fuse-overlayfs, bwrap, mmdebstrap).
+(setuid `uidmap` and `fuse3` only). Unprivileged tools such as bwrap and
+mmdebstrap `master` installs with the userspace apt.
 
 There are four levels of "no-root", from lightest to heaviest. Pick the
 lightest that does the job.

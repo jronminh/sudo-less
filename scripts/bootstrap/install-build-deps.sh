@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Install the build toolchain + dev libraries needed to build apt and dpkg.
-# Run this FIRST, as root, inside a build environment (podman container or a
-# mmdebstrap rootfs). Idempotent.
+# Run this FIRST, as root, on the build host or inside the podman build
+# container. Idempotent.
 #
 #   podman exec -e DEBIAN_FRONTEND=noninteractive aptbuild \
 #     bash ~/sudo-less/scripts/bootstrap/install-build-deps.sh
 #
-# The package list lives in build-deps.list so the container build, the
-# mmdebstrap rootfs, and the docs all agree.
+# The package list lives in build-deps.list so the host build, the container
+# build and the docs all agree.
 #
 # Notes:
 #   * libselinux1-dev is intentionally omitted: apt/dpkg are built

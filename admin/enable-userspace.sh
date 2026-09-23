@@ -1,7 +1,7 @@
 #!/bin/bash
 # enable-userspace.sh
 # Run as the `mobian` user (the only sudo-capable account), once:
-#     sudo bash ~/sudo-less/admin/native/enable-userspace.sh [USER]
+#     sudo bash ~/sudo-less/admin/enable-userspace.sh [USER]
 #
 # One-time enablement so USER (default: master) can run software in userspace
 # WITHOUT sudo, using base-system tools only (sysctl, usermod, install) — no
@@ -9,12 +9,12 @@
 # run the user's software as root.
 #   - unprivileged user namespaces (unshare -Ur, overlayfs in a userns >= 5.11):
 #     enough for `tools/prefix-run.sh --mode overlay-native`
-#   - subuid/subgid for USER (rootless containers, mmdebstrap --mode=unshare)
+#   - subuid/subgid for USER (rootless containers)
 #   - ~/.local/bin on PATH for all users
 #   - USER's userspace dirs
 #
 # Setuid helpers (uidmap, fuse3) and podman are separate:
-# admin/third-party/install-tools.sh. Unprivileged tools (bwrap, mmdebstrap)
+# third-party/install-tools.sh. Unprivileged tools (bwrap)
 # the user installs with the userspace apt.
 
 set -euo pipefail
@@ -48,7 +48,7 @@ printf '%s\n' \
 sudo chmod 644 /etc/profile.d/50-local-bin.sh
 
 echo "==> preparing $U's userspace dirs"
-sudo -u "$U" mkdir -p "$H/.local/bin" "$H/.local/lib" "$H/.local/share/rootfs"
+sudo -u "$U" mkdir -p "$H/.local/bin" "$H/.local/lib"
 
 echo
 echo "==> DONE."
@@ -59,6 +59,6 @@ echo
 echo "$U can now, WITHOUT sudo:"
 echo "  - run packages from ~/.local with the prefix overlaid on /usr,/etc:"
 echo "      tools/prefix-run.sh --mode overlay-native CMD"
-echo "  - install bwrap, mmdebstrap, ... with the userspace apt (apt-get install ...)"
-echo "  - for mmdebstrap --mode=unshare and rootless podman, also run"
-echo "      admin/third-party/install-tools.sh (setuid uidmap)"
+echo "  - install bwrap, ... with the userspace apt (apt-get install ...)"
+echo "  - for rootless podman, also run"
+echo "      third-party/install-tools.sh (setuid uidmap)"

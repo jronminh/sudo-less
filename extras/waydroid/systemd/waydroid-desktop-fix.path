@@ -1,9 +1,0 @@
-[Unit]
-Description=Watch for Waydroid app-entry resync
-
-[Path]
-PathChanged=%h/.local/share/applications
-Unit=waydroid-desktop-fix.service
-
-[Install]
-WantedBy=default.target

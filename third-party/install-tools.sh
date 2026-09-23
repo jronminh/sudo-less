@@ -1,22 +1,22 @@
 #!/bin/bash
 # install-tools.sh
 # Run as the `mobian` user (the only sudo-capable account), once:
-#     sudo bash ~/sudo-less/admin/third-party/install-tools.sh [--with-podman]
+#     sudo bash ~/sudo-less/third-party/install-tools.sh [--with-podman]
 #
 # Installs ONLY what `master` cannot install for themselves. A package belongs
 # here when it needs root to work, not merely to be installed:
 #   - uidmap: setuid newuidmap/newgidmap, which map the subuid/subgid ranges
-#     (mmdebstrap --mode=unshare, rootless podman)
+#     (rootless podman)
 #   - fuse3 + the fuse module at boot: setuid fusermount3 and /dev/fuse
 #     (AppImages, sshfs, fuse-overlayfs outside a userns)
 #   - --with-podman: podman + distrobox (system config under /etc/containers,
 #     conmon/runc/netavark helpers); optional
 #
-# Everything else (bubblewrap, mmdebstrap, debootstrap, slirp4netns,
+# Everything else (bubblewrap, slirp4netns,
 # fuse-overlayfs, git, rg, jq, ...) is ordinary unprivileged software: master
-# installs it with the userspace apt into ~/.local (docs/roles.md).
+# installs it with the userspace apt into ~/.local.
 #
-# Run admin/native/enable-userspace.sh first (user namespaces, subuid/subgid,
+# Run admin/enable-userspace.sh first (user namespaces, subuid/subgid,
 # PATH). Nothing here runs master's software as root: admin steps only enable
 # userspace.
 
@@ -53,4 +53,4 @@ printf '   %-12s %s\n' /dev/fuse "$( [ -c /dev/fuse ] && echo ok || echo MISSING
 [ "$WITH_PODMAN" = 1 ] && printf '   %-12s %s\n' podman "$(command -v podman || echo MISSING)"
 echo
 echo "master now installs the rest WITHOUT sudo, e.g.:"
-echo "  apt-get install bubblewrap mmdebstrap slirp4netns fuse-overlayfs"
+echo "  apt-get install bubblewrap slirp4netns fuse-overlayfs"

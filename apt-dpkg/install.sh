@@ -62,10 +62,11 @@ fi
 # upgrade/remove them into/from the prefix. Our own installs stay upgradable.
 bash "$REPO/scripts/setup/lock-seeded.sh" lock
 
-# Install recipe shims (scripts a recipe's `shim` key requires on PATH ahead
-# of the real one; see docs/standard.md).
+# Install each ecosystem's shims (scripts a recipe's `shim` key requires on
+# PATH ahead of the real one; see docs/standard.md and ecosystems/).
 mkdir -p "$PREFIX/bin"
-for s in "$REPO/shims/"*; do
+for s in "$REPO"/ecosystems/*/shims/*; do
+  [ -f "$s" ] || continue
   install -m 0755 "$s" "$PREFIX/bin/$(basename "$s")"
 done
 

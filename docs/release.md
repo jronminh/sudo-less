@@ -11,8 +11,8 @@ promise.
 curl -fsSL https://raw.githubusercontent.com/jronminh/sudo-less/main/bootstrap.sh | bash
 ```
 
-Building from source (the three paths in [`porting.md`](porting.md)) and the
-`overlay`/`rootfs`/`gui` tiers are **experimental** — kept and documented, but
+Building from source ([`porting.md`](porting.md)), the overlay and GUI apps
+are **experimental** — kept and documented, but
 not the promise.
 
 ## Trust model: pinned inputs, verifiable output
@@ -37,12 +37,12 @@ run on bookworm and newer. That is the real compatibility limit: anything older
 than bookworm (older glibc) is not supported, and this is stated rather than
 hidden.
 
-Build releases with the rootfs path pinned to that suite — **not**
-`build-on-host`, which inherits whatever the host happens to run:
+Build releases in a container pinned to that suite, **not** on the host,
+which has whatever suite it happens to run. CI does this
+(`.github/workflows/build.yml`, `container: debian:bookworm`); by hand:
 
 ```sh
-SUITE=bookworm ./scripts/env/make-buildroot.sh
-./scripts/env/build-in-rootfs.sh
+IMAGE=debian:bookworm ./scripts/env/build-in-container.sh
 ```
 
 `package-prebuilt.sh` writes a `<asset>.buildinfo` recording the suite, arch,
@@ -58,8 +58,7 @@ The artifact *is* relocatable across users and prefixes: apt follows the config
 
 ```sh
 # 1. build in a CLEAN prefix against the pinned baseline suite (bookworm):
-SUITE=bookworm ./scripts/env/make-buildroot.sh
-./scripts/env/build-in-rootfs.sh
+IMAGE=debian:bookworm ./scripts/env/build-in-container.sh
 
 # 2. package it:
 ./scripts/bootstrap/package-prebuilt.sh   # -> dist/<asset>, .sha256, .buildinfo
@@ -84,7 +83,7 @@ or a specific tag with `--version`.
 ## Scope
 
 - **Supported:** the floor tier (`direct`/`env`) via this route.
-- **Experimental:** source builds, and the `overlay`/`rootfs`/`gui` tiers.
+- **Experimental:** source builds, the overlay, and GUI apps.
 - **Out of scope:** `tier never` packages (32-bit-only, self-updating,
   services, PAM/setuid) — see `recipes/` and [`standard.md`](standard.md).
 

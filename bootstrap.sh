@@ -13,7 +13,7 @@
 #
 # This is the supported path (docs/standard.md): the floor tier, reached with
 # no capability beyond curl + tar + a writable $PREFIX. Building from source,
-# and the overlay/rootfs/gui tiers, are experimental.
+# the overlay and GUI apps, are experimental.
 set -euo pipefail
 
 PREFIX="${PREFIX:-$HOME/.local}"

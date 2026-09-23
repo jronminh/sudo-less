@@ -11,7 +11,6 @@ set -euo pipefail
 source "$(dirname "$0")/../common.sh"
 
 RECIPES="${RECIPES:-$REPO/recipes}"
-ROOTFS="${ROOTFS:-$HOME/buildroot}"
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
@@ -46,7 +45,6 @@ tier_ok() { # TIER -> 0 ok, 1 missing prerequisites, 2 never
     direct|env) return 0 ;;
     overlay)    have bwrap || "$REPO/tools/prefix-run.sh" --mode overlay-native --print true >/dev/null 2>&1 ;;
     gui)        have bwrap && session_ok ;;
-    rootfs)     "$REPO/tools/prefix-run.sh" --mode rootfs --print true >/dev/null 2>&1 ;;
     never)      return 2 ;;
     *)          return 1 ;;
   esac

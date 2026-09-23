@@ -1,0 +1,113 @@
+# Design
+
+The whole of sudo-less on one page: what it is for, how its parts fit, and
+which parts exist today. The other documents go deeper into one part each.
+
+## Goal
+
+A user created on a **standard Debian install, with no `sudo`**, installs and
+uses `.deb` packages from the supported sections into `~/.local`. The admin
+does a few one-time steps and nothing per package. The user types only
+`apt-get`; everything else happens by itself.
+
+Measured by three criteria (see the README): a new account works at once,
+coverage per Debian section from a random sample, and a clear boundary of
+what is the admin's.
+
+## The idea: ride apt's own lifecycle
+
+apt already calls out at every step of its work, through hooks declared in
+`apt.conf.d` ([apt.conf(5)](https://manpages.debian.org/apt.conf)).
+sudo-less hangs one pipeline on those hooks instead of asking the user to run
+tools around apt. Every package goes through the same four stages:
+
+```
+apt-get update  ──▶ [1 sync]       APT::Update::Post-Invoke-Success
+apt-get install ──▶ [2 classify]   DPkg::Pre-Install-Pkgs   (reads the .deb list)
+                    [3 install]    dpkg, with shims on DPkg::Path only
+                    [4 integrate]  DPkg::Post-Invoke
+```
+
+| stage | what it does | why here |
+|---|---|---|
+| **1. sync** | re-seed the prefix's view of the system's packages from the host's dpkg database, and keep them held | when the admin upgrades the system, the prefix follows at the next `update`; a stale seed is what makes apt report "held broken packages" |
+| **2. classify** | for each incoming `.deb`: decide its **scope** (in scope, the admin's, or `never`, from its section and signals such as `adduser` or a service) and refuse what is out of scope with the reason; decide its **mechanism** (none, environment, overlay); find **unsafe maintainer scripts** (a root-only command with no shim) and stop before dpkg runs; record every decision | the `.deb` files are on disk and nothing is installed yet, so a wrong package costs nothing and the prefix never wedges |
+| **3. install** | dpkg runs unchanged. It exports `DPKG_ROOT` (the prefix) to maintainer scripts, and scripts that honour it (`add-shell` does) write into the prefix; the few `/etc` files they expect are seeded there. Shims for root-only helpers (`py3compile`, service helpers) sit in a directory that is on `DPkg::Path` only | maintainer scripts see the prefix and the shims; the user's shell never sees the shims |
+| **4. integrate** | for the packages this run changed: write or remove overlay wrappers, refresh launchers and icons, run each ecosystem's integration, and check for half-configured packages (repair, or say exactly what to do) | the files are in place; the user's next command just works |
+
+The hooks are small bash scripts in `$PREFIX/share/sudo-less/hooks/`, each
+dispatching to ordered parts (`run-parts` style), so adding a behaviour means
+adding a file, not editing a script.
+
+## Parts
+
+| part | role | detail |
+|---|---|---|
+| **apt/dpkg port** | the real Debian apt and dpkg, following upstream, patched only as far as working without root in a prefix needs (a fork of Termux's patches) | [`apt-dpkg-port.md`](apt-dpkg-port.md) |
+| **pipeline** | the four stages above | this page |
+| **classifier** | one library that reads a `.deb` and returns scope, mechanism and unsafe scripts; used by stage 2, by `sudo-less explain` and by the survey tools, so the same input always gets the same verdict | `scripts/catalog/check-package.sh` (to become the library) |
+| **mechanisms** | how a relocated package is made to run: environment, shims, the overlay | [`mechanisms.md`](mechanisms.md) |
+| **ecosystems** | per-language parts that plug into the stages: `shims/`, `classify.d/`, `integrate.d/`, and a one-time `install.sh` for global environment | [`ecosystems/`](../ecosystems/) |
+| **recipes** | exceptions only: a recipe overrides the classifier where it is wrong and proves it with `verify` | [`standard.md`](standard.md) |
+| **state** | `$PREFIX/var/lib/sudo-less/`: per package, its scope, mechanism and the wrappers it got, so everything can be explained and removed cleanly | — |
+| **admin steps** | one-time enablement (`admin/`) and the few system packages that need root to work (`third-party/`) | [`../third-party/`](../third-party/) |
+
+What the user sees:
+
+```sh
+apt-get install PKG      # installs, or refuses with the reason
+PKG                      # runs, whatever mechanism it needs
+sudo-less explain PKG    # why it is in or out of scope, and how it runs
+sudo-less doctor         # user namespaces, signature verification, wedged packages
+```
+
+## Principles
+
+1. **One classifier.** Scope and mechanism are decided in one place, from the
+   package itself. No second list to keep in sync.
+2. **Ecosystems plug in; they do not branch off.** A language adds files to
+   the stages. Nothing language-specific lives in the core scripts.
+3. **Recipes are exceptions.** A package needs a recipe only when the
+   classifier gets it wrong.
+4. **Hooks never break apt.** A failing hook warns. The one deliberate stop
+   is a refusal in stage 2, and it always says why.
+5. **Everything is explainable.** Every decision is recorded where
+   `sudo-less explain` can read it.
+6. **apt and dpkg stay as original as possible.** They are patched only as
+   far as native needs: no root, a prefix, a relocatable build
+   ([`apt-dpkg-port.md`](apt-dpkg-port.md#beyond-termuxs-patches-our-own-changes)).
+   Everything around a package is hooks; everything at run time is
+   mechanisms.
+7. **bash and plain text only**, no other runtime
+   ([`standard.md`](standard.md)).
+8. **Never root.** Nothing in the pipeline runs as root or asks for it; what
+   needs root is the admin's, once.
+
+## What exists today
+
+| part | status |
+|---|---|
+| apt/dpkg port, prebuilt, `bootstrap.sh` | works; three bugs for a new account (`gpgv` vs `sqv`, the build machine's paths in the prebuilt dpkg, `tools/` missing from the prebuilt) |
+| stage 1 sync | manual: `lock-seeded.sh --reseed` |
+| stage 2 classify | the logic exists as `check-package.sh`, run by hand; no hook |
+| stage 3 shims | `py3compile` only, and on the user's `PATH` |
+| stage 4 integrate | launchers only (`01update-desktop-database`); overlay by hand with `prefix-run.sh` |
+| ecosystems | Python complete; Java, Perl, Ruby documented, environment pinned in recipes |
+| state, `explain`, `doctor` | not yet |
+
+## Order of work
+
+1. Fork the patch set, same behaviour as today; rebase it onto current
+   upstream apt and dpkg (apt 3.x verifies with `sqv`); add patches A
+   (relocatable dpkg) and C (prefix hygiene), and `tools/` to the prebuilt.
+   That fixes the three new-account bugs (criterion 1). Patch B (two-layer
+   database) once the survey shows what a stale seed costs.
+2. Stage 3: seed the `/etc` files maintainer scripts expect under
+   `DPKG_ROOT`; move shims to a `DPkg::Path`-only directory; add shims for
+   the common root-only helpers the survey found.
+3. Stage 2: turn `check-package.sh` into the classifier library and hook it.
+4. Stage 4: overlay wrappers and state.
+5. Stage 1: sync on `update`.
+6. `explain` and `doctor`.
+7. Re-run the survey after each step; the per-section coverage is how the
+   design is judged.

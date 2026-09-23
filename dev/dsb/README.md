@@ -7,15 +7,15 @@ It started here as `tools/updo` and is now a separate project; its design,
 security model and tests live there.
 
 For sudo-less it is an optional admin step, in the same "enable once, never
-run the user's software as root" shape as `admin/native/enable-userspace.sh`
-(`docs/roles.md`). Nothing in sudo-less needs it to work.
+run the user's software as root" shape as `admin/enable-userspace.sh`.
+Nothing in sudo-less needs it to work.
 
-## The policy: `admin/dsb/sudo-less.conf`
+## The policy: `dev/dsb/sudo-less.conf`
 
 Install the `dsb` package, then, as the admin:
 
 ```sh
-install -m 644 admin/dsb/sudo-less.conf /etc/dsb/conf.d/sudo-less.conf
+install -m 644 dev/dsb/sudo-less.conf /etc/dsb/conf.d/sudo-less.conf
 dsb-admin apply
 ```
 

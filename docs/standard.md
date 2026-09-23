@@ -3,7 +3,7 @@
 This is the contract that package **recipes** conform to. Its point is to make
 fixes comparable and *proven*, not anecdotal: a recipe declares the **minimum
 tier** a package needs and the mechanism that gets it there, and
-`scripts/catalog/recipes.sh` verifies the claim. See [`paths.md`](paths.md) for why the
+`scripts/catalog/recipes.sh` verifies the claim. See [`mechanisms.md`](mechanisms.md) for why the
 tiers exist.
 
 ## Design principle: triage, not universal support
@@ -48,7 +48,7 @@ stable.
 |---|---|---|---|---|
 | `direct` | **supported** | nothing | relocatable binaries run with `PATH` (+ `LD_LIBRARY_PATH`) | anything reading paths not on `PATH` |
 | `env` | **supported** | nothing (no root, no namespaces, no new deps) | lookups the program exposes an env knob for (`PYTHONPATH`, `PERL5LIB`, `GEM_PATH`, `CLASSPATH`, `XDG_*`, …) | absolute paths baked into binaries; root-only postinst |
-| `overlay` | experimental | overlayfs ≥ 5.11 + unprivileged userns (enabled once by `admin/native/enable-userspace.sh`) + a runner: `bwrap`, or util-linux alone (`overlay-native`) | hardcoded `/etc`, `/usr/share`, `/usr/lib` resolve to the prefix, stacked over the system tree | root-only postinst; session integration |
+| `overlay` | experimental | overlayfs ≥ 5.11 + unprivileged userns (enabled once by `admin/enable-userspace.sh`) + a runner: `bwrap`, or util-linux alone (`overlay-native`) | hardcoded `/etc`, `/usr/share`, `/usr/lib` resolve to the prefix, stacked over the system tree | root-only postinst; session integration |
 | `rootfs` | experimental | a complete rootfs (`mmdebstrap`) + a runner: `bwrap`, util-linux + `chroot` (`rootfs-native`), or `proot` | a real `/`: paths *and* root-only postinst (dpkg runs as root inside) | host services, kernel/initramfs, host integration |
 | `gui` | experimental | an `overlay`/`rootfs` runner **plus** a desktop session | display, GPU and audio passed through | — |
 | `never` | out of scope | — | nothing: documented as out of scope | 32-bit-only, self-updating/proprietary, container-in-container, services, PAM/setuid |

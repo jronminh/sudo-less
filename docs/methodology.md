@@ -2,10 +2,10 @@
 
 `master` has no `sudo` and no root. Everything below runs as `master` (uid
 1001) and stays inside the home directory. The privileged pieces are done once
-by `mobian`: `admin/native/enable-userspace.sh` (user namespaces, subuid/subgid,
-`~/.local/bin` on PATH; base tools only) and `admin/third-party/install-tools.sh`
-(setuid `uidmap` and `fuse3` only). Unprivileged tools such as bwrap and
-mmdebstrap `master` installs with the userspace apt.
+by `mobian`: `admin/enable-userspace.sh` (user namespaces, subuid/subgid,
+`~/.local/bin` on PATH; base tools only) and `third-party/install-tools.sh`
+(setuid `uidmap` and `fuse3` only). Unprivileged tools such as bwrap
+`master` installs with the userspace apt.
 
 There are four levels of "no-root", from lightest to heaviest. Pick the
 lightest that does the job.
@@ -46,69 +46,12 @@ This is the primitive that every "rootless container" is built on.
 
 ---
 
-## 3. A real rootfs — `mmdebstrap` + `bwrap`
+## 3. A real rootfs
 
-A **rootfs** is just a directory tree shaped like `/` (`usr/`, `etc/`, `var/`,
-device nodes, ownership). A kernel can make it the `/` for a process tree.
-`mmdebstrap` builds one by fetching `.deb`s and installing them *into* that
-directory; normally that needs root. Unprivileged strategies:
-
-| mode | how it fakes root | notes |
-|---|---|---|
-| `--mode=unshare` | user namespace (`unshare -Ur`) | can chown/mknod/chroot; maps to **subuid**, not your uid |
-| `--mode=fakechroot` | `LD_PRELOAD` path shim + fakeroot | runs as you; needs the `fakechroot` package |
-| `--mode=chrootless` | `dpkg --root --force-script-chrootless` | runs as you; skips some maintainer-script work |
-
-### The subuid gotcha (why we pipe a tar)
-
-`--mode=unshare` maps `/etc/subuid`'s range (`165536`) to root inside the
-namespace, **not** your real uid. So inside, files owned by `1001` (your whole
-home, mode `0700`) are *unmapped* → `Permission denied` when mmdebstrap tries to
-write the rootfs into `~`.
-
-Workaround: have mmdebstrap stream a tarball to **stdout** instead — a file
-descriptor we already opened, which bypasses path permissions. Extract it
-ourselves:
-
-```sh
-export TMPDIR=/tmp          # the mapped root must be able to write its tempdir
-mmdebstrap --mode=unshare --variant=apt --format=tar \
-  --components=main --include="$(paste -sd, scripts/build-deps.list)" \
-  sid - http://deb.debian.org/debian > ~/buildroot.tar
-
-rm -rf ~/buildroot && mkdir -p ~/buildroot
-tar -xf ~/buildroot.tar -C ~/buildroot --no-same-owner --exclude='./dev/*'
-```
-
-`./dev` is skipped: device nodes can't be created unprivileged, and we bind the
-host's `/dev` when entering anyway.
-
-### Entering the rootfs — `bwrap` (or `unshare` + `chroot`)
-
-```sh
-bwrap --bind ~/buildroot / \
-  --dev-bind /dev /dev --proc /proc --ro-bind /sys /sys --bind /tmp /tmp \
-  --bind "$HOME" "$HOME" --chdir "$HOME" --setenv HOME "$HOME" \
-  /usr/bin/env PREFIX="$HOME/.local" bash ~/sudo-less/scripts/bootstrap/build-apt.sh
-```
-
-`bwrap` uses unprivileged user namespaces (`clone`/`unshare`) to present
-`~/buildroot` as `/` and bind-mounts the host's `$HOME` back in, so the source
-tree and `$PREFIX` stay on the host filesystem. This is what
-`scripts/env/build-in-rootfs.sh` does.
-
-`proot` is the older alternative: it uses `ptrace` (no privileges) instead of
-user namespaces, with `-0` faking uid 0. But on hosts that restrict ptrace
-(`kernel.yama.ptrace_scope=2`), `ptrace(PTRACE_TRACEME)` fails with `EPERM`, and
-on recent kernels its seccomp accelerator needs `PROOT_NO_SECCOMP=1`. Prefer
-`bwrap`.
-
-`unshare -Urm` + `chroot` needs nothing beyond util-linux and coreutils (no
-ptrace, no bwrap); `tools/prefix-run.sh --mode rootfs-native` does the binds
-for you (see `docs/paths.md`), and `build-in-rootfs.sh` falls back to it when
-bwrap is missing. `mmdebstrap` itself needs no admin either: install it with
-the userspace apt (`apt-get install mmdebstrap`), only `uidmap` (setuid
-`newuidmap`) comes from `admin/third-party/install-tools.sh`.
+A directory shaped like `/`, built unprivileged with `mmdebstrap
+--mode=unshare` and entered with `bwrap` or `unshare` + `chroot`, is one more
+way to get a build environment without root. The repo does not script or
+use it; `docs/porting.md` sketches it.
 
 ---
 
@@ -135,36 +78,11 @@ Notes:
 
 ---
 
-## Overlaying a fix into a read-only image (Waydroid)
-
-When the thing that needs fixing lives *inside* an image you can't rebuild,
-don't rebuild it — **build the replacement unprivileged, then drop it into an
-overlay the image already reads.**
-
-Waydroid merges `/var/lib/waydroid/overlay` over the Android image
-(`lowerdir=/var/lib/waydroid/overlay:/var/lib/waydroid/rootfs`), so a file at
-`overlay/system/framework/services.jar` shadows the image's own copy — the
-image stays untouched and `rm` of that one file reverts it. Same idea as
-`deb2home`/`bwrap` in spirit: work in a place you control, don't escalate to
-change the original.
-
-The catch here is that the file is **compiled** (dex inside a jar), so the
-"build" is disassemble → patch → reassemble rather than a text edit. That is
-pure Java and needs **no root** — on this box it ran on the phone
-(`ssh fe2`, Termux + openjdk) with the standalone `baksmali`/`smali` fat jars.
-Only the final `install` into the root-owned overlay needs the admin account,
-and that is a single `cp`. Worked example (a one-line divide-by-zero guard in
-`services.jar`): `docs/waydroid-mesa-debug.md` §15, with
-`extras/waydroid/patch-services-jar.sh` (unprivileged build) and
-`extras/device/waydroid-install-framework-overlay.sh` (the one root drop).
-
----
-
 ## Worked example: userspace apt + dpkg
 
 Goal: run `apt-get install` as `master`, installing `.deb`s into `~/.local`.
 
-1. Build env: `scripts/env/make-buildroot.sh` (or `scripts/env/build-in-container.sh`).
+1. Build env: `scripts/env/build-on-host.sh` (with root) or `scripts/env/build-in-container.sh`.
 2. apt 2.8.1 + dpkg 1.22.6 built with Termux's patches → `~/.local`.
    Details and the exact retargeting in `docs/apt-dpkg-port.md`.
 3. Runtime config: `scripts/setup/install-config.sh` (sources.list, `apt.conf.d`,
@@ -174,11 +92,12 @@ Goal: run `apt-get install` as `master`, installing `.deb`s into `~/.local`.
 
 ## Runtime privileges without root
 
-For actions that genuinely need a privileged daemon (power, network, storage,
-a few services), `master` is granted narrowly-scoped **polkit** actions instead
-of sudo, and some devices via udev `uaccess` + file capabilities (e.g. SMART).
-See `docs/polkit.md` and `docs/roles.md`. Verify the whole setup with
-`admin/verify-privs.sh`.
+sudo-less installs software; it does not grant privileges. What a package
+needs beyond an unprivileged user at *run* time (a device group, a
+capability such as `CAP_NET_RAW`, a port below 1024) is the admin's call,
+made once: polkit or udev `uaccess` for the desktop session, or a bounded
+identity through [dsb](https://github.com/jronminh/dsb) (see `dev/dsb/` for
+the policy used to develop sudo-less).
 
 ---
 
@@ -194,22 +113,7 @@ See `docs/polkit.md` and `docs/roles.md`. Verify the whole setup with
 
 ---
 
-## Prior art: proot-distro
+## Prior art
 
-[termux/proot-distro](https://github.com/termux/proot-distro) (GPL-3.0) runs
-full Linux userlands from OCI images without root, via `proot`. We don't adopt
-it: this repo targets a host that already *is* a full Debian, so a second,
-docker-like userland adds nothing, and `proot` needs ptrace, which
-`kernel.yama.ptrace_scope=2` forbids. Its *methods* solve the same no-root
-problems we have, so we learn from them:
-
-| method (proot-distro source) | applied here |
-|---|---|
-| host-side vs guest environment kept apart; `isolated`/`minimal` env modes (`execenv.py`, `commands/login/env.py`) | rootfs runners build the environment from an allowlist instead of inheriting the host's (a leaked host `PATH` made `dpkg` inside the rootfs resolve to the userspace one) — #28 |
-| bind checklist for a guest `/`: `/dev`, `/proc`, `/sys`, `/dev/shm`, `/dev/fd`, `resolv.conf`, `hosts` (`commands/login/proot_cmd.py`) | `tools/prefix-run.sh --mode rootfs-native` — #28 |
-| safe archive extraction: drop `..`, re-root every symlink hop inside the target, never write through a planted hardlink, skip device nodes (`helpers/tar_extract.py`) | audit of `deb2home` and the userspace dpkg unpack — #29 |
-| atomic writes (temp file + `rename`) and a per-container lock (`atomic.py`, `locking.py`) | prefix state written by the setup scripts — #30 |
-
-Not taken: OCI image pulls, container `ps`/`kill` bookkeeping (our runners
-`exec` the command in place, so there is nothing to track), faked `/proc`
-entries and `--link2symlink` (Android and proot specifics).
+Termux and proot-distro solve the same no-root problem from the other end;
+what they do and what this repo took from them: `docs/prior-art.md`.

@@ -143,8 +143,13 @@ in the prefix with no patch. But the links are absolute
 (`$PREFIX/usr/bin/figlet` → `/etc/alternatives/figlet` →
 `/usr/bin/figlet-utf8`), so they resolve against the host, not the prefix,
 and the command is missing. The same holds for absolute symlinks shipped in
-`.deb` files. Relative symlinks inside the prefix would fix both; not
-patched yet. Triggers of seeded system
+`.deb` files. `0102-relative-symlinks` makes both relative inside an
+install root: `figlet` → `../../etc/alternatives/figlet` →
+`../../usr/bin/figlet-utf8`. A `.deb` link whose target exists only on the
+host (a seeded system package's file) stays absolute. A script that
+`exec`s an absolute path (`figlet-utf8` runs `/usr/bin/figlet-figlet`) is
+not a symlink; that is the overlay's job ([`mechanisms.md`](mechanisms.md)).
+Triggers of seeded system
 packages (`man-db`, `fontconfig`, `shared-mime-info`) have no handler in the
 prefix, and prefix-aware versions belong in stage 4, not in dpkg.
 

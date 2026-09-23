@@ -4,3 +4,4 @@
 0003-no-ldconfig-check.patch
 0100-relocatable.patch
 0101-no-setuid.patch
+0102-relative-symlinks.patch

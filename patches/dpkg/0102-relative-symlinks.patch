@@ -1,0 +1,261 @@
+Origin: sudo-less
+Change: inside an install root (--instdir, DPKG_ROOT), symlinks are made relative, so they resolve inside the root instead of on the host. dpkg does it when unpacking a .deb, unless the target exists only on the host (a file of a package the root does not hold); update-alternatives does it for every link it makes, and reads relative links back as absolute paths. Outside an install root nothing changes.
+License: GPL-2.0-or-later
+
+--- a/lib/dpkg/path-rel.h	1970-01-01 08:00:00.000000000 +0800
++++ b/lib/dpkg/path-rel.h	2026-09-24 04:17:43.858054748 +0700
+@@ -0,0 +1,184 @@
++/*
++ * libdpkg - Debian packaging suite library routines
++ * path-rel.h - symlinks inside an install root (sudo-less)
++ *
++ * This is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * Header-only, with no libdpkg dependency, so that update-alternatives
++ * (which links only libcompat) can use it too.
++ */
++
++#ifndef LIBDPKG_PATH_REL_H
++#define LIBDPKG_PATH_REL_H
++
++#include <sys/stat.h>
++
++#include <stdlib.h>
++#include <string.h>
++
++static inline char *
++path_rel_alloc(size_t size)
++{
++	char *p = malloc(size);
++
++	if (p == NULL)
++		abort();
++	return p;
++}
++
++/*
++ * Normalize an absolute path into DST (at least strlen(path) + 2 bytes):
++ * collapse "//", "." and "..". Returns the number of components.
++ */
++static inline int
++path_rel_normalize(char *dst, const char *path)
++{
++	const char *p = path;
++	size_t len = 0;
++	int n = 0;
++
++	dst[0] = '\0';
++	while (*p) {
++		const char *end;
++		size_t clen;
++
++		while (*p == '/')
++			p++;
++		if (*p == '\0')
++			break;
++		end = strchr(p, '/');
++		clen = end ? (size_t)(end - p) : strlen(p);
++
++		if (clen == 1 && p[0] == '.') {
++			/* Skip. */
++		} else if (clen == 2 && p[0] == '.' && p[1] == '.') {
++			if (n > 0) {
++				while (len > 0 && dst[len - 1] != '/')
++					len--;
++				if (len > 0)
++					len--;
++				dst[len] = '\0';
++				n--;
++			}
++		} else {
++			dst[len++] = '/';
++			memcpy(dst + len, p, clen);
++			len += clen;
++			dst[len] = '\0';
++			n++;
++		}
++		p += clen;
++	}
++	if (len == 0)
++		strcpy(dst, "/");
++	return n;
++}
++
++/*
++ * The absolute target of a symlink at LINK (absolute) whose content is
++ * TARGET, normalized. Newly allocated.
++ */
++static inline char *
++path_rel_resolve(const char *link, const char *target)
++{
++	char *joined, *dst;
++
++	if (target[0] == '/') {
++		dst = path_rel_alloc(strlen(target) + 2);
++		path_rel_normalize(dst, target);
++		return dst;
++	}
++
++	joined = path_rel_alloc(strlen(link) + strlen(target) + 5);
++	strcpy(joined, link);
++	strcat(joined, "/../");
++	strcat(joined, target);
++	dst = path_rel_alloc(strlen(joined) + 2);
++	path_rel_normalize(dst, joined);
++	free(joined);
++	return dst;
++}
++
++/*
++ * A relative symlink content that leads from the directory of LINK to
++ * TARGET, both absolute. Newly allocated.
++ */
++static inline char *
++path_rel_make(const char *link, const char *target)
++{
++	char *l, *t, *rel;
++	const char *lp, *tp;
++	size_t common = 0, i;
++	int up = 0;
++
++	l = path_rel_alloc(strlen(link) + 2);
++	t = path_rel_alloc(strlen(target) + 2);
++	path_rel_normalize(l, link);
++	path_rel_normalize(t, target);
++
++	/* The directory of the link. */
++	*strrchr(l, '/') = '\0';
++
++	/* The longest common prefix that ends on a component boundary. */
++	for (i = 0; l[i] && l[i] == t[i]; i++)
++		if (l[i] == '/')
++			common = i;
++	if (l[i] == '\0' && (t[i] == '/' || t[i] == '\0'))
++		common = i;
++
++	for (lp = l + common; *lp; lp++)
++		if (*lp == '/')
++			up++;
++	tp = t + common;
++	if (*tp == '/')
++		tp++;
++
++	rel = path_rel_alloc(up * 3 + strlen(tp) + 2);
++	rel[0] = '\0';
++	while (up-- > 0)
++		strcat(rel, "../");
++	strcat(rel, tp);
++	if (rel[0] == '\0')
++		strcpy(rel, ".");
++	else if (rel[strlen(rel) - 1] == '/')
++		rel[strlen(rel) - 1] = '\0';
++
++	free(l);
++	free(t);
++	return rel;
++}
++
++/*
++ * The content to give a symlink at LINK pointing to TARGET, when installing
++ * into ROOT. Outside an install root, or for a relative TARGET, it is TARGET
++ * unchanged. Inside one, an absolute TARGET would resolve against the host
++ * instead of the root, so it becomes relative, unless it exists only on the
++ * host (a file of a package the root does not hold): then it stays
++ * absolute. Newly allocated.
++ */
++static inline char *
++path_rel_link_target(const char *root, const char *link, const char *target)
++{
++	struct stat st;
++	char *in_root;
++	int in_root_exists;
++
++	if (root == NULL || root[0] == '\0' || target[0] != '/')
++		return strcpy(path_rel_alloc(strlen(target) + 1), target);
++
++	in_root = path_rel_alloc(strlen(root) + strlen(target) + 1);
++	strcpy(in_root, root);
++	strcat(in_root, target);
++	in_root_exists = lstat(in_root, &st) == 0;
++	free(in_root);
++
++	if (!in_root_exists && lstat(target, &st) == 0)
++		return strcpy(path_rel_alloc(strlen(target) + 1), target);
++
++	return path_rel_make(link, target);
++}
++
++#endif /* LIBDPKG_PATH_REL_H */
+--- a/src/main/archives.c	2026-09-24 02:12:54.306352565 +0700
++++ b/src/main/archives.c	2026-09-24 04:17:43.941152321 +0700
+@@ -45,6 +45,7 @@
+ #include <dpkg/dpkg.h>
+ #include <dpkg/dpkg-db.h>
+ #include <dpkg/pkg.h>
++#include <dpkg/path-rel.h>
+ #include <dpkg/path.h>
+ #include <dpkg/fdio.h>
+ #include <dpkg/buffer.h>
+@@ -731,6 +732,15 @@
+   nodestat.mode &= ~(S_ISUID | S_ISGID);
+ 
+   usenode = namenodetouse(nifd->namenode, tc->pkg, &tc->pkg->available);
++
++  if (ti->type == TAR_FILETYPE_SYMLINK) {
++    char *linkname;
++
++    linkname = path_rel_link_target(dpkg_fsys_get_dir(), usenode->name,
++                                    ti->linkname);
++    free(ti->linkname);
++    ti->linkname = linkname;
++  }
+   usename = usenode->name;
+ 
+   trig_file_activate(usenode, tc->pkg);
+--- a/utils/update-alternatives.c	2024-03-11 02:23:06.000000000 +0700
++++ b/utils/update-alternatives.c	2026-09-24 04:17:43.939591805 +0700
+@@ -44,6 +44,7 @@
+ #include <ctype.h>
+ #include <limits.h>
+ 
++#include <dpkg/path-rel.h>
+ #include <dpkg/macros.h>
+ #include <dpkg/i18n.h>
+ 
+@@ -616,6 +617,15 @@
+ 	target = areadlink(root_linkname);
+ 	free(root_linkname);
+ 
++	/* Links inside an install root are relative (see fsys_symlink());
++	 * the rest of the code compares absolute paths. */
++	if (target && instdir[0] && target[0] != '/') {
++		char *abs = path_rel_resolve(linkname, target);
++
++		free(target);
++		target = abs;
++	}
++
+ 	return target;
+ }
+ 
+@@ -672,7 +682,16 @@
+ 	if (unlink(root_linkname) < 0 && errno != ENOENT)
+ 		syserr(_("unable to remove '%s'"), root_linkname);
+ 
+-	if (symlink(filename, root_linkname))
++	/* Inside an install root, an absolute link would resolve against the
++	 * host; make it relative so it stays in the root. */
++	if (instdir[0] && filename[0] == '/') {
++		char *rel = path_rel_make(linkname, filename);
++
++		if (symlink(rel, root_linkname))
++			syserr(_("error creating symbolic link '%.255s'"),
++			       root_linkname);
++		free(rel);
++	} else if (symlink(filename, root_linkname))
+ 		syserr(_("error creating symbolic link '%.255s'"), root_linkname);
+ 
+ 	free(root_linkname);

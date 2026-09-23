@@ -58,6 +58,7 @@ Numbered from `0100`, so Termux-derived patches keep their place.
 |---|---|
 | `0100-relocatable` | patch A: dpkg finds its prefix from `/proc/self/exe` and relocates the config dir and default admin dir compiled in under the build prefix; `dpkg-maintscript-helper` and `dpkg-realpath` find `share/dpkg` next to themselves |
 | `0101-no-setuid` | patch C: unpacking clears setuid and setgid bits, statoverrides included |
+| `0102-relative-symlinks` | inside an install root, symlinks from `.deb` files and from `update-alternatives` are made relative, so they resolve in the root, not on the host; a `.deb` link to a file only the host has stays absolute |
 
 ## Updating
 

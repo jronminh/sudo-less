@@ -14,6 +14,10 @@
 #     substitute the host's values (DEB_CPU / DEB_ARCH, auto-detected).
 #   * --without-libselinux (Termux's --without-selinux is an unrecognized no-op).
 #   * admindir defaults to $PREFIX/var/lib/dpkg via --with-admindir.
+#   * --sysconfdir=/etc: dpkg's config dir must NOT be $PREFIX/etc, or a
+#     relocated artifact tries to read the *builder's* prefix (unreadable to
+#     another user) and dies with "error opening configuration directory".
+#     The admin dir stays $PREFIX via --with-admindir, so the db is still local.
 source "$(dirname "$0")/../common.sh"
 
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"
@@ -37,6 +41,7 @@ sed -i "s/dpkg_arch=TERMUX_ARCH/dpkg_arch=$DEB_ARCH/" configure
 log "configuring"
 ./configure \
   --prefix="$PREFIX" \
+  --sysconfdir=/etc \
   --disable-dselect \
   --disable-shared \
   --without-libselinux \

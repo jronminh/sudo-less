@@ -19,7 +19,7 @@ two axes:
 Each package's verdict is the worst cell it falls in. The user sees only
 that verdict ([`standard.md`](standard.md)); this page is the inside view,
 for people working on sudo-less. The numbers are from
-[`survey-2026-09b.md`](survey-2026-09b.md).
+[`survey.md`](survey.md).
 
 ## The grid
 
@@ -86,4 +86,4 @@ More admin steps, each unlocking some cells, are planned in
 ## Survey
 
 The survey installs and runs every package in a sample and records the
-first cell each one hits ([`survey-2026-09b.md`](survey-2026-09b.md)).
+first cell each one hits ([`survey.md`](survey.md)).

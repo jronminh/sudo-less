@@ -1,0 +1,166 @@
+section	package	install	detail	run	programs
+libs	libcsiphash-1-0	ok		none	
+libs	libklipper6	skew	- libqt6core6t64:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6core6t64:amd64=6.10.2+dfsg-16 is selected for install	-	
+libs	libgnatcoll-omp2	ok		none	
+libdevel	libn32objc-16-dev-mips64r6el-cross	ok		none	
+libdevel	nlinline-dev	ok		none	
+libdevel	libdi-dev	ok		none	
+devel	linux-libc-dev-armel-cross	skew	linux-libc-dev:amd64=7.2.7-1 is not selected for install because: linux-libc-dev:amd64=7.1.13-1 is selected for install	-	
+devel	libstdc++-14-dev-arm64-cross	skew	- linux-libc-dev:amd64=7.2.7-1 is not selected for install because: linux-libc-dev:amd64=7.1.13-1 is selected for install	-	
+devel	gobjc-mingw-w64-ucrt64	ok		none	
+debug	hylafax-client-dbg	skew	- libgs10:amd64=10.08.0~dfsg-2 is not selected for install because: libgs10:amd64=10.07.1~dfsg-1 is selected for install	-	
+debug	libstdc++6-15-dbg	skew	- gcc-15-base:amd64=15.3.0-4 is not selected for install because: gcc-15-base:amd64=15.3.0-3 is selected for install	-	
+debug	xen-utils-4.20-dbg	script	install: cannot change owner and permissions of ‘/var/log/xen’: Invalid argument old xen-utils-common package postinst maintainer script subprocess failed with exit status 1 	-	
+introspection	gir1.2-clapper-0.0	ok		none	
+introspection	gir1.2-fcitxg-1.0	ok		none	
+introspection	gir1.2-spiceclientgtk-3.0	ok		none	
+vcs	git-svn	skew	- git:amd64=1:2.55.0-1 is not selected for install because: git:amd64=1:2.53.0-1 is selected for install	-	
+vcs	git-secret	ok		ok	git-secret:direct:ok
+vcs	git-all	skew	- git:amd64=1:2.55.0-1 is not selected for install because: git:amd64=1:2.53.0-1 is selected for install	-	
+python	python3-bluetooth-adapters	ok		none	
+python	python3-slicerator	ok		none	
+python	python3-yamlfix	ok		ok	yamlfix:view:ok
+perl	libipc-sharelite-perl	ok		none	
+perl	libexception-class-dbi-perl	ok		none	
+perl	libtext-charwidth-perl	other	libtext-charwidth-perl is already the newest version (0.04-12+b1). Solving dependencies... 0 upgraded, 0 newly installed, 0 to remove and 249 not upgraded. 	-	
+ruby	ruby-sentry-sidekiq	ok		none	
+ruby	ruby-money	ok		none	
+ruby	ruby-bundler	ok		ok	bundle:view:ok,bundler:view:ok
+rust	librust-wezterm-input-types-dev	ok		none	
+rust	librust-typemap-ors-dev	ok		none	
+rust	librust-vte-dev	ok		none	
+golang	golang-github-google-go-tdx-guest-dev	ok		none	
+golang	golang-github-jacobsa-util-dev	ok		none	
+golang	golang-github-armon-go-proxyproto-dev	ok		none	
+haskell	libghc-pointedlist-prof	ok		none	
+haskell	libghc-classy-prelude-conduit-prof	ok		none	
+haskell	libghc-comonad-prof	ok		none	
+javascript	node-jszip	ok		none	
+javascript	node-array-from	ok		none	
+javascript	node-wide-align	ok		none	
+java	libjavassist-java	ok		none	
+java	libopenjfx-jni	ok		none	
+java	libjlayer-java	ok		none	
+php	php-symfony-go-ip-notifier	ok		none	
+php	php-horde-sessionhandler	ok		none	
+php	php-ramsey-collection	ok		none	
+ocaml	libstdcompat-ocaml	ok		none	
+ocaml	libstdlib-ocaml	ok		none	
+ocaml	libmarkup-lwt-ocaml-dev	ok		none	
+lisp	irony-server	ok		ok	irony-server:view:ok
+lisp	elpa-migemo	skew	- gcc-15-base:amd64=15.3.0-4 is not selected for install because: gcc-15-base:amd64=15.3.0-3 is selected for install	-	
+lisp	ecl	ok		ok	ecl:view:ok,ecl-config:direct:ok
+gnu-r	r-cran-conflicted	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+gnu-r	r-cran-wk	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+gnu-r	r-bioc-affyio	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+interpreters	erlang-odbc	script	Failed to take /etc/passwd lock: Permission denied old erlang-base package postinst maintainer script subprocess failed with exit status 1 	-	
+interpreters	lua-moses	ok		none	
+interpreters	cpp-16-for-build	skew	- cpp-16:amd64=16.2.0-3 is not selected for install because: cpp-16:amd64=16.2.0-2 is selected for install	-	
+utils	pixelmed-apps	ok		ok	DicomSRValidator:view:ok,ImageToDicom:view:ok,NIfTI1ToDicom:view:ok,NRRDToDicom:view:ok,PDFToDicomImage:view:ok,StructuredReport:view:ok
+utils	zipcmp	ok		ok	zipcmp:view:ok
+utils	sedsed	script	Selecting previously unselected package sedsed. [Errno 13] Permission denied: '/usr/lib/python3/dist-packages/__pycache__/sedparse.cpython-314.pyc.139645523856608'Setting up sedsed (2.0.0-3) ... [Errno 13] Permission denied: '/usr/lib/python3/dist-packages/__pycache__/sedsed.cpython-314.pyc.140340	-	
+text	apvlv	skew	- libqt6network6:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6network6:amd64=6.10.2+dfsg-16 is selected for install	-	
+text	hyphen-nl	ok		none	
+text	dblatex	ok		ok	dblatex:view:ok
+editors	vim-addon-manager	ok		ok	vam:view:ok,vim-addon-manager:view:ok,vim-addons:view:ok
+editors	texworks	skew	- libqt6core6t64:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6core6t64:amd64=6.10.2+dfsg-16 is selected for install	-	
+editors	ng-cjk	script	update-alternatives: using /usr/bin/ng to provide /usr/bin/editor (editor) in auto mode update-alternatives: error: cannot remove '/usr/share/man/da/man1/editor.1.gz': Permission denied old ng-common package postinst maintainer script subprocess failed with exit status 2 	-	
+shells	bash-static	ok		ok	bash-static:direct:ok
+shells	yash	script	chown: changing ownership of '/etc/shells.tmp': Invalid argument chown: changing ownership of '/etc/shells.tmp': Invalid argument old yash package postinst maintainer script subprocess failed with exit status 1 	-	
+shells	fish-common	ok		none	
+doc	starlink-task-java-doc	ok		none	
+doc	python-django-split-settings-doc	ok		none	
+doc	monodoc-hexbox-manual	ok		none	
+fonts	fonts-taml-tamu	ok		none	
+fonts	fonts-terminus-otb	ok		none	
+fonts	font-manager-common	ok		none	
+localization	firefox-esr-l10n-da	skew	- firefox-esr:amd64=140.16.0esr-1 is not selected for install because: firefox-esr:amd64=140.15.0esr-1 is selected for install	-	
+localization	libvirt-l10n	ok		none	
+localization	libreoffice-l10n-ko	ok		none	
+tex	latexml	ok		ok	latexml:view:ok,latexmlc:view:ok,latexmlfind:view:ok,latexmlmath:view:ok,latexmlpost:view:ok
+tex	csv2latex	ok		ok	csv2latex:direct:ok
+tex	purifyeps	skew	- libgs10:amd64=10.08.0~dfsg-2 is not selected for install because: libgs10:amd64=10.07.1~dfsg-1 is selected for install	-	
+science	gyoto-bin	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+science	mricron	ok		untested	mricron:view:gui
+science	flextra	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+math	qalculate-gtk	ok		ok	qalculate-gtk:view:ok
+math	scotch-64	ok		ok	acpl_64:view:ok,amk_ccc_64:view:ok,amk_fft2_64:view:ok,amk_grf_64:view:ok,amk_hy_64:view:ok,amk_m2_64:view:ok
+math	octave-nlopt	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+graphics	libtiff-tools	ok		ok	fax2ps:direct:ok,fax2tiff:direct:ok,pal2rgb:direct:ok,ppm2tiff:direct:ok,raw2tiff:direct:ok,tiff2bw:direct:ok
+graphics	heif-thumbnailer	skew	- libheif1:amd64=1.23.4-1+b1 is not selected for install because: libheif1:amd64=1.23.3-1 is selected for install	-	
+graphics	ocrmypdf	skew	- libgs10:amd64=10.08.0~dfsg-2 is not selected for install because: libgs10:amd64=10.07.1~dfsg-1 is selected for install	-	
+sound	mopidy-alsamixer	script	update-xmlcatalog: cannot move catalog /etc/xml/catalog to backup /etc/xml/catalog.old: Value too large for defined data type at /usr/sbin/update-xmlcatalog line 537. old docutils-common package postinst maintainer script subprocess failed with exit status 75 	-	
+sound	espeak-ng	ok		ok	espeak-ng:view:ok,speak-ng:view:ok
+sound	tuxguitar-jack	script	update-alternatives: using /usr/share/sounds/sf2/FluidR3_GM.sf2 to provide /usr/share/sounds/sf2/default-GM.sf2 (default-GM.sf2) in auto mode update-alternatives: using /usr/share/sounds/sf2/FluidR3_GM.sf2 to provide /usr/share/sounds/sf3/default-GM.sf3 (default-GM.sf3) in auto mode update-alterna	-	
+video	obs-transition-table	skew	- libqt6core6t64:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6core6t64:amd64=6.10.2+dfsg-16 is selected for install	-	
+video	kodi-eventclients-common	ok		none	
+video	voctomix-core	ok		ok	voctocore:view:ok
+games	davegnukem	ok		untested	davegnukem:view:hang
+games	penguin-command	ok		ok	penguin-command:view:ok
+games	wesnoth-1.18-tools	ok		none	
+electronics	lepton-eda	ok		ok	lepton-archive:view:hang,lepton-attrib:view:ok,lepton-cli:view:ok,lepton-config:view:ok,lepton-embed:view:ok,lepton-export:view:ok
+electronics	librnd4t64	ok		none	
+electronics	atlc-examples	ok		none	
+hamradio	soapysdr0.8-module-volkconverters	ok		none	
+hamradio	psk31lx	ok		ok	psk31lx:view:ok
+hamradio	cwdaemon	ok		ok	cwdaemon:view:ok
+education	progvis-examples	ok		none	
+education	artikulate	skew	- libqt6core6t64:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6core6t64:amd64=6.10.2+dfsg-16 is selected for install	-	
+education	progvis	ok		fail	progvis:direct:fail
+embedded	matchbox-window-manager	ok		ok	matchbox-remote:direct:gui,matchbox-window-manager:view:ok
+embedded	rkflashtool	ok		ok	rkcrc:direct:ok,rkflashtool:direct:ok,rkmisc:direct:ok,rkpad:direct:ok,rkparameters:direct:ok,rkparametersblock:direct:ok
+embedded	log2ram	ok		ok	log2ram:view:ok
+x11	lomiri-polkit-agent	ok		none	
+x11	eviacam	skew	- libwebpmux3:amd64=1.6.0-0.1 is not selected for install because: libwebpmux3:amd64=1.5.0-0.1+b2 is selected for install	-	
+x11	twm	ok		ok	twm:direct:ok
+gnome	gnome-extra-icons	ok		none	
+gnome	gnome-shell-extension-manager	ok		ok	extension-manager:direct:ok
+gnome	eog-plugin-send-by-mail	ok		none	
+kde	kalarm	skew	- libqt6core6t64:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6core6t64:amd64=6.10.2+dfsg-16 is selected for install	-	
+kde	plasma-browser-integration	skew	- libqt6core6t64:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6core6t64:amd64=6.10.2+dfsg-16 is selected for install	-	
+kde	sddm-theme-debian-maui	skew	- libqt6core6t64:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6core6t64:amd64=6.10.2+dfsg-16 is selected for install	-	
+xfce	xfce4-dev-tools	ok		partial	xdt-autogen:direct:ok,xdt-check-abi:direct:ok,xdt-csource:direct:ok,xdt-gen-visibility:view:ok,xfce-build:direct:ok,xfce-do-release:direct:fail
+xfce	xfce4-taskmanager	skew	xfce4-taskmanager : Depends: libwnck-3-0 (>= 3.4.7) but it is not going to be installed	-	
+xfce	parole-dev	skew	- libgdk-pixbuf2.0-bin:amd64=2.44.8+dfsg-1 is not selected for install because: libgdk-pixbuf2.0-bin:amd64=2.44.7+dfsg-1 is selected for install	-	
+web	shaarli	skew	shaarli : Depends: fonts-fork-awesome but it is not going to be installed	-	
+web	ceilometer-common	unpack	dpkg: error processing archive /tmp/apt-dpkg-install-eF3bEA/162-ceilometer-common_1%3a27.0.0~rc1-2_all.deb (--unpack):  cannot open '/etc/sudoers.d/ceilometer-common.dpkg-new': Permission denied dpkg: executing new ceilometer-common package postrm maintainer script for abort-install ... 	-	
+web	compass-blueprint-plugin	ok		none	
+comm	asterisk-mysql	script	Adding system user for Asterisk fatal: Only root may add a user or group to the system. old asterisk package postinst maintainer script subprocess failed with exit status 54 	-	
+comm	wmbusmeters	script	No diversion 'diversion of /lib/udev/rules.d/60-librtlsdr0.rules to /lib/udev/rules.d/60-librtlsdr0.rules.usr-is-merged by usr-is-merged', none removed. fatal: Only root may add a user or group to the system. fatal: Only root may add a user or group to the system. old wmbusmeters package postinst	-	
+comm	mgetty-docs	ok		none	
+admin	apt-verify	skew		-	
+admin	arpwatch	script	Failed to take /etc/passwd lock: Permission denied old arpwatch package postinst maintainer script subprocess failed with exit status 1 	-	
+admin	fai-client	ok		partial	ainsl:view:ok,fai-class:direct:ok,fai-debconf:view:ok,fai-deps:view:fail,fai-do-scripts:direct:ok,fai-kvm:direct:fail
+cli-mono	cli-common-dev	ok		ok	dh_auto_build_nant:view:ok,dh_auto_clean_nant:view:ok,dh_clideps:view:ok,dh_clifixperms:view:ok,dh_cligacpolicy:view:ok,dh_clistrip:view:ok
+cli-mono	hexbox	ok		ok	hexbox:view:ok
+cli-mono	libhexbox1.5-cil	ok		none	
+database	fis-gtm	unpack	dpkg: error processing archive /home/master/.cache/sudo-less-survey/survey/archives/fis-gtm-7.2_7.2-000-2_amd64.deb (--unpack):  cannot create '/usr/lib/x86_64-linux-gnu/fis-gtm/V7.2-000_x86_64/gtmsecshrdir/gtmsecshr.dpkg-new' (while processing './usr/lib/x86_64-linux-gnu/fis-gtm/V7.2-000_x86_64/gt	-	
+database	kexi-mysql-driver	skew	- libqt6core6t64:amd64=6.11.2+dfsg-5 is not selected for install because: libqt6core6t64:amd64=6.10.2+dfsg-16 is selected for install	-	
+database	mariadb-client-compat	ok		partial	mysql_convert_table_format:view:fail,mysql_find_rows:view:ok,mysql_fix_extensions:view:ok,mysql_plugin:view:ok,mysql_secure_installation:view:tty,mysql_setpermission:view:fail
+gnustep	addressmanager.app	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+gnustep	adun.app	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+gnustep	batmon.app	skew	- gcc-16-base:amd64=16.2.0-3 is not selected for install because: gcc-16-base:amd64=16.2.0-2 is selected for install	-	
+httpd	libapache2-mod-log-slow	ok		none	
+httpd	libapache2-mod-neko	ok		none	
+httpd	libapache2-mod-sts	ok		none	
+kernel	linux-base-7.1.13+deb14-cloud-amd64	unpack	dpkg: error processing archive /home/master/.cache/sudo-less-survey/survey/archives/linux-base-7.1.13+deb14-cloud-amd64_7.1.13-1_amd64.deb (--unpack):  cannot create '/boot/System.map-7.1.13+deb14-cloud-amd64.dpkg-new' (while processing './boot/System.map-7.1.13+deb14-cloud-amd64'): Permission deni	-	
+kernel	linux-base-7.1.6+deb14-amd64	unpack	dpkg: error processing archive /home/master/.cache/sudo-less-survey/survey/archives/linux-base-7.1.6+deb14-amd64_7.1.6-1_amd64.deb (--unpack):  cannot create '/boot/System.map-7.1.6+deb14-amd64.dpkg-new' (while processing './boot/System.map-7.1.6+deb14-amd64'): Permission denied Errors were encoun	-	
+kernel	linux-binary-7.1.3+deb14-rt-amd64	unpack	dpkg: error processing archive /home/master/.cache/sudo-less-survey/survey/archives/linux-base-7.1.3+deb14-rt-amd64_7.1.3-1_amd64.deb (--unpack):  cannot create '/boot/System.map-7.1.3+deb14-rt-amd64.dpkg-new' (while processing './boot/System.map-7.1.3+deb14-rt-amd64'): Permission denied Selecting	-	
+mail	biabam	script	debconf: DbDriver "passwords" warning: could not open /var/cache/debconf/passwords.dat: Permission denied Failed to take /etc/passwd lock: Permission denied old exim4-config package postinst maintainer script subprocess failed with exit status 1 	-	
+mail	chasquid	ok		ok	chasquid:direct:ok,chasquid-util:direct:ok,mda-lmtp:direct:ok,smtp-check:direct:ok
+mail	claws-mail-litehtml-viewer	ok		none	
+metapackages	astro-virtual-observatory	ok		none	
+metapackages	games-content-dev	ok		none	
+metapackages	jupyter	script	ucfr: Need to be run as root. ucfr: Setting up no action mode. ucfr: do not have write privilege to the registry data replace_in_registry chmod: cannot access '/etc/profile.d/debuginfod.sh': No such file or directory old libdebuginfod-common package postinst maintainer script subprocess failed 	-	
+misc	fp-units-castle-game-engine	skew	- libgdk-pixbuf2.0-bin:amd64=2.44.8+dfsg-1 is not selected for install because: libgdk-pixbuf2.0-bin:amd64=2.44.7+dfsg-1 is selected for install	-	
+misc	libhsm-bin	script	debconf: DbDriver "passwords" warning: could not open /var/cache/debconf/passwords.dat: Permission denied fatal: Only root may add a user or group to the system. old opendnssec-common package postinst maintainer script subprocess failed with exit status 54 	-	
+misc	libjuman-perl	ok		none	
+net	ahcpd	ok		fail	ahcpd:view:fail
+net	fireqos	script	Failed to take /etc/passwd lock: Permission denied old tcpdump package postinst maintainer script subprocess failed with exit status 1 	-	
+net	freeipa-common	ok		none	
+news	canlock	ok		ok	canlock:view:ok,canlock-hfp:direct:ok,canlock-mhp:direct:ok
+news	inn	script	(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database 	-	
+news	innduct	ok		ok	innduct:view:ok,innduct-forall:view:ok,innduct-stats-report:view:ok
+oldlibs	clutter-1.0-tests	ok		none	
+oldlibs	libclutter-1.0-dev	skew	- libatk1.0-0t64:amd64=2.62.0-2 is not selected for install because: libatk1.0-0t64:amd64=2.61.90-1 is selected for install	-	
+oldlibs	libclutter-1.0-doc	ok		none	

@@ -14,7 +14,7 @@
 # The install view (docs/view.md) makes most maintainer scripts work: writes
 # to /etc and /var, alternatives, triggers, running the package's own
 # programs. What still needs root is listed in RULES below; each came from a
-# failure in the survey (docs/survey-2026-09b.md).
+# failure in the survey (docs/survey.md).
 #
 # SUDO_LESS_CHECK=off skips the check.
 set -eu

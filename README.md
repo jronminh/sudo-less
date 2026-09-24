@@ -55,9 +55,54 @@ Measured by:
    `never` and why.
 
 Where it stands: criterion 1 is verified on a fresh account with the release
-build. Criterion 2 has a baseline ([`docs/survey-2026-09.md`](docs/survey-2026-09.md))
-and is being re-measured with installs and runs. Criterion 3 is the
-[problem map](docs/problems.md), and `apt-get install` enforces it.
+build. Criterion 2 is measured by [the survey](#evidence-the-survey) below.
+Criterion 3 is the [problem map](docs/problems.md), and `apt-get install`
+enforces it.
+
+## Evidence: the survey
+
+The approach (rebuild only apt and dpkg, and make the prefix look like `/`
+only for the programs that need it) is checked by a survey rather than by
+hand-picked examples. `dev/survey.sh` takes packages sampled at random, 3 per
+Debian section. It installs each one into a fresh copy of the same prefix,
+then runs every program it ships. It records where each package stops:
+while installing or while running, and why.
+
+Latest run, 2026-09-24, on 129 packages from 43 supported sections:
+
+| | packages | share |
+|---|---|---|
+| **installs and works** | 86 | **67 %** |
+| blocked by version skew: the archive is newer than the host | 30 | 23 % |
+| a maintainer script fails | 9 | 7 % |
+| other (refused at unpack; already on the host; a program fails or runs partly) | 4 | 3 % |
+
+- **Excluding skew, 87 % work.** The admin removes skew by upgrading the
+  host; on Debian stable it is close to zero.
+- **Most programs need no tricks.** Of the 70 programs checked, 22 run
+  directly from `~/.local/usr/bin` and 42 through the shared run view.
+- **Better than the first design** (a Termux-style relocated dpkg, same
+  129 packages): installs went from 63 % to 68 %, and programs from 14
+  working and 12 failing to 26 working and 1 failing.
+- **The failures fall into a few known classes:** system users, ownership
+  changes, writes to host directories the view has no copy of. Each is
+  placed on the [problem map](docs/problems.md) with its fix, or marked as
+  the admin's.
+- **Outside the supported sections** (36 packages from `admin`, `net`,
+  `mail`, `kernel`, ...), 19 install. Most failures are services, system
+  users and `/boot`, which the admin's sections are meant to hold. That is
+  the basis for a proposed limited admin and net scope.
+
+Read more:
+
+- [**The full report**](docs/survey.md): method, per-section tables,
+  package-by-package comparison, failure classes, and next steps.
+- The raw results: [`results.tsv`](docs/survey/results.tsv) (one line per
+  package: install verdict, error detail, each program and how it ran) and
+  the sample, [`list.tsv`](docs/survey/list.tsv).
+- The first survey, the baseline:
+  [`docs/survey-2026-09.md`](docs/survey-2026-09.md).
+- To re-run it: see the header of [`dev/survey.sh`](dev/survey.sh).
 
 ## Does it work for my package?
 
@@ -120,8 +165,8 @@ this repo.
 
 - [`docs/design.md`](docs/design.md) — the whole solution on one page: the
   pipeline sudo-less hangs on apt's hooks, its parts, and what exists today.
-- [`docs/survey-2026-09.md`](docs/survey-2026-09.md) — a random sample by
-  Debian section: what installs today and what blocks the rest.
+- [`docs/survey.md`](docs/survey.md) — a random sample by Debian section,
+  installed and run: what works today and what blocks the rest.
 - [`docs/standard.md`](docs/standard.md) — scope by Debian section, and how
   each package is checked.
 - [`docs/ecosystems.md`](docs/ecosystems.md) — what each language and some

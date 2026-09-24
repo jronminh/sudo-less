@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # survey.sh — install and run a list of Debian packages, each in a fresh copy
 # of a configured prefix, and record where each one fails: while installing
-# or while running, and why. docs/survey-2026-09.md and docs/survey-2026-09b.md
-# are its results.
+# or while running, and why. docs/survey.md is its result.
 #
 #   BASE=~/fresh/.local OUT=~/survey dev/survey.sh LIST.tsv
 #   OUT=~/survey dev/survey.sh --reclassify   redo the install column from

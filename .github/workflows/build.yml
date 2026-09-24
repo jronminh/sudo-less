@@ -38,13 +38,20 @@ jobs:
           - runner: ubuntu-24.04-arm
             arch: arm64
     runs-on: ${{ matrix.runner }}
-    container: debian:trixie
+    container:
+      image: debian:trixie
+      # dpkg runs in a user namespace (docs/view.md); the default seccomp
+      # profile forbids creating one
+      options: --privileged
     timeout-minutes: 120
     steps:
       - name: prepare the container
         run: |
           apt-get update
           apt-get install -y --no-install-recommends git ca-certificates curl gpgv
+          # the admin's one-time step (admin/enable-userspace.sh): Ubuntu
+          # runners restrict unprivileged user namespaces with AppArmor
+          echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
 
       - uses: actions/checkout@v4
 

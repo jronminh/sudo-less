@@ -23,7 +23,7 @@ echo "$APT_SHA1  $SRC/apt-$APT_VER.tar.xz" | sha1sum -c --quiet || die "apt-$APT
 tar -C "$SRC" -xJf "$SRC/apt-$APT_VER.tar.xz"
 
 cd "$SRC/apt-$APT_VER"
-apply_series "$REPO/patches/apt"
+apply_series "$REPO/apt-dpkg/patches/apt"
 
 log "retargeting @TERMUX_PREFIX@ -> $PREFIX"
 mapfile -t files < <(grep -rl '@TERMUX_PREFIX@' \

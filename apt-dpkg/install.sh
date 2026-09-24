@@ -28,31 +28,31 @@ mkdir -p "$PREFIX/etc/apt/sources.list.d" "$PREFIX/etc/apt/apt.conf.d" \
          "$PREFIX/var/lib/dpkg"/{info,updates,triggers,alternatives} \
          "$PREFIX/var/log/apt"
 
-install -m 0644 "$REPO/config/sources.list"                  "$PREFIX/etc/apt/sources.list"
+install -m 0644 "$REPO/apt-dpkg/config/sources.list"                  "$PREFIX/etc/apt/sources.list"
 # generate the dpkg/apt prefix config from the template, so the prefix is not
-# hardcoded (see config/apt.conf.d/00local-prefix.in)
-sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/00local-prefix.in" \
+# hardcoded (see apt-dpkg/config/apt.conf.d/00local-prefix.in)
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/00local-prefix.in" \
   > "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
-sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/dpkg/dpkg.cfg.in" > "$PREFIX/etc/dpkg/dpkg.cfg"
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/dpkg/dpkg.cfg.in" > "$PREFIX/etc/dpkg/dpkg.cfg"
 chmod 0644 "$PREFIX/etc/dpkg/dpkg.cfg"
 
 # refresh the desktop-entry cache after installs so GUI packages' .desktop
 # files actually show up in app grids, not just on disk (see
-# config/apt.conf.d/01update-desktop-database.in)
-sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/01update-desktop-database.in" \
+# apt-dpkg/config/apt.conf.d/01update-desktop-database.in)
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/01update-desktop-database.in" \
   > "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 
 # Installed programs that need the prefix view get a script that runs them
-# in the shared run view, after every dpkg run (config/apt.conf.d/02view-wrappers.in,
+# in the shared run view, after every dpkg run (apt-dpkg/config/apt.conf.d/02view-wrappers.in,
 # docs/view.md).
-sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/02view-wrappers.in" \
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/02view-wrappers.in" \
   > "$PREFIX/etc/apt/apt.conf.d/02view-wrappers"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/02view-wrappers"
 # Packages that need root to install are refused before dpkg runs
-# (config/apt.conf.d/03check.in).
-sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/03check.in" \
+# (apt-dpkg/config/apt.conf.d/03check.in).
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/03check.in" \
   > "$PREFIX/etc/apt/apt.conf.d/03check"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/03check"
 mkdir -p "$PREFIX/lib/sudo-less"

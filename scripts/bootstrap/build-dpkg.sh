@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build upstream dpkg with sudo-less's patches (patches/dpkg/series, a fork of
+# Build upstream dpkg with sudo-less's patches (apt-dpkg/patches/dpkg/series, a fork of
 # Termux's), for a user-writable prefix ($PREFIX, default ~/.local).
 #
 # Run inside a Debian sid build environment with:
@@ -8,7 +8,7 @@
 #
 # Key porting decisions (see docs/apt-dpkg-port.md):
 #   * The root-only bits (superuser check, chown) are removed by plain
-#     patches; nothing is built with -D__ANDROID__ (patches/UPSTREAM.md).
+#     patches; nothing is built with -D__ANDROID__ (apt-dpkg/patches/UPSTREAM.md).
 #   * A native build: configure finds the architecture itself.
 #   * --without-libselinux (Termux's --without-selinux is an unrecognized no-op).
 #   * dpkg runs inside the install view (tools/prefix-view.sh, docs/view.md),
@@ -16,7 +16,7 @@
 #     configured with Debian's own paths: config dir /etc/dpkg, admin dir
 #     /var/lib/dpkg, root "/". Only the programs and their data live under
 #     --prefix; the dpkg-maintscript-helper finds its data next to itself
-#     wherever the prefix is (patches/dpkg/0100-maintscript-helper-datadir.patch).
+#     wherever the prefix is (apt-dpkg/patches/dpkg/0100-maintscript-helper-datadir.patch).
 #   * The programs that touch the database or the installed tree move to
 #     $PREFIX/lib/sudo-less/dpkg; $PREFIX/bin gets a wrapper for each that
 #     enters the install view (apt-dpkg/dpkg-wrapper.sh).
@@ -30,7 +30,7 @@ cd "$SRC/dpkg-$DPKG_VER"
 # build-aux/get-version needs a git checkout or this marker file
 printf '%s\n' "$DPKG_VER" > .dist-version
 
-apply_series "$REPO/patches/dpkg"
+apply_series "$REPO/apt-dpkg/patches/dpkg"
 rm -f configure
 log "autogen"
 ./autogen >/dev/null

@@ -148,14 +148,14 @@ tricks) is experimental. See [`docs/release.md`](docs/release.md).
 
 ```
 bootstrap.sh   one-command install (fetches prebuilt apt/dpkg)
-apt-dpkg/      apt/dpkg setup: config, database seeding
+apt-dpkg/      apt/dpkg: setup, config/ (apt.conf.d hooks, dpkg.cfg),
+               patches/ (a fork of Termux's, patches/UPSTREAM.md)
 tools/         prefix-view.sh (the install and run views), prefix-wrap.sh (which
                programs run in the view), prefix-check.sh (refuses what needs
                root), prefix-run.sh (the older overlay), deb2home.sh (extract
                without scripts)
 scripts/       build, setup and catalog helpers
 admin/         one-time root step that enables userspace: enable-userspace.sh
-patches/       apt/dpkg patches: a fork of Termux's (patches/UPSTREAM.md)
 dev/           tools for developing sudo-less (dsb test policy, survey.sh)
 docs/          all the detail
 ```
@@ -174,6 +174,6 @@ path. Not affiliated with Debian or Termux.
 Built by **jronminh** with **deepseek-v4-flash** ([opencode](https://opencode.ai))
 as pairing assistant — see [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
 
-[GPL-3.0-or-later](LICENSE). The patches under `patches/` are a fork of
+[GPL-3.0-or-later](LICENSE). The patches under `apt-dpkg/patches/` are a fork of
 [`termux/termux-packages`](https://github.com/termux/termux-packages)'s and remain
-under their original GPL-2.0-or-later terms (`patches/UPSTREAM.md`).
+under their original GPL-2.0-or-later terms (`apt-dpkg/patches/UPSTREAM.md`).

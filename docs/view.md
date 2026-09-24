@@ -83,7 +83,7 @@ which inside the view is the same directory as `/var/lib/dpkg`.
 ## How programs get there
 
 After every dpkg run apt calls `prefix-wrap` (`tools/prefix-wrap.sh`, hook
-`config/apt.conf.d/02view-wrappers.in`). For each package installed or
+`apt-dpkg/config/apt.conf.d/02view-wrappers.in`). For each package installed or
 changed since its last run, and each alternative, it looks at the programs
 the package puts on `PATH` and decides whether each one needs the view. A
 program needs it when (first match):
@@ -186,7 +186,7 @@ view never reach the host.
   `/var/log/dpkg.log`, so `apt-dpkg/install.sh` gives the prefix its own.
 - **No hard links to root's files.** dpkg hard-links a file it is about to
   replace as a backup; for a host file it copies it instead
-  (`patches/dpkg/0103-link-or-copy.patch`).
+  (`apt-dpkg/patches/dpkg/0103-link-or-copy.patch`).
 
 - **Batched setup.** Building a view walks the host's mount table and
   creates a skeleton directory for every entry of a directory with locked

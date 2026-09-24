@@ -20,8 +20,8 @@ There is no signature to trust. Instead the inputs are pinned and public, so the
 output is reproducible and you can check it yourself:
 
 - **apt 3.3.3** and **dpkg 1.23.11**, with sudo-less's patches
-  (`patches/apt/series`, `patches/dpkg/series`), a fork of Termux's; see
-  `patches/UPSTREAM.md`.
+  (`apt-dpkg/patches/apt/series`, `apt-dpkg/patches/dpkg/series`), a fork of Termux's; see
+  `apt-dpkg/patches/UPSTREAM.md`.
 - The build is the same scripted, no-fork build the repo already uses
   (`scripts/bootstrap/build-apt.sh`, `build-dpkg.sh`).
 - Each release asset ships a `.sha256`; `bootstrap.sh` verifies it and refuses
@@ -51,7 +51,7 @@ apt/dpkg versions and build date. Attach it to the release so the baseline is
 *recorded*, not assumed.
 
 The artifact *is* relocatable across users and prefixes: apt follows the config
-`install-config.sh` regenerates (`config/apt.conf.d/00local-prefix`), so
+`install-config.sh` regenerates (`apt-dpkg/config/apt.conf.d/00local-prefix`), so
 `/home/builder/.local` → `/home/you/.local` is fine — see
 [`apt-dpkg-port.md`](apt-dpkg-port.md).
 

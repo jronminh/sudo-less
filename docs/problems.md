@@ -41,7 +41,7 @@ More admin steps, each unlocking some cells, are planned in
 | apt would install again everything the host already has | the prefix's database is seeded with the host's packages, held | `apt-dpkg/lock-seeded.sh` |
 | maintainer scripts write `/etc` and `/var`, run `update-alternatives`, `py3compile`, `ldconfig`, triggers, the package's own programs | the install view: the script sees a normal system and every write lands in the prefix | [`view.md`](view.md#how-dpkg-gets-there) |
 | maintainer scripts call the host's services (`systemctl daemon-reload`, `deb-systemd-invoke`, `pkexec`), which asks polkit, and the admin's password dialog pops up on the desktop | the install view has an empty `/run`: no system bus, no systemd; debhelper's guards skip the service steps | [`view.md`](view.md#how-dpkg-gets-there) |
-| a package that cannot install fails half way and leaves the prefix wedged: every later apt run tries to configure it again | `prefix-check` reads each `.deb` before dpkg runs and refuses the run, naming the package and the reason, if one falls in the **never** column | `tools/prefix-check.sh`, `config/apt.conf.d/03check.in` |
+| a package that cannot install fails half way and leaves the prefix wedged: every later apt run tries to configure it again | `prefix-check` reads each `.deb` before dpkg runs and refuses the run, naming the package and the reason, if one falls in the **never** column | `tools/prefix-check.sh`, `apt-dpkg/config/apt.conf.d/03check.in` |
 
 ### Root, once
 
@@ -66,7 +66,7 @@ More admin steps, each unlocking some cells, are planned in
 | the prefix's programs are not on `PATH` | `$PREFIX/bin` and `$PREFIX/usr/bin` on `PATH`, for shells and the desktop session | `scripts/setup/install-shell-path.sh`, `install-session-env.sh` |
 | a program looks for its files at `/usr/...`, `/etc/...`, `/opt/...` (compiled-in paths, an interpreter's module path, a library only in the prefix, an alternatives link, a shebang naming an interpreter only in the prefix) | `prefix-wrap` gives it a script in `$PREFIX/bin` that runs it in the shared run view; every other program runs directly | [`view.md`](view.md#how-programs-get-there) |
 | a disk mounted after the run view started is not in it | the run view receives the host's mounts (`--propagation slave`) | [`view.md`](view.md#host-mounts) |
-| a desktop app has no launcher or icon | `XDG_DATA_DIRS` for the session, and the desktop database refreshed after each dpkg run | `install-session-env.sh`, `config/apt.conf.d/01update-desktop-database.in` |
+| a desktop app has no launcher or icon | `XDG_DATA_DIRS` for the session, and the desktop database refreshed after each dpkg run | `install-session-env.sh`, `apt-dpkg/config/apt.conf.d/01update-desktop-database.in` |
 
 ### Root, once
 

@@ -7,7 +7,7 @@
 #   PREFIX=~/build-prefix OUT=~/dist ./scripts/bootstrap/package-prebuilt.sh
 #
 # The tarball unpacks at $PREFIX and is relocatable: apt follows the config
-# install-config.sh regenerates (config/apt.conf.d/00local-prefix), so it works
+# install-config.sh regenerates (apt-dpkg/config/apt.conf.d/00local-prefix), so it works
 # under a different user/prefix than the one that built it — see
 # docs/apt-dpkg-port.md and docs/release.md.
 set -euo pipefail
@@ -40,7 +40,7 @@ mkdir -p "$STAGE/share/sudo-less"
 # tools/: prefix-view.sh, prefix-wrap.sh and prefix-check.sh (installed into lib/sudo-less by
 # apt-dpkg/install.sh), prefix-run.sh and deb2home.sh (for packages apt
 # cannot install)
-for d in apt-dpkg config tools; do
+for d in apt-dpkg tools; do
   cp -a "$REPO/$d" "$STAGE/share/sudo-less/$d"
 done
 mkdir -p "$STAGE/share/sudo-less/scripts"

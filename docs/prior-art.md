@@ -5,7 +5,7 @@ root, from the other end. Both were studied live on 2026-09-23 on a phone
 (Android 16 / SDK 36, kernel 5.10, aarch64, Termux 0.119.0-beta.3 F-Droid
 build, proot-distro 5.9.0). This page records what they do and what
 sudo-less took from them. sudo-less's apt/dpkg port uses Termux's own patches
-(`patches/UPSTREAM.md`, `docs/apt-dpkg-port.md`).
+(`apt-dpkg/patches/UPSTREAM.md`, `docs/apt-dpkg-port.md`).
 
 For every resource, the question is the one sudo-less asks of every package:
 
@@ -53,7 +53,7 @@ Termux changes **the software**, not the system:
    `$PREFIX/var/lib/dpkg` (252 packages here). Maintainer scripts are rewritten
    to prefix paths. dpkg is built with `__ANDROID__`, which skips the superuser
    check and `chown`; our fork makes those two changes plain patches
-   (`patches/UPSTREAM.md`).
+   (`apt-dpkg/patches/UPSTREAM.md`).
 4. **A second libc in the same prefix.** The `termux-glibc` repo installs a glibc
    world under `$PREFIX/glibc` (its own `ld-linux-aarch64.so.1`) next to the
    bionic one. Two ABIs coexist because each carries its own interpreter
@@ -135,7 +135,7 @@ run there (`ptrace_scope=2`):
   hides `/proc`;
 - **"success without effect"** (`chown`, `mknod`) is how proot keeps dpkg
   happy. Our userspace dpkg gets the same result by skipping `chown` at
-  build time (`patches/dpkg/0002-no-chown.patch`); inside a user
+  build time (`apt-dpkg/patches/dpkg/0002-no-chown.patch`); inside a user
   namespace `chown` is real but limited to mapped ids.
 
 ## proot-distro: methods we adopted

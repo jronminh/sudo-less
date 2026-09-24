@@ -21,7 +21,7 @@
 #   libs      ldd cannot find a library (it is in $PREFIX/usr/lib)
 #   paths     it names a file or directory under /usr, /etc or /opt that the
 #             prefix has its own copy of
-# docs/view.md. The apt hook in config/apt.conf.d/02view-wrappers.in runs this
+# docs/view.md. The apt hook in apt-dpkg/config/apt.conf.d/02view-wrappers.in runs this
 # after every dpkg run. When a package changed it stops the run view, which
 # the next --run rebuilds on the new files.
 set -eu

@@ -31,7 +31,7 @@ maintained in [`termux/termux-packages`](https://github.com/termux/termux-packag
 Termux builds these against `$PREFIX=/data/data/com.termux/files/usr` with the
 Android NDK (`__ANDROID__` defined). sudo-less carries a fork of those
 patches, cut down to what a prefix on Debian needs and built without
-`__ANDROID__`: [`../patches/UPSTREAM.md`](../patches/UPSTREAM.md) maps every
+`__ANDROID__`: [`../apt-dpkg/patches/UPSTREAM.md`](../apt-dpkg/patches/UPSTREAM.md) maps every
 Termux patch to kept, adapted or dropped.
 
 ## Layout produced under `$PREFIX` (`~/.local`)
@@ -60,9 +60,9 @@ var/cache/apt/     downloaded .debs
    the system `/var/lib/dpkg/status`.
 3. **RPATH.** apt is installed with `RPATH=$PREFIX/lib` so it loads our
    `libapt-pkg.so.7.0`, not the system's library of the same name.
-4. **GCC 16 fixes** (`patches/apt/0008-gcc16-fixes.patch`): `<cstdint>`
+4. **GCC 16 fixes** (`apt-dpkg/patches/apt/0008-gcc16-fixes.patch`): `<cstdint>`
    for `uint8_t`, and a `RAMFS_MAGIC` fallback.
-5. **dpkg without root checks.** `patches/dpkg/0001-no-superuser-check.patch`
+5. **dpkg without root checks.** `apt-dpkg/patches/dpkg/0001-no-superuser-check.patch`
    removes the superuser check in `lib/dpkg/dbmodify.c` (otherwise dpkg dies
    with "requested operation requires superuser privilege"), `0002-no-chown`
    the `chown` calls, `0003-no-ldconfig-check` the start-up check for
@@ -103,7 +103,7 @@ compatibility baseline in [`release.md`](release.md) still holds: each
 rebased version must build on it.
 
 ```
-patches/
+apt-dpkg/patches/
 ├── UPSTREAM.md     the termux-packages commit it started from; per Termux
 │                   patch: kept, adapted or dropped, and why
 ├── apt/series      ordered list, one reason per line
@@ -111,7 +111,7 @@ patches/
 └── */NNNN-*.patch  each with a header: origin, change, GPL-2.0-or-later
 ```
 
-Step 1 is done: [`../patches/UPSTREAM.md`](../patches/UPSTREAM.md) has the
+Step 1 is done: [`../apt-dpkg/patches/UPSTREAM.md`](../apt-dpkg/patches/UPSTREAM.md) has the
 full table. Both builds, old and forked, were made as a non-root user and
 run through the same checks (`dpkg -i`, `apt install ./x.deb`, removal,
 `dpkg --audit`, an apt pattern) with the same results. The only difference:

@@ -279,7 +279,14 @@ layer() {
 shopt -s nullglob dotglob
 for d in $DIRS; do layer "/$d" "/$d"; done
 case " $DIRS " in
-  *" var "*) fs "$PREFIX/var/lib/dpkg" /var/lib/dpkg none bind ;;
+  *" var "*)
+    fs "$PREFIX/var/lib/dpkg" /var/lib/dpkg none bind
+    # Maintainer scripts must not reach the host's services: an empty /run
+    # hides the system bus and systemd, so `systemctl daemon-reload`,
+    # deb-systemd-invoke and pkexec find nothing to ask (and polkit shows no
+    # password dialog), and debhelper's `[ -d /run/systemd/system ]` guards
+    # skip their service steps.
+    fs sudo-less-run /run tmpfs mode=0755 ;;   # a source name mount -a has not seen
 esac
 # $PREFIX/<dir> shows the view too, so both spellings of a path agree.
 for d in $DIRS; do fs "/$d" "$PREFIX/$d" none rbind; done

@@ -26,6 +26,15 @@ scripts, triggers and `update-alternatives` see a normal system too: a script
 that writes `/etc/foo` or runs `/usr/bin/foo` works, and alternatives are the
 standard absolute links (`/usr/bin/java` → `/etc/alternatives/java` → ...).
 
+The install view also gets an empty `/run`. Without it a maintainer script
+reached the host's own services through the system bus: `php-common`'s
+postinst runs `systemctl --system daemon-reload`, and polkit popped up a
+password dialog for the admin's password on the desktop. With an empty
+`/run`, `systemctl` finds no systemd, `deb-systemd-invoke` and `pkexec`
+find no bus, and debhelper's `[ -d /run/systemd/system ]` guards skip the
+service steps. The run view keeps the host's `/run`: the programs in it are
+yours, run as you, just as outside the view.
+
 ## How dpkg gets there
 
 `$PREFIX/bin/dpkg` (and `dpkg-query`, `dpkg-divert`, `dpkg-statoverride`,

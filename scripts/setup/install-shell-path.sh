@@ -49,5 +49,5 @@ for rc in "$HOME/.bashrc" "$HOME/.profile"; do
   updated=$((updated + 1))
 done
 
-[ "$updated" -gt 0 ] && log "open a new shell (or 'source ~/.bashrc') to pick it up"
+[ "$updated" -gt 0 ] && log "open a new login shell (or source the file above) to pick it up"
 log "prefix dirs: $PREFIX/sbin, $PREFIX/bin, $PREFIX/usr/bin"

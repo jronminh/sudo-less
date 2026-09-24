@@ -138,6 +138,9 @@ if [ "${1:-}" = --check ]; then
   shift
   for p in "$@"; do
     case $p in /*) ;; *) p=/usr/bin/$p ;; esac
+    if [ ! -e "$PREFIX$p" ] && [ ! -L "$PREFIX$p" ]; then
+      printf '%-24s %s\n' "$p" "not in the prefix"; continue
+    fi
     printf '%-24s %s\n' "$p" "$(classify "$p")"
   done
   exit 0

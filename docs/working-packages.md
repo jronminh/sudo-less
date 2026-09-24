@@ -53,8 +53,8 @@ fixes)** signals:
   - ships systemd units / `init.d` / `udev` / dbus / polkit / `tmpfiles.d`,
     or `/usr/libexec/`;
   - **`py3compile` postinst / `/usr/lib/python3/dist-packages/` files** — pure
-    Python app. `ecosystems/python/shims/py3compile` fixes the install, and
-    `install-config.sh`'s `.pth` fixes `sys.path` (#5) — see `ranger.recipe`.
+    Python app. In the prefix view the real `py3compile` works (#5, see
+    [`ecosystems.md`](ecosystems.md)).
 - **OK** — none of the above.
 
 Remember the **seeded db**: packages already installed system-wide are treated
@@ -70,26 +70,25 @@ the system). Only packages the system lacks are actually installed into
 | `shellcheck` `shfmt` | static-ish analyzers |
 | `sqlite3` | CLI + lib |
 | `patchelf` `strace` `ltrace` | dev/debug tools |
-| `ranger` | pure-Python app — was "usually broken" (see below); fixed by `ecosystems/python/shims/py3compile` + `install-config.sh`'s `.pth`, see `recipes/ranger.recipe` and #5 |
-| `pmarkdown` | pure-Perl CLI — `PERL5LIB`, see `recipes/pmarkdown.recipe` and #7 |
-| `yard` | Ruby (pulls in a fresh interpreter) — run via `tools/prefix-run.sh --mode overlay`, see `recipes/yard.recipe` and #7 |
-| `openjdk-25-jre-headless` | Java — apt install is a **dead end** (root-only `/etc/.java` postinst, no safe shim target); extracted with `tools/deb2home.sh` instead (bypasses maintainer scripts entirely), then `JAVA_HOME`. See `recipes/openjdk-25-jre-headless.recipe` and #7 |
-| `prismlauncher` | GUI app — needs `contrib` added to `sources.list.d` (it's not in `main`) and a one-time seeded-Qt6 unlock; run via `tools/prefix-run.sh --gui`. Verified on a live Mobian/Phosh session: window rendered, logged into a Minecraft account, downloaded a modded instance, and **the game itself launched and ran with no visible problems (GL + audio working)** — #8's full acceptance bar. See `recipes/prismlauncher.recipe` and #8 |
-| `golang-go` | mechanism `none`, not even `env` — `go version` and a real `go run` both work with zero env vars (self-locates from argv[0], same trick as `java`). See `recipes/golang-go.recipe` and #6 |
-| `nodejs` | **not** fixable by environment alone, despite looking like it — needs `LD_LIBRARY_PATH` for `libnode.so`, then a hardcoded `/usr/share/nodejs/undici/...` path that no env var reaches; needs `overlay`. See `recipes/nodejs.recipe` and #6 |
+| `ranger` | pure-Python app — was "usually broken" (see below); once needed a `py3compile` shim and a `.pth`; installs as-is in the view. See [`ecosystems.md`](ecosystems.md) and #5 |
+| `pmarkdown` | pure-Perl CLI — `PERL5LIB`, see [`ecosystems.md`](ecosystems.md) and #7 |
+| `yard` | Ruby (pulls in a fresh interpreter) — run via `tools/prefix-run.sh --mode overlay`, see [`ecosystems.md`](ecosystems.md) and #7 |
+| `openjdk-25-jre-headless` | Java — apt install is a **dead end** (root-only `/etc/.java` postinst, no safe shim target); extracted with `tools/deb2home.sh` instead (bypasses maintainer scripts entirely), then `JAVA_HOME`. See [`ecosystems.md`](ecosystems.md) and #7 |
+| `prismlauncher` | GUI app — needs `contrib` added to `sources.list.d` (it's not in `main`) and a one-time seeded-Qt6 unlock; run via `tools/prefix-run.sh --gui`. Verified on a live Mobian/Phosh session: window rendered, logged into a Minecraft account, downloaded a modded instance, and **the game itself launched and ran with no visible problems (GL + audio working)** — #8's full acceptance bar. See [`ecosystems.md`](ecosystems.md) and #8 |
+| `golang-go` | mechanism `none`, not even `env` — `go version` and a real `go run` both work with zero env vars (self-locates from argv[0], same trick as `java`). See [`ecosystems.md`](ecosystems.md) and #6 |
+| `nodejs` | **not** fixable by environment alone, despite looking like it — needs `LD_LIBRARY_PATH` for `libnode.so`, then a hardcoded `/usr/share/nodejs/undici/...` path that no env var reaches; needs `overlay`. See [`ecosystems.md`](ecosystems.md) and #6 |
 
 General rule: **leaf, user-space binaries with no root-needing maintainer
 script** install and run. A postinst blocker or interpreter search-path gap
-isn't necessarily fatal — check `recipes/` first (see
-[`standard.md`](standard.md)) before assuming a package is broken.
+isn't necessarily fatal — check [`ecosystems.md`](ecosystems.md) first before assuming a package is broken.
 
 ## Verified failing (and why)
 
 | package | failure | cause |
 |---|---|---|
 | `bat` | `libgit2.so.1.9: cannot open shared object` | dependency not present; `bat`'s binary name is also `batcat`, not `bat` |
-| `screen` | `dpkg ... returned error code (1)` | postinst touched something root-only (`/run/screen`, `/lib/systemd/system`, `update-rc.d`) with no `\|\| true` guard — genuine `tier never`, see `recipes/screen.recipe` |
-| `javascript-common` | `dpkg ... returned error code (1)` | same shape as `screen`, see `recipes/javascript-common.recipe` |
+| `screen` | `dpkg ... returned error code (1)` | postinst touched something root-only (`/run/screen`, `/lib/systemd/system`, `update-rc.d`) with no `\|\| true` guard — genuine `tier never`, see [`ecosystems.md`](ecosystems.md) |
+| `javascript-common` | `dpkg ... returned error code (1)` | same shape as `screen`, see [`ecosystems.md`](ecosystems.md) |
 
 ## Categories
 
@@ -109,7 +108,7 @@ isn't necessarily fatal — check `recipes/` first (see
   [*Prefer `pip`/`pipx` for pure Python*](#prefer-pippipx-for-pure-python-apps)
   below and #7 for Perl/Ruby. `check-package.sh --runtime` reports the
   gap as `env interp=...` or `overlay shebang:...` rather than a hard
-  blocker — check `recipes/` before assuming it's broken.
+  blocker — check [`ecosystems.md`](ecosystems.md) before assuming it's broken.
 - **Java is a different shape**: `openjdk-*-jre-headless` and `java-common`
   both do an unguarded `mkdir -m 755 /etc/.java` in postinst — genuinely
   root-only, and there's no safe shim target (unlike `py3compile`, shimming
@@ -117,7 +116,7 @@ isn't necessarily fatal — check `recipes/` first (see
   apt route is a dead end. `tools/deb2home.sh <pkg>` (extracts with
   `dpkg -x`, no maintainer scripts) plus `JAVA_HOME` is the actual fix.
   Verified: `java` runs fine with no `/etc/.java` on the host at all — the
-  JVM creates it lazily if missing. See `recipes/openjdk-25-jre-headless.recipe`
+  JVM creates it lazily if missing. See [`ecosystems.md`](ecosystems.md)
   and #7. `check-package.sh` doesn't yet detect this postinst shape
   (`mkdir`/`chmod`/`touch` against an absolute `/etc` path isn't a signal it
   checks) — a known gap, not fixed here.
@@ -155,7 +154,7 @@ externally-managed-environment`) unless you pass
 isolated venv per tool), so **`pipx` is the actually-recommended path**, not
 just an alternative to `pip --user`.
 
-The apt route (`recipes/ranger.recipe`) still earns its keep for packages
+The apt route (`ranger`, [`ecosystems.md`](ecosystems.md)) still earns its keep for packages
 with **compiled C extensions** or real system integration — `pip`/`pipx`
 can't relocate those any better than apt can.
 
@@ -175,4 +174,4 @@ can't relocate those any better than apt can.
 Good for **user-space tooling and dev libraries**. Not a system package
 manager: skip anything that installs services, users, setuid bits, or
 privileged ports. Python/Perl/Ruby apps are no longer in that bucket — see
-`recipes/` and #7.
+[`ecosystems.md`](ecosystems.md) and #7.

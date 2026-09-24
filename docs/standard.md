@@ -1,4 +1,4 @@
-# The sudo-less standard (spec v2)
+# The sudo-less standard (spec v3)
 
 What sudo-less supports, and how a claim about a package is written down and
 proved. The design behind it is [`design.md`](design.md); the numbers are
@@ -35,7 +35,7 @@ survey's evidence per section in [`survey-2026-09.md`](survey-2026-09.md#per-sec
 
 | scope | sections |
 |---|---|
-| `user` | libraries and development: `libs`, `libdevel`, `devel`, `debug`, `introspection`, `vcs`; languages: `python`, `perl`, `ruby`, `rust`, `golang`, `haskell`, `javascript`, `java`, `php`, `ocaml`, `lisp`, `gnu-r`, `interpreters` ([`ecosystems/`](../ecosystems/)); tools and content: `utils`, `text`, `editors`, `shells`, `doc`, `fonts`, `localization`, `tex`; applications: `science`, `math`, `graphics`, `sound`, `video`, `games`, `electronics`, `hamradio`, `education`, `embedded`; desktop: `x11`, `gnome`, `kde`, `xfce`; mixed client/server: `web`, `comm` |
+| `user` | libraries and development: `libs`, `libdevel`, `devel`, `debug`, `introspection`, `vcs`; languages: `python`, `perl`, `ruby`, `rust`, `golang`, `haskell`, `javascript`, `java`, `php`, `ocaml`, `lisp`, `gnu-r`, `interpreters` ([`ecosystems.md`](ecosystems.md)); tools and content: `utils`, `text`, `editors`, `shells`, `doc`, `fonts`, `localization`, `tex`; applications: `science`, `math`, `graphics`, `sound`, `video`, `games`, `electronics`, `hamradio`, `education`, `embedded`; desktop: `x11`, `gnome`, `kde`, `xfce`; mixed client/server: `web`, `comm` |
 | `admin` | `admin`, `kernel`, `net`, `mail`, `database`, `httpd`, `tasks`, `metapackages`, and the `required` / `important` / `standard` packages of a base install |
 | undecided | `cli-mono`, `gnustep`, `misc`, `news`, `oldlibs`, `otherosfs`, `zope` |
 
@@ -49,7 +49,7 @@ Whatever its section, a package is the **admin's** if it:
 - needs a setuid or setgid file, or a file capability, to work.
 
 A client in an admin section (`curl`, `mtr` in `net`) can be brought into
-scope by a recipe.
+scope as an exception.
 
 ### Version skew is the admin's too
 
@@ -65,83 +65,13 @@ One of `none`, `env`, `overlay` ([`mechanisms.md`](mechanisms.md)), plus a
 `scripts/catalog/check-package.sh --runtime` predicts it; its `direct`
 means `none`.
 
-## Recipes: the exceptions
+## Exceptions
 
-A package needs no recipe when the classifier gets it right. A recipe exists
-to **override** the classifier and to **prove** the result.
-
-One file per package, `recipes/<package>.recipe`: plain text, one `key
-value` per line, `#` comments, blank lines ignored.
-
-| key | required | meaning |
-|---|---|---|
-| `package` | yes | the package name (matches the file name) |
-| `install` | yes | the raw `check-package.sh` verdict: `ok`, `risky` or `unlikely` |
-| `scope` | no | `user` (default), `admin` or `never` |
-| `mechanism` | for scope `user` | `none`, `env` or `overlay` |
-| `gui` | no | `yes` for an app that needs a desktop session |
-| `env` | no | `NAME=value`, repeatable; `$PREFIX` is substituted |
-| `shim` | no | a shim that must exist in `$PREFIX/bin`, repeatable |
-| `verify` | no | one shell command that proves the package works |
-| `note` | no | free text, repeatable; required for scope `admin` or `never` |
-
-Rules:
-
-- `install` is the raw verdict *before* any shim or env applies: `ranger` is
-  `install risky` (its postinst calls `py3compile`) with `mechanism none`,
-  fixed by a shim. That difference is the fix.
-- A recipe with scope `admin` or `never` has a `note` and no `verify`.
-- `env` in a recipe is a stopgap: a language's search path belongs in its
-  ecosystem hook, set once for every package.
-
-## Verification
-
-```sh
-scripts/catalog/recipes.sh list              # package, raw verdict, scope, mechanism
-scripts/catalog/recipes.sh show ranger       # the recipe
-scripts/catalog/recipes.sh verify [PKG...]   # default: every recipe
-```
-
-`verify` checks the mechanism's prerequisites (and a session for `gui`),
-that each declared shim exists, then runs `verify` with `env` applied. It
-prints `PASS`, `FAIL`, `SKIP` (prerequisites missing) or `OUT` (scope
-`admin` or `never`), and exits non-zero on any failure. For `mechanism
-none` it also checks that the command resolves under `$PREFIX`, so a system
-copy on `PATH` cannot pass for the prefix's. **A recipe is a claim until
-`verify` passes on a real host.**
-
-## Worked examples
-
-`recipes/ranger.recipe`: pure Python; a shim fixes the install, the Python
-ecosystem hook puts the prefix on `sys.path`, so nothing else is needed:
-
-```
-package    ranger
-install    risky
-mechanism  none
-shim       py3compile
-verify     ranger --version
-```
-
-`recipes/nodejs.recipe`: `node` loads `/usr/share/nodejs/...` by absolute
-path, which no variable reaches:
-
-```
-package    nodejs
-install    risky
-mechanism  overlay
-verify     tools/prefix-run.sh node -e process.version
-```
-
-`recipes/screen.recipe`: its postinst creates `/run/screen` and calls
-`update-rc.d`:
-
-```
-package    screen
-install    unlikely
-scope      never
-note       root-only postinst (creates /run/screen, /lib/systemd/system, calls update-rc.d)
-```
+Where the classifier is wrong about a package, the case is written down in
+[`ecosystems.md`](ecosystems.md), with what the package ran into and how it
+was made to work, and the classifier is fixed where it can be. A claim that
+a package works holds only once it has been run on a real host, from the
+prefix, not through the system's copy on `PATH`.
 
 ## Language and dependencies
 
@@ -149,8 +79,6 @@ The whole project stays **bash and plain text**. This is a rule, not a
 preference:
 
 - scripts are bash (`#!/usr/bin/env bash`); no interpreter beyond bash;
-- recipes are data, plain `key value` lines parsed with `sed`;
-- `verify` and `env` values are shell;
 - no compiled helper, no third-party runtime, no `jq`, Python or parser.
 
 The overlay calls standard tools (`bwrap`, `unshare`) as programs, not as
@@ -158,10 +86,12 @@ runtimes.
 
 ## Versioning
 
-**Spec v2** (2026-09). Changes from v1: the tier ladder (`direct`, `env`,
+**Spec v3** (2026-09). Changes from v2: recipes (`recipes/*.recipe` and
+`scripts/catalog/recipes.sh`) are gone; exceptions are documented in
+[`ecosystems.md`](ecosystems.md). Changes from v1 to v2: the tier ladder (`direct`, `env`,
 `overlay`, `rootfs`, `gui`, `never`) is replaced by two questions, scope
 and mechanism; `gui` is an attribute; `rootfs` is gone; scope follows the
 Debian section; recipes are exceptions to the classifier, with the keys
 `scope`, `mechanism` and `gui` instead of `tier`.
 
-Adding a scope, mechanism or key is a spec change; adding recipes is not.
+Adding a scope or mechanism is a spec change.

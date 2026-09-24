@@ -1,8 +1,0 @@
-# screen — postinst is root-only and unguarded (no `|| true`): it runs
-# `install -g utmp -m 0775 -d /run/screen`, writes /etc/tmpfiles.d and a
-# /lib/systemd/system symlink, and calls `update-rc.d`. None of that is
-# reachable unprivileged, so `dpkg --configure` fails outright.
-package  screen
-install  unlikely
-scope      never
-note     root-only postinst (creates /run/screen, /lib/systemd/system, calls update-rc.d) — no unprivileged path; use the system's screen instead

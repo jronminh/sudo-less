@@ -39,7 +39,7 @@ done
 mkdir -p "$STAGE/share/sudo-less"
 # tools/: prefix-run.sh and deb2home.sh, which a bootstrap user needs for
 # the overlay and for packages apt cannot install
-for d in apt-dpkg config ecosystems tools; do
+for d in apt-dpkg config tools; do
   cp -a "$REPO/$d" "$STAGE/share/sudo-less/$d"
 done
 mkdir -p "$STAGE/share/sudo-less/scripts"

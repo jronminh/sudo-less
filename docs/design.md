@@ -47,8 +47,7 @@ adding a file, not editing a script.
 | **pipeline** | the four stages above | this page |
 | **classifier** | one library that reads a `.deb` and returns scope, mechanism and unsafe scripts; used by stage 2, by `sudo-less explain` and by the survey tools, so the same input always gets the same verdict | `scripts/catalog/check-package.sh` (to become the library) |
 | **mechanisms** | how a relocated package is made to run: environment, shims, the overlay | [`mechanisms.md`](mechanisms.md) |
-| **ecosystems** | per-language parts that plug into the stages: `shims/`, `classify.d/`, `integrate.d/`, and a one-time `install.sh` for global environment | [`ecosystems/`](../ecosystems/) |
-| **recipes** | exceptions only: a recipe overrides the classifier where it is wrong and proves it with `verify` | [`standard.md`](standard.md) |
+| **ecosystems** | what each language needs; per-language parts plug into the stages when one is needed (none today) | [`ecosystems.md`](ecosystems.md) |
 | **state** | `$PREFIX/var/lib/sudo-less/`: per package, its scope, mechanism and the wrappers it got, so everything can be explained and removed cleanly | — |
 | **admin step** | one-time enablement: unprivileged user namespaces, `~/.local/bin` on `PATH` (`admin/enable-userspace.sh`) | [`../admin/`](../admin/) |
 
@@ -70,8 +69,9 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
    package itself. No second list to keep in sync.
 2. **Ecosystems plug in; they do not branch off.** A language adds files to
    the stages. Nothing language-specific lives in the core scripts.
-3. **Recipes are exceptions.** A package needs a recipe only when the
-   classifier gets it wrong.
+3. **Exceptions are documented, not coded.** Where the classifier is wrong
+   about a package, the case goes in [`ecosystems.md`](ecosystems.md) and
+   the classifier is fixed.
 4. **Hooks never break apt.** A failing hook warns. The one deliberate stop
    is a refusal in stage 2, and it always says why.
 5. **Everything is explainable.** Every decision is recorded where
@@ -93,9 +93,9 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
 | apt/dpkg port, prebuilt, `bootstrap.sh` | works; three bugs for a new account (`gpgv` vs `sqv`, the build machine's paths in the prebuilt dpkg, `tools/` missing from the prebuilt) |
 | stage 1 sync | manual: `lock-seeded.sh --reseed` |
 | stage 2 classify | the logic exists as `check-package.sh`, run by hand; no hook |
-| stage 3 shims | `py3compile` only, and on the user's `PATH` |
+| stage 3 shims | none; the view made the `py3compile` shim unnecessary |
 | stage 4 integrate | launchers only (`01update-desktop-database`); overlay by hand with `prefix-run.sh` |
-| ecosystems | Python complete; Java, Perl, Ruby documented, environment pinned in recipes |
+| ecosystems | documented in [`ecosystems.md`](ecosystems.md); no per-language code |
 | state, `explain`, `doctor` | not yet |
 
 ## Order of work

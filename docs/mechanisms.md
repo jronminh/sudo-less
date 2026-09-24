@@ -35,8 +35,8 @@ package, and applies it **automatically**.
 | mechanism | fixes | needs | how it is applied |
 |---|---|---|---|
 | **none** | nothing to fix: the package finds its files relative to its binary, or through `PATH` | nothing | — |
-| **environment** | a lookup that honors a variable (`PERL5LIB`, `JAVA_HOME`, `XDG_DATA_DIRS`, `LD_LIBRARY_PATH`, …) | nothing | set once for every package, by each ecosystem's hook |
-| **shim** | a maintainer script calling a tool with an absolute path (`py3compile`) | nothing | a replacement on `PATH`, from `ecosystems/*/shims/` |
+| **environment** | a lookup that honors a variable (`PERL5LIB`, `JAVA_HOME`, `XDG_DATA_DIRS`, `LD_LIBRARY_PATH`, …) | nothing | set once for every package |
+| **shim** | a maintainer script calling a tool with an absolute path (`py3compile`) | nothing | a replacement on `PATH` (none today: in the view the real `py3compile` works) |
 | **overlay** | paths compiled into the binary (`/usr/share/...`, `/etc/...`), shebangs naming an interpreter only in the prefix | unprivileged user namespaces + overlayfs (enabled once by `admin/enable-userspace.sh`) | a wrapper runs the command through `tools/prefix-run.sh` |
 
 `scripts/catalog/check-package.sh --runtime` tells which mechanism a package
@@ -46,15 +46,14 @@ out of reach (`never`).
 
 ## Environment
 
-A variable set **once for every package**, never per package. Each
-ecosystem's `install.sh` hook (run by `scripts/setup/install-config.sh`) sets
-what its language needs:
+A variable set **once for every package**, never per package. What each
+language needs ([`ecosystems.md`](ecosystems.md)):
 
 | ecosystem | what it sets | status |
 |---|---|---|
-| Python | a `.pth` file in the system python3's user site, adding `$PREFIX/usr/lib/python3/dist-packages` to `sys.path` | done (`ecosystems/python/install.sh`) |
-| Perl | `PERL5LIB` with the host's own architecture triplet and Perl version | to do; today a recipe pins it (`recipes/pmarkdown.recipe`) |
-| Java | `JAVA_HOME` for the default JDK installed with `deb2home` | to do; today a recipe pins it |
+| Python | a `.pth` file in the system python3's user site, adding `$PREFIX/usr/lib/python3/dist-packages` to `sys.path` | removed; not needed in the view, still needed outside it until programs run in the view |
+| Perl | `PERL5LIB` with the host's own architecture triplet and Perl version | to do, or unneeded once programs run in the view |
+| Java | `JAVA_HOME` for the default JDK installed with `deb2home` | to do, or unneeded once programs run in the view |
 | Ruby | `RUBYLIB` / `GEM_PATH` | to do; today some gems use the overlay |
 | all | `PATH`, `XDG_DATA_DIRS` | done (`scripts/setup/install-shell-path.sh`, `install-session-env.sh`) |
 
@@ -138,7 +137,6 @@ typed.
 
 - The wrapper execs the binary from `$PREFIX/usr/bin` by absolute path, so it
   never calls itself.
-- A recipe's `mechanism` key overrides the prediction either way.
 - If the host cannot build the overlay (no user namespaces), the wrapper says
   so and names the admin step, instead of failing deep inside the program.
 - Removing the package removes its wrappers.

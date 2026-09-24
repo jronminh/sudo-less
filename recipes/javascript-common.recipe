@@ -1,9 +1,0 @@
-# javascript-common — postinst's lighttpd_setup() runs unconditionally on
-# fresh install: `mkdir -p /etc/lighttpd/conf-enabled` against the absolute
-# host path, no `|| true` guard. /etc is root-owned, so `dpkg --configure`
-# fails outright. Pulled in as a Recommends of libjs-jquery (yard's chain);
-# not something a package needing it can avoid at install time.
-package  javascript-common
-install  unlikely
-scope      never
-note     root-only postinst (mkdir -p /etc/lighttpd/conf-enabled, apache2_invoke enconf) — no unprivileged path

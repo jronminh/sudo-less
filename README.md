@@ -60,7 +60,7 @@ It depends first on the package's Debian **section**
 ([`docs/standard.md`](docs/standard.md#scope-by-debian-section)):
 
 - **Supported:** libraries and `-dev`, languages (`python`, `perl`, `ruby`,
-  `java`, `rust`, `golang`, `javascript`, …; see [`ecosystems/`](ecosystems/)),
+  `java`, `rust`, `golang`, `javascript`, …; see [`docs/ecosystems.md`](docs/ecosystems.md)),
   `utils`, `text`, `editors`, `doc`, `fonts`, science, graphics, sound, video,
   games, and desktop apps.
 - **The admin's:** `admin`, `kernel`, `net` and `mail` servers, `database` and
@@ -113,10 +113,11 @@ this repo.
   pipeline sudo-less hangs on apt's hooks, its parts, and what exists today.
 - [`docs/survey-2026-09.md`](docs/survey-2026-09.md) — a random sample by
   Debian section: what installs today and what blocks the rest.
-- [`docs/standard.md`](docs/standard.md) — scope by Debian section, recipes,
-  and how each package is checked.
-- [`ecosystems/`](ecosystems/) — what each language needs (Python, Java, Perl,
-  Ruby).
+- [`docs/standard.md`](docs/standard.md) — scope by Debian section, and how
+  each package is checked.
+- [`docs/ecosystems.md`](docs/ecosystems.md) — what each language and some
+  single packages made hard, and what the prefix view changes.
+- [`docs/view.md`](docs/view.md) — the prefix view dpkg runs in.
 - [`docs/mechanisms.md`](docs/mechanisms.md) — how packages are made to run: environment variables and the overlay (for contributors).
 - [`docs/porting.md`](docs/porting.md) — building apt/dpkg yourself.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
@@ -137,9 +138,8 @@ tricks) is experimental. See [`docs/release.md`](docs/release.md).
 ```
 bootstrap.sh   one-command install (fetches prebuilt apt/dpkg)
 apt-dpkg/      apt/dpkg setup: config, database seeding
-ecosystems/    per-language support: install hooks, shims, notes (python, java, perl, ruby)
-recipes/       per-package notes (see docs/standard.md)
-tools/         prefix-run.sh (the overlay), deb2home.sh (extract without scripts)
+tools/         prefix-view.sh (the view dpkg runs in), prefix-run.sh (the overlay),
+               deb2home.sh (extract without scripts)
 scripts/       build, setup and catalog helpers
 admin/         one-time root step that enables userspace: enable-userspace.sh
 patches/       apt/dpkg patches: a fork of Termux's (patches/UPSTREAM.md)

@@ -64,9 +64,9 @@ fails with "not signed", as bootstrap already warns.
 
 The plan was a tier `limited`: a package whose only obstacle is one
 privileged step runs that step through a narrow dsb identity. Checked
-against the two `never` recipes it was meant for, it does not hold:
+against the two `never` packages it was meant for, it does not hold:
 
-| recipe | the privileged step | why not dsb | the actual way |
+| package | the privileged step | why not dsb | the actual way |
 |---|---|---|---|
 | `javascript-common` | postinst `mkdir -p /etc/lighttpd/conf-enabled` | lighttpd starts as root and its config can run commands as root (`include_shell`): **a write grant on `/etc/lighttpd` is root**. Even `commands = mkdir` alone allows `mkdir -m 777`, after which anyone can drop config there. | a path shim redirecting `/etc/lighttpd` into `$PREFIX` (tier `direct`), or the admin creating the empty, root-owned directory once |
 | `screen` | `/run/screen` in group `utmp`, `/etc/tmpfiles.d`, a unit link, `update-rc.d` | most of it is root-executed config, refused by design; `dpkg --configure` still fails | stays `never`; the system's `screen` (or `SCREENDIR` with a userspace build) |

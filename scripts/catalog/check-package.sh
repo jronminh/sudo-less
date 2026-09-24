@@ -59,8 +59,7 @@ HARD_DEPS='init-system-helpers|adduser|debconf|initramfs-tools|sysvinit-core|pas
 
 # SOFT: commonly non-fatal (Debian wraps these, or they only warn), system
 # integration that doesn't stop the binaries running, or a blocker this repo
-# already ships a fix for (py3compile: ecosystems/python/shims/py3compile + install-config.sh's
-# .pth puts $PREFIX/usr/lib/python3/dist-packages on sys.path — see #5).
+# no longer blocks (py3compile works in the prefix view — docs/ecosystems.md).
 SOFT_SCRIPT='update-alternatives|update-menus|update-desktop-database|install-info|update-mime|update-mime-database|gtk-update-icon-cache|update-fonts|update-xmlcatalog|update-catalog|update-dictcommon|update-icon-caches|py3compile'
 SOFT_FILES='/usr/lib/systemd/|/lib/systemd/|/etc/init.d/|/usr/libexec/|/usr/lib/udev/|/etc/dbus-1/|/usr/share/polkit-1/|/usr/lib/tmpfiles.d/|/etc/default/|/usr/share/dbus-1/|/etc/xdg/autostart/|/usr/lib/python3/dist-packages/|/usr/lib/python3/'
 

@@ -63,6 +63,16 @@ fresh_prefix() {
     xargs -r sed -i "s|$BASE|$W/pfx|g"
 }
 
+# Cut a package's programs and scripts off the desktop session. Unsetting
+# WAYLAND_DISPLAY is not enough: libwayland then tries wayland-0 in
+# XDG_RUNTIME_DIR, and a GUI program opens a real window on the user's screen.
+# An empty runtime dir also hides the session bus ($XDG_RUNTIME_DIR/bus).
+headless() {
+  unset DISPLAY WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS QT_QPA_PLATFORM GDK_BACKEND
+  export XDG_RUNTIME_DIR=$W/home/run
+  mkdir -p -m 0700 "$XDG_RUNTIME_DIR"
+}
+
 # Why apt-get install failed, from its output in $1.
 install_failure() {
   local log=$1 l
@@ -126,7 +136,8 @@ survey_one() {
     export PREFIX=$W/pfx HOME=$W/home
     export APT_CONFIG=$PREFIX/etc/apt/apt.conf.d/00local-prefix
     export PATH=$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:/usr/local/bin:/usr/bin:/bin
-    unset DISPLAY WAYLAND_DISPLAY DPKG_ADMINDIR
+    unset DPKG_ADMINDIR
+    headless
     timeout 1800 apt-get install -y --no-install-recommends \
       -o Dir::State::Lists="$BASE/var/lib/apt/lists" \
       -o Dir::Cache::Archives="$OUT/archives" "$pkg"
@@ -152,7 +163,7 @@ survey_one() {
       r=$(
         export PREFIX=$W/pfx HOME=$W/home
         export PATH=$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PREFIX/usr/games:/usr/local/bin:/usr/bin:/bin
-        unset DISPLAY WAYLAND_DISPLAY
+        headless
         echo "=== $p ($how)" >>"$log"
         r=$(try_program "$p")
         cat "$W/run.out" >>"$log"

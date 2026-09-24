@@ -26,12 +26,12 @@ and dpkg, installs them into `~/.local`, and writes the runtime config.
 
 Most users never build: `bootstrap.sh` installs the prebuilt release. The
 repo scripts only the root path above, and CI runs that same script inside a
-`debian:bookworm` container. Without root, any Debian environment in which
+`debian:trixie` container. Without root, any Debian environment in which
 you can install `scripts/build-deps.list` and run `build-on-host.sh` will do,
 for example:
 
 - **a rootless container**: `podman run --rm -v "$PWD:$PWD" -w "$PWD"
-  debian:bookworm ./scripts/env/build-on-host.sh` (you are root inside; the
+  debian:trixie ./scripts/env/build-on-host.sh` (you are root inside; the
   admin must have installed `podman` and `uidmap` and given you subuid/subgid);
 - **a rootfs** made with `mmdebstrap --mode=unshare` and entered with `bwrap`
   or `unshare -Urm` + `chroot`. `--mode=unshare` maps the subuid range to

@@ -32,18 +32,19 @@ hash differs from a build you did yourself, don't trust the artifact.
 
 ## Compatibility baseline
 
-Releases are built against **Debian 12 (bookworm, oldstable)**, so the binaries
-run on bookworm and newer. That is the real compatibility limit: anything older
-than bookworm (older glibc) is not supported, and this is stated rather than
-hidden.
+Releases are built against **Debian 13 (trixie, stable)**, so the binaries
+run on trixie and newer. That is the real compatibility limit: anything older
+than trixie (older glibc) is not supported, and this is stated rather than
+hidden. It was bookworm until apt 3.3.3, which needs a C++23 compiler
+(GCC 13 or later; bookworm has GCC 12).
 
 Build releases in a container pinned to that suite, **not** on the host,
 which has whatever suite it happens to run. CI does this
-(`.github/workflows/build.yml`, `container: debian:bookworm`); by hand, in
+(`.github/workflows/build.yml`, `container: debian:trixie`); by hand, in
 any container runtime:
 
 ```sh
-podman run --rm -v "$PWD:$PWD" -w "$PWD" debian:bookworm ./scripts/env/build-on-host.sh
+podman run --rm -v "$PWD:$PWD" -w "$PWD" debian:trixie ./scripts/env/build-on-host.sh
 ```
 
 `package-prebuilt.sh` writes a `<asset>.buildinfo` recording the suite, arch,
@@ -58,8 +59,8 @@ The artifact *is* relocatable across users and prefixes: apt follows the config
 ## Cutting a release (maintainer)
 
 ```sh
-# 1. build in a CLEAN prefix against the pinned baseline suite (bookworm):
-podman run --rm -v "$PWD:$PWD" -w "$PWD" debian:bookworm ./scripts/env/build-on-host.sh
+# 1. build in a CLEAN prefix against the pinned baseline suite (trixie):
+podman run --rm -v "$PWD:$PWD" -w "$PWD" debian:trixie ./scripts/env/build-on-host.sh
 
 # 2. package it:
 ./scripts/bootstrap/package-prebuilt.sh   # -> dist/<asset>, .sha256, .buildinfo

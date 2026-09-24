@@ -54,10 +54,15 @@ Measured by:
 3. **A clear boundary:** which sections are the admin's, and which packages are
    `never` and why.
 
+Where it stands: criterion 1 is verified on a fresh account with the release
+build. Criterion 2 has a baseline ([`docs/survey-2026-09.md`](docs/survey-2026-09.md))
+and is being re-measured with installs and runs. Criterion 3 is the
+[problem map](docs/problems.md), and `apt-get install` enforces it.
+
 ## Does it work for my package?
 
 It depends first on the package's Debian **section**
-([`docs/standard.md`](docs/standard.md#scope-by-debian-section)):
+([`docs/standard.md`](docs/standard.md#by-debian-section)):
 
 - **Supported:** libraries and `-dev`, languages (`python`, `perl`, `ruby`,
   `java`, `rust`, `golang`, `javascript`, …; see [`docs/ecosystems.md`](docs/ecosystems.md)),
@@ -67,13 +72,15 @@ It depends first on the package's Debian **section**
   `httpd` servers, `tasks`, `metapackages`, and anything that creates a system
   user or ships a service, in any section.
 
-Check any package *before* installing it:
+`apt-get install` refuses a package that needs root (one that creates a
+system user, or installs kernel modules), before anything is installed,
+and says why. To check a package by hand first:
 
 ```sh
 scripts/catalog/check-package.sh nginx tree ranger
 ```
 
-More detail: [`docs/working-packages.md`](docs/working-packages.md).
+What can and cannot work, and why: [`docs/problems.md`](docs/problems.md).
 
 ## Why you'd want this
 
@@ -92,7 +99,9 @@ system, just use `apt`.
 
 `apt` and `dpkg` are the real Debian programs (**apt 3.3.3**, **dpkg 1.23.11**)
 plus a few patches forked from [Termux](https://github.com/termux/termux-packages)'s, rebuilt to
-install into `~/.local`. Your copy keeps its own package database, separate from
+install into `~/.local`. dpkg runs in a private view where `~/.local` looks like
+`/usr`, `/etc` and `/var`, so packages install unchanged
+([`docs/view.md`](docs/view.md)). Your copy keeps its own package database, separate from
 the system's, and treats everything already on the system as already installed —
 so it only fetches what you actually ask for. Neither program is a fork.
 
@@ -119,7 +128,7 @@ this repo.
   single packages made hard, and what the prefix view changes.
 - [`docs/view.md`](docs/view.md) — the prefix views: the one dpkg runs in,
   and the shared one for installed programs that need it.
-- [`docs/mechanisms.md`](docs/mechanisms.md) — how packages are made to run: environment variables and the overlay (for contributors).
+- [`docs/problems.md`](docs/problems.md) — every obstacle between a `.deb` and a user without root, by when it bites and who can fix it (for contributors).
 - [`docs/admin-features.md`](docs/admin-features.md) — planned: one-time admin steps that give userspace more (linger, subid, devices), and the rule that keeps them safe.
 - [`docs/porting.md`](docs/porting.md) — building apt/dpkg yourself.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
@@ -141,12 +150,13 @@ tricks) is experimental. See [`docs/release.md`](docs/release.md).
 bootstrap.sh   one-command install (fetches prebuilt apt/dpkg)
 apt-dpkg/      apt/dpkg setup: config, database seeding
 tools/         prefix-view.sh (the install and run views), prefix-wrap.sh (which
-               programs run in the view), prefix-run.sh (the older overlay),
-               deb2home.sh (extract without scripts)
+               programs run in the view), prefix-check.sh (refuses what needs
+               root), prefix-run.sh (the older overlay), deb2home.sh (extract
+               without scripts)
 scripts/       build, setup and catalog helpers
 admin/         one-time root step that enables userspace: enable-userspace.sh
 patches/       apt/dpkg patches: a fork of Termux's (patches/UPSTREAM.md)
-dev/           tools for developing sudo-less (dsb test policy)
+dev/           tools for developing sudo-less (dsb test policy, survey.sh)
 docs/          all the detail
 ```
 

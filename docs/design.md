@@ -45,8 +45,9 @@ adding a file, not editing a script.
 |---|---|---|
 | **apt/dpkg port** | the real Debian apt and dpkg, following upstream, patched only as far as working without root in a prefix needs (a fork of Termux's patches) | [`apt-dpkg-port.md`](apt-dpkg-port.md) |
 | **pipeline** | the four stages above | this page |
-| **classifier** | one library that reads a `.deb` and returns scope, mechanism and unsafe scripts; used by stage 2, by `sudo-less explain` and by the survey tools, so the same input always gets the same verdict | `scripts/catalog/check-package.sh` (to become the library) |
-| **mechanisms** | how a relocated package is made to run: environment, shims, the overlay | [`mechanisms.md`](mechanisms.md) |
+| **classifier** | one library that reads a `.deb` and returns scope, mechanism and unsafe scripts; used by stage 2, by `sudo-less explain` and by the survey tools, so the same input always gets the same verdict | `tools/prefix-check.sh` (stage 2) and `scripts/catalog/check-package.sh` (by hand), to become one |
+| **views** | where dpkg runs, and the programs that look for their files at `/usr`, `/etc`, `/opt` | [`view.md`](view.md) |
+| **problem map** | every obstacle, by when it bites (install, run) and who can fix it (sudo-less, the admin once, nobody) | [`problems.md`](problems.md) |
 | **ecosystems** | what each language needs; per-language parts plug into the stages when one is needed (none today) | [`ecosystems.md`](ecosystems.md) |
 | **state** | `$PREFIX/var/lib/sudo-less/`: per package, its scope, mechanism and the wrappers it got, so everything can be explained and removed cleanly | — |
 | **admin step** | one-time enablement: unprivileged user namespaces, `~/.local/bin` on `PATH` (`admin/enable-userspace.sh`) | [`../admin/`](../admin/) |
@@ -90,10 +91,10 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
 
 | part | status |
 |---|---|
-| apt/dpkg port, prebuilt, `bootstrap.sh` | works; three bugs for a new account (`gpgv` vs `sqv`, the build machine's paths in the prebuilt dpkg, `tools/` missing from the prebuilt) |
+| apt/dpkg port, prebuilt, `bootstrap.sh` | works; the three bugs a new account hit are fixed, and a fresh account was verified with the release build (criterion 1) |
 | stage 1 sync | manual: `lock-seeded.sh --reseed` |
-| stage 2 classify | the logic exists as `check-package.sh`, run by hand; no hook |
-| stage 3 shims | none; the view made the `py3compile` shim unnecessary |
+| stage 2 classify | `prefix-check` is hooked (`DPkg::Pre-Install-Pkgs`): it refuses a package that creates a system user or group, or installs kernel modules or into `/boot`, before dpkg runs; `check-package.sh` is not merged into it yet |
+| stage 3 install | dpkg runs in the install view, with an empty `/run` so maintainer scripts cannot reach the host's services; no shims needed so far (the view made `py3compile`'s unnecessary) |
 | stage 4 integrate | launchers (`01update-desktop-database`); `prefix-wrap` gives programs that need the view a script that runs them in the shared run view, and the rest run directly ([`view.md`](view.md#how-programs-get-there)) |
 | ecosystems | documented in [`ecosystems.md`](ecosystems.md); no per-language code |
 | state, `explain`, `doctor` | not yet |
@@ -103,12 +104,14 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
 1. Fork the patch set, same behaviour as today; rebase it onto current
    upstream apt and dpkg (apt 3.x verifies with `sqv`); add patches A
    (relocatable dpkg) and C (prefix hygiene), and `tools/` to the prebuilt.
-   That fixes the three new-account bugs (criterion 1). Patch B (two-layer
+   That fixes the three new-account bugs (criterion 1; done). Patch B (two-layer
    database) once the survey shows what a stale seed costs.
-2. Stage 3: run dpkg in the prefix view ([`view.md`](view.md)); run the
-   installed programs that need it in a shared run view (done); move shims to a `DPkg::Path`-only directory; add shims for
-   the common root-only helpers the survey found.
-3. Stage 2: turn `check-package.sh` into the classifier library and hook it.
+2. Stage 3: run dpkg in the prefix view ([`view.md`](view.md)) and the
+   installed programs that need it in a shared run view (both done); add
+   shims, on a `DPkg::Path`-only directory, for the common root-only
+   helpers the survey finds.
+3. Stage 2: hook a classifier (done: `prefix-check`); merge
+   `check-package.sh` into it, so there is one.
 4. Stage 4: state, and check for half-configured packages (the view
    wrappers are done).
 5. Stage 1: sync on `update`.

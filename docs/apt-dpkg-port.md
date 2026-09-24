@@ -90,8 +90,8 @@ system that stays in charge. The rule for our apt and dpkg:
 
 What happens around a package (scope, shims, overlay wrappers, launchers) is
 the pipeline's job, through apt's hooks ([`design.md`](design.md)); how an
-installed program finds its files at run time is the mechanisms' job
-([`mechanisms.md`](mechanisms.md)). Neither is a reason to patch.
+installed program finds its files at run time is the run view's job
+([`view.md`](view.md)). Neither is a reason to patch.
 
 ### The fork
 
@@ -152,7 +152,7 @@ install root: `figlet` → `../../etc/alternatives/figlet` →
 `../../usr/bin/figlet-utf8`. A `.deb` link whose target exists only on the
 host (a seeded system package's file) stays absolute. A script that
 `exec`s an absolute path (`figlet-utf8` runs `/usr/bin/figlet-figlet`) is
-not a symlink; that is the overlay's job ([`mechanisms.md`](mechanisms.md)).
+not a symlink; that is the overlay's job ([`view.md`](view.md)).
 Triggers of seeded system
 packages (`man-db`, `fontconfig`, `shared-mime-info`) have no handler in the
 prefix, and prefix-aware versions belong in stage 4, not in dpkg.

@@ -16,9 +16,9 @@ Two questions, asked of every package:
 
 1. **Scope:** is it the user's, the admin's, or out of reach? The user sees
    this.
-2. **Mechanism:** what does it need to run from the prefix? Only sudo-less
-   sees this; it applies the mechanism itself
-   ([`mechanisms.md`](mechanisms.md)).
+2. **Mechanism:** how does each of its programs run from the prefix:
+   directly, or in the run view? Only sudo-less sees this; it decides by
+   itself ([`view.md`](view.md#how-programs-get-there)).
 
 ## Scope
 
@@ -60,10 +60,13 @@ as apt's "held broken packages". On Debian stable it hardly happens.
 
 ## Mechanism
 
-One of `none`, `env`, `overlay` ([`mechanisms.md`](mechanisms.md)), plus a
-`gui` attribute for apps that need a desktop session.
-`scripts/catalog/check-package.sh --runtime` predicts it; its `direct`
-means `none`.
+Per program, one of `direct` (it runs from `$PREFIX/usr/bin`) or `view` (a
+script in `$PREFIX/bin` runs it in the shared run view), plus a `gui`
+attribute for apps that need a desktop session. `prefix-wrap` decides it
+after each install, from the installed files, and `prefix-wrap --check
+PROG` prints the decision ([`view.md`](view.md#how-programs-get-there)).
+`scripts/catalog/check-package.sh --runtime` predicts it before install:
+its `env` and `overlay` both mean `view` now.
 
 ## Exceptions
 

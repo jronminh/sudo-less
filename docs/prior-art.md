@@ -12,7 +12,7 @@ For every resource, the question is the one sudo-less asks of every package:
 | bucket | meaning | in sudo-less |
 |---|---|---|
 | **U**: unprivileged | the kernel already grants it to any user | nothing to do |
-| **F**: fakeable | userspace can provide a stand-in (namespace, shim, relocation) | `tools/`, the view (`docs/view.md`), mechanisms in `docs/mechanisms.md` |
+| **F**: fakeable | userspace can provide a stand-in (namespace, shim, relocation) | `tools/`, the view (`docs/view.md`) |
 | **A**: admin, once | needs root to *enable*, never to *run* | `admin/` |
 | **N**: not possible | no stand-in and no one-time enablement fits the rules | scope `never` |
 

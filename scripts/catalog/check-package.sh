@@ -4,7 +4,7 @@
 #
 #   ./scripts/catalog/check-package.sh PKG [PKG...]
 #   ./scripts/catalog/check-package.sh --meta PKG      # index metadata only (no download)
-#   ./scripts/catalog/check-package.sh --runtime PKG   # also predict the mechanism (docs/mechanisms.md)
+#   ./scripts/catalog/check-package.sh --runtime PKG   # also predict the mechanism (docs/view.md)
 #
 # Method (cache-only, nothing is executed or installed):
 #   * apt index metadata (Section/Priority/Essential/Depends) via apt-cache show
@@ -18,7 +18,7 @@
 #   RISKY     installs, but ships/uses system integration (may partly misbehave)
 #   UNLIKELY  a hard blocker: root-only postinst step, python app, service deps
 #
-# --runtime adds a line per package saying how it must be run (see docs/mechanisms.md
+# --runtime adds a line per package saying how it must be run (see docs/view.md
 # and docs/standard.md's tier contract):
 #   direct    relocatable: PATH (+ LD_LIBRARY_PATH) is enough
 #   env       an interpreter's own default module search path misses $PREFIX

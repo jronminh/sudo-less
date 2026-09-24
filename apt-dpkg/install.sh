@@ -39,7 +39,7 @@ chmod 0644 "$PREFIX/etc/dpkg/dpkg.cfg"
 
 # refresh the desktop-entry cache after installs so GUI packages' .desktop
 # files actually show up in app grids, not just on disk (see
-# config/apt.conf.d/01update-desktop-database.in and docs/working-packages.md)
+# config/apt.conf.d/01update-desktop-database.in)
 sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/01update-desktop-database.in" \
   > "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"

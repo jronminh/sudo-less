@@ -35,6 +35,34 @@ find no bus, and debhelper's `[ -d /run/systemd/system ]` guards skip the
 service steps. The run view keeps the host's `/run`: the programs in it are
 yours, run as you, just as outside the view.
 
+## Why a view
+
+Debian builds every package for the root prefix `/`, so a path such as
+`/etc/foo/foo.conf` or `/usr/share/foo/templates` is a constant string in
+the binary. Unpacked into the prefix, the files sit at `~/.local/etc/...`,
+but the program still opens `/etc/...`. There are two ways out: rebuild
+every package for the prefix (Termux, NixOS), or make the prefix look like
+`/` at run time (Flatpak, `proot`). sudo-less rebuilds only apt and dpkg,
+so it does the second, and only for the programs that need it.
+
+Environment variables are not enough. A variable works only if every path
+the program reads honors it: `LD_LIBRARY_PATH` finds `nodejs`'s
+`libnode.so`, then `node` loads `/usr/share/nodejs/undici/...` by absolute
+path, which no variable reaches. And a variable that reaches the library
+search path affects every program started from that shell. So sudo-less
+sets only `PATH` and `XDG_DATA_DIRS`, for every package, and uses the view
+for the rest.
+
+The view is overlaid on the host's directories, not put in their place: the
+prefix holds only the packages the user installed, and the base libraries
+still come from the system.
+
+It is not a second root filesystem either (a whole Debian made with
+`mmdebstrap`, with maintainer scripts run as namespace root). The packages
+that would need one have root-only scripts (services, system users,
+setuid), which are the admin's anyway ([`problems.md`](problems.md)). For
+a whole distribution without root, use rootless podman or distrobox.
+
 ## How dpkg gets there
 
 `$PREFIX/bin/dpkg` (and `dpkg-query`, `dpkg-divert`, `dpkg-statoverride`,
@@ -181,7 +209,8 @@ view never reach the host.
   (`prefix-wrap`), but a program started from it in between can see files
   half-installed.
 - `tools/prefix-run.sh` (the older per-command overlay with tiers) is still
-  there; the wrappers do not use it.
+  there for running a command by hand (`tools/prefix-run.sh --explain
+  --print CMD` shows what it would do); the wrappers do not use it.
 
 ## State
 

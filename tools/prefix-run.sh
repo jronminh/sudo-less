@@ -8,7 +8,7 @@
 # Relocating a .deb does not rewrite paths baked into its binaries, so a package
 # that reads /etc or /usr/share by absolute path will not see the copies under
 # $PREFIX. This wraps the command so the prefix is overlaid on /usr and /etc,
-# with whichever runner below is available. See docs/mechanisms.md.
+# with whichever runner below is available. See docs/view.md.
 #
 # Modes (auto = first available):
 #   overlay  bwrap overlay of $PREFIX/{usr,etc} on the host's /usr,/etc.

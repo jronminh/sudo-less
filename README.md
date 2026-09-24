@@ -120,6 +120,7 @@ this repo.
 - [`docs/view.md`](docs/view.md) — the prefix views: the one dpkg runs in,
   and the shared one for installed programs that need it.
 - [`docs/mechanisms.md`](docs/mechanisms.md) — how packages are made to run: environment variables and the overlay (for contributors).
+- [`docs/admin-features.md`](docs/admin-features.md) — planned: one-time admin steps that give userspace more (linger, subid, devices), and the rule that keeps them safe.
 - [`docs/porting.md`](docs/porting.md) — building apt/dpkg yourself.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
 - [`docs/prior-art.md`](docs/prior-art.md) — Termux and proot-distro: the same problem from the other end, and what we took from them.

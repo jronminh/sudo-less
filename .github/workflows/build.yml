@@ -52,6 +52,12 @@ jobs:
           # the admin's one-time step (admin/enable-userspace.sh): Ubuntu
           # runners restrict unprivileged user namespaces with AppArmor
           echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
+          # the view overlays the prefix on /usr, /etc, ...; the container's
+          # root is itself an overlay, which overlayfs refuses as an upper
+          # layer, so the build and smoke prefixes live on tmpfs
+          mkdir -p /root/.local
+          mount -t tmpfs tmpfs /root/.local
+          mount -t tmpfs tmpfs /home
 
       - uses: actions/checkout@v4
 

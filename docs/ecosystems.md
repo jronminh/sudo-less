@@ -42,10 +42,11 @@ Two things broke a Python package installed into the prefix (issue #5):
 
 **In the view:** the real `py3compile` works, because `/usr/lib/python3` is
 the prefix's tree there. Verified 2026-09-24 by reinstalling `ranger` with
-no shim on `PATH`: all 81 `.pyc` files were built. A program run in the view
-finds its modules without the `.pth`. A program run outside the view still
-needs the `.pth` or `PYTHONPATH`, until installed programs run in the view
-too.
+no shim on `PATH`: all 81 `.pyc` files were built. A Python program is run
+in the run view (its `$PREFIX/bin` script, [`view.md`](view.md#how-programs-get-there)),
+where it finds its modules without the `.pth`: `ranger` works as typed.
+Running the system `python3` by hand on a prefix module still needs
+`PYTHONPATH`.
 
 For a pure-Python tool that does not depend on Debian, `pipx install TOOL`
 needs neither fix.
@@ -67,8 +68,9 @@ The second part holds the architecture triplet and the Perl version
 it is specific to the host. It was pinned per package (`pmarkdown`), and was
 meant to become a hook that sets it once with the host's values.
 
-**In the view:** `@INC`'s paths are the prefix's trees, so no variable
-should be needed; not tested yet.
+**In the view:** `@INC`'s paths are the prefix's trees, so no variable is
+needed: Perl programs are run in the run view. Verified with `cowsay` and
+`w3mman` (2026-09-24); `pmarkdown` not tested.
 
 ## Java
 
@@ -91,6 +93,8 @@ on the classpath (`CLASSPATH`, or the application's own launcher).
 **In the view:** `/etc/.java` is created in the prefix's `/etc`.
 `apt-get install openjdk-21-jre-headless` installed and `java` ran in the
 view (2026-09-24), with the `cacerts` file and the alternatives in place.
+`/usr/bin/java` is an alternatives link, so `java` gets a script that runs
+it in the run view, and `java -version` works as typed.
 
 ## Ruby
 
@@ -102,8 +106,8 @@ The fix was to run it through the overlay (`tools/prefix-run.sh yard`),
 where `/usr/bin/ruby` and Ruby's `vendor_ruby` path resolve to the prefix.
 `RUBYLIB` / `GEM_PATH` were never tried.
 
-**In the view:** it should behave as in the overlay, for install and run;
-not tested yet.
+**In the view:** Ruby programs are run in the run view, like the overlay
+did; not tested yet.
 
 ## Haskell
 

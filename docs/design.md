@@ -94,7 +94,7 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
 | stage 1 sync | manual: `lock-seeded.sh --reseed` |
 | stage 2 classify | the logic exists as `check-package.sh`, run by hand; no hook |
 | stage 3 shims | none; the view made the `py3compile` shim unnecessary |
-| stage 4 integrate | launchers only (`01update-desktop-database`); overlay by hand with `prefix-run.sh` |
+| stage 4 integrate | launchers (`01update-desktop-database`); `prefix-wrap` gives programs that need the view a script that runs them in the shared run view, and the rest run directly ([`view.md`](view.md#how-programs-get-there)) |
 | ecosystems | documented in [`ecosystems.md`](ecosystems.md); no per-language code |
 | state, `explain`, `doctor` | not yet |
 
@@ -105,11 +105,12 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
    (relocatable dpkg) and C (prefix hygiene), and `tools/` to the prebuilt.
    That fixes the three new-account bugs (criterion 1). Patch B (two-layer
    database) once the survey shows what a stale seed costs.
-2. Stage 3: run dpkg in the prefix view ([`view.md`](view.md)); next, run
-   installed programs in it too; move shims to a `DPkg::Path`-only directory; add shims for
+2. Stage 3: run dpkg in the prefix view ([`view.md`](view.md)); run the
+   installed programs that need it in a shared run view (done); move shims to a `DPkg::Path`-only directory; add shims for
    the common root-only helpers the survey found.
 3. Stage 2: turn `check-package.sh` into the classifier library and hook it.
-4. Stage 4: overlay wrappers and state.
+4. Stage 4: state, and check for half-configured packages (the view
+   wrappers are done).
 5. Stage 1: sync on `update`.
 6. `explain` and `doctor`.
 7. Re-run the survey after each step; the per-section coverage is how the

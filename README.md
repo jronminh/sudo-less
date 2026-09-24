@@ -117,7 +117,8 @@ this repo.
   each package is checked.
 - [`docs/ecosystems.md`](docs/ecosystems.md) — what each language and some
   single packages made hard, and what the prefix view changes.
-- [`docs/view.md`](docs/view.md) — the prefix view dpkg runs in.
+- [`docs/view.md`](docs/view.md) — the prefix views: the one dpkg runs in,
+  and the shared one for installed programs that need it.
 - [`docs/mechanisms.md`](docs/mechanisms.md) — how packages are made to run: environment variables and the overlay (for contributors).
 - [`docs/porting.md`](docs/porting.md) — building apt/dpkg yourself.
 - [`docs/methodology.md`](docs/methodology.md) — the design and its limits.
@@ -138,7 +139,8 @@ tricks) is experimental. See [`docs/release.md`](docs/release.md).
 ```
 bootstrap.sh   one-command install (fetches prebuilt apt/dpkg)
 apt-dpkg/      apt/dpkg setup: config, database seeding
-tools/         prefix-view.sh (the view dpkg runs in), prefix-run.sh (the overlay),
+tools/         prefix-view.sh (the install and run views), prefix-wrap.sh (which
+               programs run in the view), prefix-run.sh (the older overlay),
                deb2home.sh (extract without scripts)
 scripts/       build, setup and catalog helpers
 admin/         one-time root step that enables userspace: enable-userspace.sh

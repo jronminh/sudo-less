@@ -44,6 +44,16 @@ sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/01update-desktop-database.in
   > "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 
+# Installed programs that need the prefix view get a script that runs them
+# in the shared run view, after every dpkg run (config/apt.conf.d/02view-wrappers.in,
+# docs/view.md).
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/02view-wrappers.in" \
+  > "$PREFIX/etc/apt/apt.conf.d/02view-wrappers"
+chmod 0644 "$PREFIX/etc/apt/apt.conf.d/02view-wrappers"
+mkdir -p "$PREFIX/lib/sudo-less"
+install -m 0755 "$REPO/tools/prefix-view.sh" "$PREFIX/lib/sudo-less/prefix-view"
+install -m 0755 "$REPO/tools/prefix-wrap.sh" "$PREFIX/lib/sudo-less/prefix-wrap"
+
 # apt verifies signatures with the host's sqv (Debian's default verifier)
 if ! command -v sqv >/dev/null; then
   log "note: sqv not found on PATH; apt-get update cannot verify signatures"

@@ -37,7 +37,7 @@ package, and applies it **automatically**.
 | **none** | nothing to fix: the package finds its files relative to its binary, or through `PATH` | nothing | — |
 | **environment** | a lookup that honors a variable (`PERL5LIB`, `JAVA_HOME`, `XDG_DATA_DIRS`, `LD_LIBRARY_PATH`, …) | nothing | set once for every package |
 | **shim** | a maintainer script calling a tool with an absolute path (`py3compile`) | nothing | a replacement on `PATH` (none today: in the view the real `py3compile` works) |
-| **overlay** | paths compiled into the binary (`/usr/share/...`, `/etc/...`), shebangs naming an interpreter only in the prefix | unprivileged user namespaces + overlayfs (enabled once by `admin/enable-userspace.sh`) | a wrapper runs the command through `tools/prefix-run.sh` |
+| **overlay** | paths compiled into the binary (`/usr/share/...`, `/etc/...`), shebangs naming an interpreter only in the prefix | unprivileged user namespaces + overlayfs (enabled once by `admin/enable-userspace.sh`) | a script in `$PREFIX/bin` runs the command in the shared run view ([`view.md`](view.md#how-programs-get-there)) |
 
 `scripts/catalog/check-package.sh --runtime` tells which mechanism a package
 needs. On a random sample of 516 packages from the supported sections
@@ -51,10 +51,10 @@ language needs ([`ecosystems.md`](ecosystems.md)):
 
 | ecosystem | what it sets | status |
 |---|---|---|
-| Python | a `.pth` file in the system python3's user site, adding `$PREFIX/usr/lib/python3/dist-packages` to `sys.path` | removed; not needed in the view, still needed outside it until programs run in the view |
-| Perl | `PERL5LIB` with the host's own architecture triplet and Perl version | to do, or unneeded once programs run in the view |
-| Java | `JAVA_HOME` for the default JDK installed with `deb2home` | to do, or unneeded once programs run in the view |
-| Ruby | `RUBYLIB` / `GEM_PATH` | to do; today some gems use the overlay |
+| Python | a `.pth` file in the system python3's user site, adding `$PREFIX/usr/lib/python3/dist-packages` to `sys.path` | removed; Python programs are wrapped into the run view (`interp`), where `sys.path`'s own paths are the prefix's |
+| Perl | `PERL5LIB` with the host's own architecture triplet and Perl version | not needed: Perl programs are wrapped into the run view |
+| Java | `JAVA_HOME` for the default JDK installed with `deb2home` | not needed: `java` is an alternatives link, wrapped into the run view |
+| Ruby | `RUBYLIB` / `GEM_PATH` | not needed: Ruby programs are wrapped into the run view |
 | all | `PATH`, `XDG_DATA_DIRS` | done (`scripts/setup/install-shell-path.sh`, `install-session-env.sh`) |
 
 A variable works only if **every path the program reads honors it**. If one
@@ -127,19 +127,17 @@ There is deliberately **no root variant**. Once `/usr` is overlaid with a
 user-owned tree, anything root runs in that namespace (`ld.so`, libc, mount
 helpers) may be the user's file.
 
-### Applied automatically: wrappers (to do)
+### Applied automatically: wrappers
 
-Today a user must know to type `tools/prefix-run.sh node`. The plan: after
-each install, for every binary `check-package.sh --runtime` marks as needing
-the overlay, write a wrapper into `$PREFIX/bin` that runs the real binary
-through `prefix-run.sh`. `$PREFIX/bin` is first on `PATH`, so `node` works as
-typed.
+Done, with the run view instead of `prefix-run.sh`: after each dpkg run
+`prefix-wrap` decides per program, from the installed files, whether it
+needs the overlay, and writes a script into `$PREFIX/bin` that joins the
+shared run view (~0.02 s) and runs it there. `$PREFIX/bin` is first on
+`PATH`, so `node` works as typed. Removing the package removes its scripts.
+If the host cannot build the view, the script says so and names the admin
+step. [`view.md`](view.md#how-programs-get-there) has the rules.
 
-- The wrapper execs the binary from `$PREFIX/usr/bin` by absolute path, so it
-  never calls itself.
-- If the host cannot build the overlay (no user namespaces), the wrapper says
-  so and names the admin step, instead of failing deep inside the program.
-- Removing the package removes its wrappers.
+`prefix-run.sh` stays for running a command by hand in a given tier.
 
 ## Desktop session
 

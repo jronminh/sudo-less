@@ -11,7 +11,7 @@
 #     patches; nothing is built with -D__ANDROID__ (patches/UPSTREAM.md).
 #   * A native build: configure finds the architecture itself.
 #   * --without-libselinux (Termux's --without-selinux is an unrecognized no-op).
-#   * dpkg runs inside the prefix view (tools/prefix-view.sh, docs/view.md),
+#   * dpkg runs inside the install view (tools/prefix-view.sh, docs/view.md),
 #     where the prefix is overlaid on /usr, /etc, /var and /opt. So it is
 #     configured with Debian's own paths: config dir /etc/dpkg, admin dir
 #     /var/lib/dpkg, root "/". Only the programs and their data live under
@@ -19,7 +19,7 @@
 #     wherever the prefix is (patches/dpkg/0100-maintscript-helper-datadir.patch).
 #   * The programs that touch the database or the installed tree move to
 #     $PREFIX/lib/sudo-less/dpkg; $PREFIX/bin gets a wrapper for each that
-#     enters the view (apt-dpkg/dpkg-wrapper.sh).
+#     enters the install view (apt-dpkg/dpkg-wrapper.sh).
 source "$(dirname "$0")/../common.sh"
 
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"
@@ -75,4 +75,5 @@ for t in $VIEW_TOOLS; do
   [ -x "$L/dpkg/$t" ] || die "dpkg did not install $t"
 done
 install -m 0755 "$REPO/tools/prefix-view.sh" "$L/prefix-view"
+install -m 0755 "$REPO/tools/prefix-wrap.sh" "$L/prefix-wrap"
 log "dpkg installed: $PREFIX/bin/dpkg ($("$PREFIX/bin/dpkg" --version | head -1))"

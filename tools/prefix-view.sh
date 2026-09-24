@@ -1,37 +1,49 @@
 #!/usr/bin/env bash
-# prefix-view — run a command in the prefix view.
+# prefix-view — run a command in a prefix view.
 #
-#   tools/prefix-view.sh CMD [ARG...]
+#   tools/prefix-view.sh CMD [ARG...]        in a fresh install view (dpkg)
+#   tools/prefix-view.sh --run CMD [ARG...]  in the shared run view
+#   tools/prefix-view.sh --start | --stop    start or stop the run view
 #
-# In the view, $PREFIX/usr, $PREFIX/etc, $PREFIX/var and $PREFIX/opt are
-# persistent overlays on /usr, /etc, /var and /opt: the host's files show
-# through, and every write lands in the prefix, never on the host.
-# /var/lib/dpkg is the prefix's own dpkg database, not merged with the
-# host's. Inside the view $PREFIX/usr and /usr (and so on) are the same tree,
+# In a view the prefix's directories are persistent overlays on the host's:
+# the host's files show through, and every write lands in the prefix, never
+# on the host. $PREFIX/usr and /usr (and so on) are the same tree inside it,
 # so both spellings of a path agree. The command runs with your own uid.
 #
-# This is what lets the prefix's dpkg run with root "/" and admin dir
-# /var/lib/dpkg, like Debian's, and a package's compiled-in paths resolve
-# (docs/view.md). Inside a view (SUDO_LESS_VIEW set) it just runs CMD.
+# The install view overlays /usr, /etc, /var and /opt, with the prefix's own
+# dpkg database on /var/lib/dpkg: dpkg runs in it with root "/" and admin dir
+# /var/lib/dpkg, like Debian's. Each call builds a fresh one (~0.15 s).
 #
-# Needs util-linux unshare (>= 2.38, for --map-user), unprivileged user
-# namespaces (admin/enable-userspace.sh) and overlayfs (kernel >= 5.11).
+# The run view overlays /usr, /etc and /opt only: what installed programs
+# need to find their files by the paths compiled into them. /var stays the
+# host's. It is built once and kept running in the background; --run joins
+# it (~0.03 s), starting it first if needed. It is rebuilt after the prefix
+# or the host's packages change (prefix-wrap, --stop).
+#
+# Host mounts made later (a USB stick) show up in a view too: its mounts are
+# slaves of the host's. Inside a view (SUDO_LESS_VIEW set) CMD runs directly.
+# docs/view.md.
+#
+# Needs util-linux unshare and nsenter (>= 2.38, for --map-user), unprivileged
+# user namespaces (admin/enable-userspace.sh) and overlayfs (kernel >= 5.11).
 set -eu
 
 : "${PREFIX:=$HOME/.local}"
-DIRS="usr etc var opt"
 STATE=$PREFIX/.sudo-less/view
+RUNPID=$STATE/run.pid
+MARK=sudo-less-run-view   # the run view's holder: "$MARK infinity"
 
 # An unprivileged overlay cannot copy up a directory owned by root (the copy
 # would have to be chowned to a uid outside the namespace), so nothing can be
-# created in a host directory the prefix has no copy of. So before entering,
-# the prefix gets its own (empty, yours) copy of each host directory that is
-# likely to be written to:
+# created in a host directory the prefix has no copy of. So before entering
+# the install view, the prefix gets its own (empty, yours) copy of each host
+# directory that is likely to be written to:
 #   * those the .deb files listed in PREFIX_VIEW_DEBS (one per line) put
 #     files in;
-#   * every directory of /etc, /var and /opt, and /usr's first two levels,
-#     where maintainer scripts and triggers keep state, configuration and
-#     caches (about 1500, redone when the host's package set changes).
+#   * every directory of /etc, /var and /opt, /usr's first two levels and
+#     /usr/share/mime, where maintainer scripts and triggers keep state,
+#     configuration and caches (about 1500, redone when the host's package
+#     set changes).
 # PREFIX_VIEW_MIRROR=full copies every host directory under /usr too.
 # need: give the prefix a copy of each host directory on stdin (one absolute
 # path per line) and of its parents, with the host's mode (at least u+rwx).
@@ -66,22 +78,8 @@ deb_dirs() {
   "$deb" --fsys-tarfile "$1" | tar -t | sed -n 's|^\./|/|; s|/[^/]*/*$||p'
 }
 
-if [ "${1-}" != --inner ]; then
-  [ $# -gt 0 ] || { echo "usage: prefix-view CMD [ARG...]" >&2; exit 2; }
-  if [ -n "${SUDO_LESS_VIEW:-}" ]; then exec "$@"; fi
-  case "$PREFIX" in
-    /*) ;;
-    *) echo "prefix-view: PREFIX must be an absolute path" >&2; exit 1 ;;
-  esac
-  case "$PREFIX" in
-    *:*|*,*) echo "prefix-view: PREFIX may not contain ':' or ','" >&2; exit 1 ;;
-    /usr|/usr/*|/etc|/etc/*|/var|/var/*|/opt|/opt/*)
-      echo "prefix-view: PREFIX may not be under /usr, /etc, /var or /opt" >&2; exit 1 ;;
-  esac
-  for d in $DIRS; do mkdir -p "$PREFIX/$d"; done
-  mkdir -p "$PREFIX/var/lib/dpkg" "$STATE/work" "$STATE/tmp"
-  stamp=$STATE/mirror.stamp
-  stale=
+mirror() {
+  local stamp=$STATE/mirror.stamp stale=
   if [ "${PREFIX_VIEW_MIRROR:-}" = full ] || [ ! -f "$stamp" ] ||
      [ /var/lib/dpkg/status -nt "$stamp" ]; then
     stale=1; : > "$stamp.new"
@@ -101,22 +99,121 @@ if [ "${1-}" != --inner ]; then
     done
   } | need
   [ -z "$stale" ] || mv "$stamp.new" "$stamp"
+}
+
+is_holder() { [ "$(tr '\0' ' ' < "/proc/$1/cmdline" 2>/dev/null)" = "$MARK infinity " ]; }
+
+# The run view's holder pid, if it is running and current. It is stopped
+# once the host's packages change, so that it shows their current files.
+run_pid() {
+  local pid
+  pid=$(cat "$RUNPID" 2>/dev/null) && [ -n "$pid" ] && is_holder "$pid" ||
+    return 1
+  if [ /var/lib/dpkg/status -nt "$RUNPID" ]; then
+    kill "$pid" 2>/dev/null || :; rm -f "$RUNPID"; return 1
+  fi
+  echo "$pid"
+}
+
+stop_run() {
+  local pid
+  if pid=$(cat "$RUNPID" 2>/dev/null) && [ -n "$pid" ] && is_holder "$pid"; then
+    kill "$pid" 2>/dev/null || :
+  fi
+  rm -f "$RUNPID"
+}
+
+# Start the run view in the background, once (under a lock), and print its
+# holder's pid. Processes already in an older run view keep it until they
+# exit.
+start_run() {
+  local pid= i
+  exec 9>>"$STATE/run.lock"
+  flock 9
+  if ! pid=$(run_pid); then
+    rm -f "$RUNPID.new"
+    setsid "$BASH" "$0" --hold </dev/null >"$STATE/run.log" 2>&1 9>&- &
+    pid=
+    for i in $(seq 200); do   # up to 10 s
+      [ -n "$pid" ] || pid=$(cat "$RUNPID.new" 2>/dev/null) || :
+      if [ -n "$pid" ] && is_holder "$pid"; then break; fi
+      if ! kill -0 $! 2>/dev/null && ! { [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; }; then
+        echo "prefix-view: the run view did not start (see $STATE/run.log);" \
+          "it needs unprivileged user namespaces (admin/enable-userspace.sh)" >&2
+        return 1
+      fi
+      sleep 0.05
+    done
+    is_holder "$pid" || { echo "prefix-view: the run view did not start in time" >&2; return 1; }
+    mv "$RUNPID.new" "$RUNPID"
+  fi
+  exec 9>&-
+  echo "$pid"
+}
+
+if [ "${1-}" != --inner ]; then
+  mode=install
+  case ${1-} in
+    --run) mode=run; shift ;;
+    --start|--stop|--hold) mode=${1#--}; shift ;;
+  esac
+  case $mode in
+    install|run) [ $# -gt 0 ] || {
+      echo "usage: prefix-view [--run] CMD [ARG...] | --start | --stop" >&2; exit 2; } ;;
+  esac
+  case $mode:${SUDO_LESS_VIEW:-} in
+    *:) ;;
+    install:install|run:*) exec "$@" ;;
+    stop:*) ;;
+    *) echo "prefix-view: already in the run view; run this from outside it" >&2
+       exit 1 ;;
+  esac
+  case "$PREFIX" in
+    /*) ;;
+    *) echo "prefix-view: PREFIX must be an absolute path" >&2; exit 1 ;;
+  esac
+  case "$PREFIX" in
+    *:*|*,*) echo "prefix-view: PREFIX may not contain ':' or ','" >&2; exit 1 ;;
+    /usr|/usr/*|/etc|/etc/*|/var|/var/*|/opt|/opt/*)
+      echo "prefix-view: PREFIX may not be under /usr, /etc, /var or /opt" >&2; exit 1 ;;
+  esac
+  mkdir -p "$STATE/work" "$STATE/tmp"
+  case $mode in
+    stop) stop_run; exit 0 ;;
+    start) start_run >/dev/null; exit 0 ;;
+    run)
+      pid=$(run_pid) || pid=$(start_run)
+      export PREFIX SUDO_LESS_VIEW=run
+      exec nsenter -t "$pid" -U -m --preserve-credentials --wd="$PWD" -- "$@" ;;
+    hold)
+      echo $$ > "$RUNPID.new"
+      cd /   # keep no directory busy (a USB stick could not be unmounted)
+      set -- "$BASH" -c "exec -a $MARK sleep infinity"
+      view=run DIRS="usr etc opt" ;;
+    install)
+      view=install DIRS="usr etc var opt"
+      mkdir -p "$PREFIX/var/lib/dpkg"
+      mirror ;;
+  esac
   unset PREFIX_VIEW_DEBS
+  for d in $DIRS; do mkdir -p "$PREFIX/$d"; done
   # Workdirs of views that have exited.
   for w in "$STATE"/work/*; do
     [ -d "$w" ] || continue
     kill -0 "${w##*/}" 2>/dev/null && continue
     chmod -R u+rwx "$w" 2>/dev/null; rm -rf "$w"
   done
-  export PREFIX SUDO_LESS_VIEW=1
-  # $$ stays the command's pid: unshare and the inner script exec.
-  exec unshare -Urm --propagation private "$BASH" "$0" --inner "$(id -u)" "$(id -g)" "$PWD" "$@"
+  export PREFIX SUDO_LESS_VIEW=$view
+  # $$ stays the command's pid: unshare and the inner script exec. The view's
+  # mounts are slaves of the host's, so host mounts made later show up.
+  exec unshare -Urm --propagation slave "$BASH" "$0" --inner "$DIRS" \
+    "$(id -u)" "$(id -g)" "$PWD" "$@"
 fi
 
 # --- inside the new user + mount namespace, as its root ---------------------
 shift
-uid=$1 gid=$2 cwd=$3
-shift 3
+DIRS=$1 uid=$2 gid=$3 cwd=$4
+shift 4
 
 W=$STATE/work/$$    # this view's overlay workdirs (same fs as the uppers)
 K=$STATE/tmp        # skeletons and host stashes, on a tmpfs gone on exit
@@ -149,19 +246,21 @@ ovl() {  # ovl LOWER VIEWPATH: the prefix's copy of VIEWPATH over LOWER
 # further down recurse. Nothing is mounted yet, so VIEWPATH still shows the
 # host; the mounts use a stash of it, bound before VIEWPATH is covered.
 layer() {
-  local v=$1 h=$2 s e n
+  local v=$1 h=$2 s e n files=()
   if ! has_subm "$v"; then ovl "$h" "$v"; return; fi
   s=$K/skel$v
   mkdir -p "$s" "$K/host$v"
   fs "$h" "$K/host$v" none rbind
   for e in "$v"/*; do
-    n=${e##*/}
-    if [ -L "$e" ] || [ ! -d "$e" ]; then
-      cp -P --preserve=mode,timestamps "$e" "$s/$n" 2>/dev/null || : > "$s/$n"
-    else
-      mkdir "$s/$n"
-    fi
+    if [ -L "$e" ] || [ ! -d "$e" ]; then files+=("$e"); else MK+=("$s/${e##*/}"); fi
   done
+  if [ ${#files[@]} -gt 0 ]; then
+    cp -P --preserve=mode,timestamps -t "$s" -- "${files[@]}" 2>/dev/null || :
+    for e in "${files[@]}"; do
+      n=$s/${e##*/}
+      [ -e "$n" ] || [ -L "$n" ] || : > "$n"
+    done
+  fi
   ovl "$s" "$v"
   for e in "$v"/*; do
     [ -d "$e" ] && [ ! -L "$e" ] || continue
@@ -179,7 +278,9 @@ layer() {
 
 shopt -s nullglob dotglob
 for d in $DIRS; do layer "/$d" "/$d"; done
-fs "$PREFIX/var/lib/dpkg" /var/lib/dpkg none bind
+case " $DIRS " in
+  *" var "*) fs "$PREFIX/var/lib/dpkg" /var/lib/dpkg none bind ;;
+esac
 # $PREFIX/<dir> shows the view too, so both spellings of a path agree.
 for d in $DIRS; do fs "/$d" "$PREFIX/$d" none rbind; done
 mkdir -p "${MK[@]}"

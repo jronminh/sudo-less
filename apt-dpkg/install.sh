@@ -50,9 +50,15 @@ chmod 0644 "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database"
 sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/02view-wrappers.in" \
   > "$PREFIX/etc/apt/apt.conf.d/02view-wrappers"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/02view-wrappers"
+# Packages that need root to install are refused before dpkg runs
+# (config/apt.conf.d/03check.in).
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/config/apt.conf.d/03check.in" \
+  > "$PREFIX/etc/apt/apt.conf.d/03check"
+chmod 0644 "$PREFIX/etc/apt/apt.conf.d/03check"
 mkdir -p "$PREFIX/lib/sudo-less"
 install -m 0755 "$REPO/tools/prefix-view.sh" "$PREFIX/lib/sudo-less/prefix-view"
 install -m 0755 "$REPO/tools/prefix-wrap.sh" "$PREFIX/lib/sudo-less/prefix-wrap"
+install -m 0755 "$REPO/tools/prefix-check.sh" "$PREFIX/lib/sudo-less/prefix-check"
 
 # apt verifies signatures with the host's sqv (Debian's default verifier)
 if ! command -v sqv >/dev/null; then

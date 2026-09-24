@@ -32,7 +32,7 @@ apt-get install ──▶ [2 classify]   DPkg::Pre-Install-Pkgs   (reads the .de
 |---|---|---|
 | **1. sync** | re-seed the prefix's view of the system's packages from the host's dpkg database, and keep them held | when the admin upgrades the system, the prefix follows at the next `update`; a stale seed is what makes apt report "held broken packages" |
 | **2. classify** | for each incoming `.deb`: decide its **scope** (in scope, the admin's, or `never`, from its section and signals such as `adduser` or a service) and refuse what is out of scope with the reason; decide its **mechanism** (none, environment, overlay); find **unsafe maintainer scripts** (a root-only command with no shim) and stop before dpkg runs; record every decision | the `.deb` files are on disk and nothing is installed yet, so a wrong package costs nothing and the prefix never wedges |
-| **3. install** | dpkg runs unchanged. It exports `DPKG_ROOT` (the prefix) to maintainer scripts, and scripts that honour it (`add-shell` does) write into the prefix; the few `/etc` files they expect are seeded there. Shims for root-only helpers (`py3compile`, service helpers) sit in a directory that is on `DPkg::Path` only | maintainer scripts see the prefix and the shims; the user's shell never sees the shims |
+| **3. install** | dpkg runs in the prefix view ([`view.md`](view.md)): the prefix overlaid on `/usr`, `/etc`, `/var` and `/opt`, so maintainer scripts write to `/etc` and `/var` as on Debian and it all lands in the prefix. Shims for root-only helpers (`py3compile`, service helpers) sit in a directory that is on `DPkg::Path` only | maintainer scripts see the prefix and the shims; the user's shell never sees the shims |
 | **4. integrate** | for the packages this run changed: write or remove overlay wrappers, refresh launchers and icons, run each ecosystem's integration, and check for half-configured packages (repair, or say exactly what to do) | the files are in place; the user's next command just works |
 
 The hooks are small bash scripts in `$PREFIX/share/sudo-less/hooks/`, each
@@ -105,8 +105,8 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
    (relocatable dpkg) and C (prefix hygiene), and `tools/` to the prebuilt.
    That fixes the three new-account bugs (criterion 1). Patch B (two-layer
    database) once the survey shows what a stale seed costs.
-2. Stage 3: seed the `/etc` files maintainer scripts expect under
-   `DPKG_ROOT`; move shims to a `DPkg::Path`-only directory; add shims for
+2. Stage 3: run dpkg in the prefix view ([`view.md`](view.md)); next, run
+   installed programs in it too; move shims to a `DPkg::Path`-only directory; add shims for
    the common root-only helpers the survey found.
 3. Stage 2: turn `check-package.sh` into the classifier library and hook it.
 4. Stage 4: overlay wrappers and state.

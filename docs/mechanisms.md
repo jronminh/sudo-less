@@ -56,7 +56,7 @@ what its language needs:
 | Perl | `PERL5LIB` with the host's own architecture triplet and Perl version | to do; today a recipe pins it (`recipes/pmarkdown.recipe`) |
 | Java | `JAVA_HOME` for the default JDK installed with `deb2home` | to do; today a recipe pins it |
 | Ruby | `RUBYLIB` / `GEM_PATH` | to do; today some gems use the overlay |
-| all | `PATH`, `XDG_DATA_DIRS`, `DPKG_ADMINDIR` | done (`scripts/setup/install-shell-path.sh`, `install-session-env.sh`) |
+| all | `PATH`, `XDG_DATA_DIRS` | done (`scripts/setup/install-shell-path.sh`, `install-session-env.sh`) |
 
 A variable works only if **every path the program reads honors it**. If one
 path is compiled in, the package needs the overlay no matter what the

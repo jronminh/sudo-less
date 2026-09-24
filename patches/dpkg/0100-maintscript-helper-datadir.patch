@@ -1,0 +1,16 @@
+Origin: sudo-less
+Change: dpkg-maintscript-helper falls back to ../share/dpkg next to itself when the datadir compiled in is gone, so a prebuilt dpkg finds its helpers in any prefix (dpkg-realpath is a C program since dpkg 1.23).
+License: GPL-2.0-or-later
+
+diff --git a/src/dpkg-maintscript-helper.sh b/src/dpkg-maintscript-helper.sh
+--- a/src/dpkg-maintscript-helper.sh
++++ b/src/dpkg-maintscript-helper.sh
+@@ -620,6 +620,8 @@ fi
+ export DPKG_ROOT
+ 
+ PKGDATADIR_DEFAULT=src
++# Relocatable: if the built-in datadir is gone, look next to this script.
++[ -d "$PKGDATADIR_DEFAULT" ] || PKGDATADIR_DEFAULT="${0%/*}/../share/dpkg"
+ PKGDATADIR="${DPKG_DATADIR:-$PKGDATADIR_DEFAULT}"
+ 
+ # shellcheck source=src/sh/dpkg-error.sh

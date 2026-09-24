@@ -28,12 +28,6 @@ if [ -f "$PREFIX/etc/apt/apt.conf.d/00local-prefix" ]; then
     APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
     export APT_CONFIG
 fi
-# and dpkg at its database: a prebuilt dpkg's compiled-in admindir is the
-# build machine's (apt passes --admindir itself; plain \`dpkg -l\` does not)
-if [ -f "$PREFIX/var/lib/dpkg/status" ]; then
-    DPKG_ADMINDIR="$PREFIX/var/lib/dpkg"
-    export DPKG_ADMINDIR
-fi
 $END
 EOF
 

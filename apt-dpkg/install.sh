@@ -60,6 +60,13 @@ if [ "$RESEED" = 1 ] || [ ! -s "$STATUS" ]; then
   cp -n /var/lib/dpkg/info/*.md5sums "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
   cp -n /var/lib/dpkg/info/*.conffiles "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
 fi
+# In the view the host's /etc/alternatives shows through, so the prefix's
+# database starts with the host's alternatives.
+cp -n /var/lib/dpkg/alternatives/* "$PREFIX/var/lib/dpkg/alternatives/" 2>/dev/null || true
+# dpkg appends to /var/log/dpkg.log, and in the view a host file cannot be
+# written in place: the prefix has its own.
+mkdir -p "$PREFIX/var/log"
+[ -e "$PREFIX/var/log/dpkg.log" ] || : > "$PREFIX/var/log/dpkg.log"
 
 # Protect the seeded (system) packages: hold them so apt cannot accidentally
 # upgrade/remove them into/from the prefix. Our own installs stay upgradable.

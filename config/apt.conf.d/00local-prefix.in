@@ -12,6 +12,9 @@ Dir::Etc::parts "@PREFIX@/etc/apt/apt.conf.d";
 Dir::Etc::trusted "@PREFIX@/etc/apt/trusted.gpg";
 Dir::Etc::trustedparts "@PREFIX@/etc/apt/trusted.gpg.d";
 Dir::Bin::methods "@PREFIX@/lib/apt/methods";
+// A wrapper that runs dpkg in the prefix view (apt-dpkg/dpkg-wrapper.sh); apt
+// itself stays outside it and passes --admindir @PREFIX@/var/lib/dpkg, which
+// inside the view is the same directory as /var/lib/dpkg.
 Dir::Bin::dpkg "@PREFIX@/bin/dpkg";
 // apt-key's own path, and the solver/planner search dirs, are compiled-in
 // defaults (CMAKE_INSTALL_FULL_BINDIR / LIBEXEC_DIR at *build* time) that
@@ -27,7 +30,3 @@ Dir::Bin::solvers:: "@PREFIX@/lib/apt/solvers";
 Dir::Bin::planners:: "@PREFIX@/lib/apt/planners";
 
 DPkg::Path "@PREFIX@/sbin:@PREFIX@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
-DPkg::Options:: "--admindir=@PREFIX@/var/lib/dpkg";
-DPkg::Options:: "--instdir=@PREFIX@";
-DPkg::Options:: "--force-script-chrootless";
-DPkg::Options:: "--force-not-root";

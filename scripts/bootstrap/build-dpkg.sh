@@ -11,12 +11,15 @@
 #     patches; nothing is built with -D__ANDROID__ (patches/UPSTREAM.md).
 #   * A native build: configure finds the architecture itself.
 #   * --without-libselinux (Termux's --without-selinux is an unrecognized no-op).
-#   * The config dir ($PREFIX/etc/dpkg) and admin dir ($PREFIX/var/lib/dpkg)
-#     are compiled in under the build prefix and relocated at run time to
-#     wherever dpkg is installed (patches/dpkg/0100-relocatable.patch).
-#   * --sysconfdir=/etc, --localstatedir=/var: update-alternatives uses them
-#     as paths inside the install root (DPKG_ROOT, the prefix), so they keep
-#     Debian's values: $PREFIX/etc/alternatives, $PREFIX/var/log.
+#   * dpkg runs inside the prefix view (tools/prefix-view.sh, docs/view.md),
+#     where the prefix is overlaid on /usr, /etc, /var and /opt. So it is
+#     configured with Debian's own paths: config dir /etc/dpkg, admin dir
+#     /var/lib/dpkg, root "/". Only the programs and their data live under
+#     --prefix; the dpkg-maintscript-helper finds its data next to itself
+#     wherever the prefix is (patches/dpkg/0100-maintscript-helper-datadir.patch).
+#   * The programs that touch the database or the installed tree move to
+#     $PREFIX/lib/sudo-less/dpkg; $PREFIX/bin gets a wrapper for each that
+#     enters the view (apt-dpkg/dpkg-wrapper.sh).
 source "$(dirname "$0")/../common.sh"
 
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"
@@ -37,17 +40,39 @@ log "configuring"
   --prefix="$PREFIX" \
   --sysconfdir=/etc \
   --localstatedir=/var \
-  --with-pkgconfdir="$PREFIX/etc/dpkg" \
+  --with-pkgconfdir=/etc/dpkg \
+  --with-admindir=/var/lib/dpkg \
   --disable-dselect \
   --disable-shared \
   --without-libselinux \
-  --with-admindir="$PREFIX/var/lib/dpkg" \
   dpkg_cv_c99_snprintf=yes
 
 log "building"
 make -j"$(nproc)"
+
 log "installing into $PREFIX"
-# sysconfdir is already compiled in as /etc; overriding it here only moves
-# alternatives/README, which a non-root build cannot write to /etc.
-make install sysconfdir="$PREFIX/etc"
+# /etc and /var of the view are $PREFIX/etc and $PREFIX/var.
+STAGE="$SRC/dpkg-stage"
+rm -rf "$STAGE"
+make install DESTDIR="$STAGE" >/dev/null
+mkdir -p "$PREFIX"
+cp -a "$STAGE$PREFIX/." "$PREFIX/"
+for d in etc var; do
+  [ -d "$STAGE/$d" ] || continue
+  mkdir -p "$PREFIX/$d"
+  cp -an "$STAGE/$d/." "$PREFIX/$d/"   # never over the prefix's own files
+done
+
+VIEW_TOOLS="dpkg dpkg-query dpkg-divert dpkg-statoverride dpkg-trigger update-alternatives"
+L="$PREFIX/lib/sudo-less"
+mkdir -p "$L/dpkg"
+for t in $VIEW_TOOLS; do
+  for b in bin sbin; do
+    [ -f "$PREFIX/$b/$t" ] || continue
+    mv -f "$PREFIX/$b/$t" "$L/dpkg/$t"
+    install -m 0755 "$REPO/apt-dpkg/dpkg-wrapper.sh" "$PREFIX/$b/$t"
+  done
+  [ -x "$L/dpkg/$t" ] || die "dpkg did not install $t"
+done
+install -m 0755 "$REPO/tools/prefix-view.sh" "$L/prefix-view"
 log "dpkg installed: $PREFIX/bin/dpkg ($("$PREFIX/bin/dpkg" --version | head -1))"

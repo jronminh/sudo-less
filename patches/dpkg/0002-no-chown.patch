@@ -1,8 +1,33 @@
 Origin: termux-packages 91af886 packages/dpkg/src-archives.c.patch and src-statoverride-main.c.patch
-Change: adapted: only the chown/fchown/lchown removals, without #ifndef __ANDROID__; a user cannot give files away, and the prefix belongs to the user. The Android-only parts (rename instead of hard links, symlink size warnings) are not taken. Native need. Rebased onto dpkg 1.23 (tab indentation, new messages).
+Change: adapted: only the chown/fchown/lchown removals (also the one in file_copy_perms, used for conffiles and dpkg-divert --rename), without #ifndef __ANDROID__; a user cannot give files away, and the prefix belongs to the user. The Android-only parts (rename instead of hard links, symlink size warnings) are not taken. Native need. Rebased onto dpkg 1.23 (tab indentation, new messages).
 License: GPL-2.0-or-later
 
+diff --git a/lib/dpkg/file.c b/lib/dpkg/file.c
+index a2b68a0..4281d48 100644
+--- a/lib/dpkg/file.c
++++ b/lib/dpkg/file.c
+@@ -157,7 +157,7 @@ file_is_exec(const char *filename)
+ }
+ 
+ /**
+- * Copy file ownership and permissions from one file to another.
++ * Copy file permissions from one file to another.
+  *
+  * @param src The source filename.
+  * @param dst The destination filename.
+@@ -173,10 +173,6 @@ file_copy_perms(const char *src, const char *dst)
+ 		ohshite(_("cannot stat source file '%s'"), src);
+ 	}
+ 
+-	if (chown(dst, stab.st_uid, stab.st_gid) < 0)
+-		ohshite(_("cannot change ownership of target file '%s'"),
+-		        dst);
+-
+ 	if (chmod(dst, (stab.st_mode & ~S_IFMT)) < 0)
+ 		ohshite(_("cannot set mode of target file '%s'"), dst);
+ }
 diff --git a/src/main/archives.c b/src/main/archives.c
+index ff778bc..e403ab3 100644
 --- a/src/main/archives.c
 +++ b/src/main/archives.c
 @@ -427,10 +427,6 @@ tarobject_extract(struct tarcontext *tc, struct tar_entry *te,
@@ -45,6 +70,7 @@ diff --git a/src/main/archives.c b/src/main/archives.c
  			                         stab.st_mode);
  		} else {
 diff --git a/src/statoverride/main.c b/src/statoverride/main.c
+index fa2fdce..dc27569 100644
 --- a/src/statoverride/main.c
 +++ b/src/statoverride/main.c
 @@ -222,9 +222,6 @@ statdb_node_apply(const char *filename, struct file_stat *filestat)

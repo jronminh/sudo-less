@@ -68,11 +68,12 @@ var/cache/apt/     downloaded .debs
    the `chown` calls, `0003-no-ldconfig-check` the start-up check for
    `ldconfig` on `PATH`. Termux guards the same changes with
    `#ifndef __ANDROID__`; the fork makes them plain patches.
-6. **Traditional alternate-root install.** dpkg is run with
-   `--instdir=$PREFIX`, so a package's `./usr/bin/foo` lands in
-   `~/.local/usr/bin/foo` (a real rootfs layout). `--force-script-chrootless`
-   is required because dpkg would otherwise `chroot()` into the instdir (needs
-   root). `--force-not-root` covers remaining permission errors.
+6. **The prefix view.** dpkg runs in a mount namespace where the prefix is
+   overlaid on `/usr`, `/etc`, `/var` and `/opt` ([`view.md`](view.md)), with
+   root `/`: a package's `./usr/bin/foo` lands in `~/.local/usr/bin/foo`, and
+   maintainer scripts see a normal system. `--force-not-root` covers
+   remaining permission errors. (Before the view: `--instdir=$PREFIX` and
+   `--force-script-chrootless`.)
 7. **Dependency seeding.** Because our dpkg db starts empty, apt would try to
    install the whole `libc6` chain into the prefix. We seed
    `$PREFIX/var/lib/dpkg/status` from the system's, so apt sees system libraries
@@ -136,7 +137,7 @@ still write their log to `/var/log/dpkg.log` and point alternatives at
 
 | patch | fixes | status |
 |---|---|---|
-| **A. dpkg: locate itself at run time** | the prebuilt dpkg's datadir, sysconfdir and log path are the build machine's (`/root/.local/share/dpkg`, so `dpkg-maintscript-helper` fails; `/var/log/dpkg.log`). `dpkg.cfg` is read from that same compiled-in sysconfdir, so no config can move it; deriving the paths from `/proc/self/exe` makes the prebuilt relocatable | done: `0100-relocatable`; the log path moves to the prefix's own `dpkg.cfg` (`config/dpkg/dpkg.cfg.in`) |
+| **A. dpkg: locate itself at run time** | the prebuilt dpkg's datadir, sysconfdir and log path are the build machine's (`/root/.local/share/dpkg`, so `dpkg-maintscript-helper` fails; `/var/log/dpkg.log`) | replaced by the prefix view ([`view.md`](view.md)): dpkg is built with Debian's `/etc/dpkg` and `/var/lib/dpkg` and runs where those are the prefix's. Only `0100-maintscript-helper-datadir` is left |
 | **B. a two-layer package database** | apt and dpkg read the host's `/var/lib/dpkg/status` directly as a read-only lower layer ("installed, never touch"); the prefix database holds only the user's packages. Replaces seeding, `lock-seeded.sh` and the sync stage; a stale seed is what makes apt report "held broken packages". Touches apt's resolver and dpkg's configure-time dependency check, so it is the largest | proposed; measure first how many packages a stale seed blocks |
 | **C. prefix hygiene at unpack** | drop setuid/setgid bits and file capabilities, and ignore the host's `statoverride`: meaningless in a prefix, and a setuid-to-user file in `~/.local` is a risk | done: `0101-no-setuid`. dpkg sets no file capabilities itself (a postinst's `setcap` fails without root), and the prefix's admin dir has its own `statoverride`, so only the mode bits needed a patch |
 | **D. record a failing maintainer script** | mark the package and report it, instead of leaving it half-configured and wedging every later install | deferred; only if stage 2 and the shims still leave many failures |
@@ -202,8 +203,8 @@ apt-get install -y <package>     # installs into ~/.local/usr, ~/.local/lib, ...
 dpkg -l                          # our database, not the system's
 ```
 
-apt calls dpkg with `--instdir=$HOME/.local` and `--force-script-chrootless`
-via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
+apt calls `$PREFIX/bin/dpkg`, a wrapper that runs dpkg in the prefix view
+([`view.md`](view.md)), via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
 
 ## Caveats
 

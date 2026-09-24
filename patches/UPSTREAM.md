@@ -61,9 +61,10 @@ Numbered from `0100`, so Termux-derived patches keep their place.
 
 | patch | what |
 |---|---|
-| `0100-relocatable` | patch A: dpkg finds its prefix from `/proc/self/exe` and relocates the config dir and default admin dir compiled in under the build prefix; `dpkg-maintscript-helper` and `dpkg-realpath` find `share/dpkg` next to themselves |
+| `0100-maintscript-helper-datadir` | `dpkg-maintscript-helper` finds `share/dpkg` next to itself when the datadir compiled in is gone, so a prebuilt dpkg works in any prefix. dpkg itself runs in the prefix view with Debian's own paths ([`../docs/view.md`](../docs/view.md)), so it needs no other relocation |
 | `0101-no-setuid` | patch C: unpacking clears setuid and setgid bits, statoverrides included |
 | `0102-relative-symlinks` | inside an install root, symlinks from `.deb` files and from `update-alternatives` are made relative, so they resolve in the root, not on the host; a `.deb` link to a file only the host has stays absolute |
+| `0103-link-or-copy` | where dpkg hard-links an installed file as a backup (before replacing it, and a conffile's `.dpkg-old`), it copies it when the link is not permitted: a host file in the view, owned by root |
 
 ## Updating
 

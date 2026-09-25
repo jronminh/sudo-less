@@ -144,5 +144,5 @@ The 1250 are the upper bound for this mechanism: a postinst that runs
 | drop-ins; a failed unit is not restarted on upgrade | run, non-root, not done | `prefix-units` does not read `*.service.d` and restarts only running units |
 | a daemon of a system unit with no sandbox writes outside its state directories | run, non-root, done: the default sandbox refuses it | `SUDO_LESS_SANDBOX` in a drop-in, as for any unit whose sandbox is too tight |
 
-Starting a command in the service view takes ~0.35 s, ~0.45 s with a
-syscall filter (python3 loads it).
+Starting a command in the service view takes ~0.35 s, ~0.4 s with a
+syscall filter.

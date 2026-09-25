@@ -58,6 +58,8 @@ install -m 0755 "$REPO/tools/prefix-wrap.sh" "$PREFIX/lib/sudo-less/prefix-wrap"
 install -m 0755 "$REPO/tools/prefix-check.sh" "$PREFIX/lib/sudo-less/prefix-check"
 install -m 0755 "$REPO/tools/prefix-units.sh" "$PREFIX/lib/sudo-less/prefix-units"
 install -m 0755 "$REPO/tools/prefix-sandbox.sh" "$PREFIX/lib/sudo-less/prefix-sandbox"
+mkdir -p "$PREFIX/lib/sudo-less/syscalls"
+install -m 0644 "$REPO"/tools/syscalls/* "$PREFIX/lib/sudo-less/syscalls/"
 install -m 0755 "$REPO/tools/prefix-integrate.sh" "$PREFIX/lib/sudo-less/prefix-integrate"
 
 # apt verifies signatures with the host's sqv (Debian's default verifier)

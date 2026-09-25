@@ -24,8 +24,9 @@
 # it, and its SystemCallFilter= and RestrictNamespaces= forbid the mount()
 # and unshare() the view is built with. So prefix-view calls this last, as
 # root of the view's user namespace: the mounts go on top of the view, then
-# the command gets your uid back, then the syscall filters are loaded (with
-# libseccomp, through python3), then it runs. The mounts belong to the
+# the command gets your uid back, then the syscall filters are loaded (a
+# seccomp BPF program built here, loaded by util-linux's setpriv), then it
+# runs. The mounts belong to the
 # view's user namespace, which the command is no longer root of: it can
 # neither undo them nor, in a namespace of its own, uncover what they hide.
 #
@@ -187,6 +188,178 @@ if [ -n "$CHECK" ]; then
   exit 0
 fi
 
+# --- syscall filters ----------------------------------------------------------
+# A seccomp BPF program for SystemCallFilter=, SystemCallErrorNumber=,
+# SystemCallArchitectures= and RestrictNamespaces=, as systemd.exec(5) has
+# them, written to stdout for setpriv --seccomp-filter. The syscall numbers
+# are tools/syscalls/ARCH (dev/syscall-tables.sh); the groups (@system-service,
+# ...) are the host's systemd's.
+#
+# One BPF instruction: u16 code, u8 jt, u8 jf, u32 k, little-endian.
+BPF=()
+ins() {
+  local b
+  printf -v b '\\x%02x' $(($1 & 255)) $(($1 >> 8)) "$2" "$3" \
+    $(($4 & 255)) $((($4 >> 8) & 255)) $((($4 >> 16) & 255)) $((($4 >> 24) & 255))
+  BPF+=("$b")
+}
+LD=0x20 JEQ=0x15 JGE=0x35 JSET=0x45 RET=0x06        # BPF_LD|W|ABS, BPF_JMP|..|K, BPF_RET|K
+KILL=$((0x80000000)) ALLOW=$((0x7fff0000))            # SECCOMP_RET_KILL_PROCESS, _ALLOW
+errno_ret() { echo $((0x50000 | $1)); }               # SECCOMP_RET_ERRNO
+
+# The errno numbers of Linux's generic ABI (x86_64 and aarch64 share them).
+declare -A ERRNO=([EPERM]=1 [ENOENT]=2 [ESRCH]=3 [EINTR]=4 [EIO]=5 [ENXIO]=6
+  [E2BIG]=7 [ENOEXEC]=8 [EBADF]=9 [ECHILD]=10 [EAGAIN]=11 [ENOMEM]=12
+  [EACCES]=13 [EFAULT]=14 [EBUSY]=16 [EEXIST]=17 [EXDEV]=18 [ENODEV]=19
+  [ENOTDIR]=20 [EISDIR]=21 [EINVAL]=22 [ENFILE]=23 [EMFILE]=24 [ENOTTY]=25
+  [EFBIG]=27 [ENOSPC]=28 [ESPIPE]=29 [EROFS]=30 [EMLINK]=31 [EPIPE]=32
+  [EDOM]=33 [ERANGE]=34 [ENOSYS]=38 [EOPNOTSUPP]=95 [EAFNOSUPPORT]=97)
+# The return value for errno spec $1 (a name, a number or "kill").
+action() {
+  case $1 in
+    kill) echo $KILL ;;
+    *[!0-9]*) [ -n "${ERRNO[$1]-}" ] || { warn "unknown errno $1"; return 1; }
+      errno_ret "${ERRNO[$1]}" ;;
+    *) errno_ret "$1" ;;
+  esac
+}
+
+declare -A GROUP=() NR=()
+load_groups() {
+  local l g=
+  while IFS= read -r l; do
+    case $l in
+      @*) g=$l GROUP[$g]= ;;
+      '    #'*|'') ;;
+      '    '*) [ -z "$g" ] || GROUP[$g]+="${l# } " ;;
+    esac
+  done < <(systemd-analyze syscall-filter --no-pager 2>/dev/null)
+}
+# The syscall names in group or name $1, as the keys of OUT.
+declare -A SEEN=() OUT=()
+expand() {
+  local m
+  case $1 in
+    @*) [ -z "${SEEN[$1]-}" ] || return 0; SEEN[$1]=1
+        [ -n "${GROUP[$1]+x}" ] || { warn "unknown syscall group $1"; return 1; }
+        for m in ${GROUP[$1]}; do expand "$m"; done ;;
+    *) OUT[$1]=1 ;;
+  esac
+}
+
+seccomp_filter() {
+  local arch audit table l k v inv mode= item n e s nr f default=$KILL
+  local -A chosen=()
+  arch=$(uname -m)
+  case $arch in
+    x86_64) audit=$((0xc000003e)) ;;
+    aarch64) audit=$((0xc00000b7)) ;;
+    *) warn "no syscall filter on $arch"; return 1 ;;
+  esac
+  setpriv --help 2>/dev/null | grep -q -- --seccomp-filter ||
+    { warn "this setpriv cannot load a syscall filter (util-linux 2.40 or later can)"; return 1; }
+  table=${SELF%/*}/syscalls/$arch
+  [ -f "$table" ] || { warn "$table is missing"; return 1; }
+  while read -r n nr; do [ "${n#\#}" = "$n" ] && NR[$n]=$nr; done < "$table"
+  load_groups
+
+  # SystemCallFilter=: the first line picks allow- or deny-listing, the next
+  # ones add to the set or take out of it; an empty one resets.
+  while IFS= read -r l; do
+    k=${l%%=*} v=${l#*=}
+    [ "$k" = SystemCallFilter ] || continue
+    if [ -z "$v" ]; then mode= chosen=(); continue; fi
+    inv=; [ "${v#\~}" = "$v" ] || { inv=1; v=${v#\~}; }
+    [ -n "$mode" ] || { if [ -n "$inv" ]; then mode=deny; else mode=allow; fi; }
+    for item in $v; do
+      n=${item%%:*} e=; [ "$n" = "$item" ] || e=${item#*:}
+      SEEN=() OUT=()
+      expand "$n" || return 1
+      for s in "${!OUT[@]}"; do
+        if { [ $mode = allow ] && [ -z "$inv" ]; } || { [ $mode = deny ] && [ -n "$inv" ]; }; then
+          chosen[$s]=$e
+        else
+          unset "chosen[$s]"
+        fi
+      done
+    done
+  done <<<"$SECCOMP"
+  e=$(printf '%s\n' "$SECCOMP" | sed -n 's/^SystemCallErrorNumber=//p' | tail -1)
+  [ -z "$e" ] || default=$(action "$e") || return 1
+  case $(printf '%s\n' "$SECCOMP" | sed -n 's/^SystemCallArchitectures=//p' | tr '\n' ' ') in
+    ''|*native*|*"${arch/_/-}"*|*"$arch"*) ;;
+    *) warn "SystemCallArchitectures=: only the native one is allowed" ;;
+  esac
+
+  # Other ABIs (i386, x32) are refused: the table is the native one's.
+  ins $LD 0 0 4; ins $JEQ 1 0 "$audit"; ins $RET 0 0 $KILL
+  ins $LD 0 0 0
+  [ "$arch" != x86_64 ] || { ins $JGE 0 1 $((0x40000000)); ins $RET 0 0 $KILL; }
+
+  # RestrictNamespaces=: the namespace types unshare() and clone() may make
+  # and setns() may join (their flags, in the low word of arg 0, or arg 1).
+  local -A NSF=([cgroup]=0x02000000 [ipc]=0x08000000 [net]=0x40000000
+    [mnt]=0x00020000 [pid]=0x20000000 [user]=0x10000000 [uts]=0x04000000
+    [time]=0x00000080)
+  local allowed=unset blocked=0 t
+  while IFS= read -r l; do
+    k=${l%%=*} v=${l#*=}
+    [ "$k" = RestrictNamespaces ] || continue
+    case ${v,,} in
+      ''|no|false|off|0) allowed="${!NSF[*]}" ;;
+      yes|true|on|1) allowed= ;;
+      \~*) [ "$allowed" != unset ] || allowed="${!NSF[*]}"
+           for t in ${v#\~}; do allowed=" $allowed "; allowed=${allowed// $t / }; done ;;
+      *) [ "$allowed" != unset ] || allowed=
+         allowed+=" $v" ;;
+    esac
+  done <<<"$SECCOMP"
+  if [ "$allowed" != unset ]; then
+    for t in "${!NSF[@]}"; do
+      case " $allowed " in *" $t "*) ;; *) blocked=$((blocked | NSF[$t])) ;; esac
+    done
+  fi
+  if [ $blocked -ne 0 ]; then
+    local eperm; eperm=$(errno_ret 1)
+    for s in unshare clone; do
+      [ -n "${NR[$s]-}" ] || continue
+      ins $JEQ 0 4 "${NR[$s]}"; ins $LD 0 0 16
+      ins $JSET 0 1 $blocked; ins $RET 0 0 "$eperm"; ins $LD 0 0 0
+    done
+    if [ -n "${NR[setns]-}" ]; then
+      ins $JEQ 0 6 "${NR[setns]}"; ins $LD 0 0 24
+      ins $JEQ 0 1 0; ins $RET 0 0 "$eperm"
+      ins $JSET 0 1 $blocked; ins $RET 0 0 "$eperm"; ins $LD 0 0 0
+    fi
+    # clone3() has its flags behind a pointer: ENOSYS, and libc falls back
+    # to clone().
+    [ -z "${NR[clone3]-}" ] || { ins $JEQ 0 1 "${NR[clone3]}"; ins $RET 0 0 "$(errno_ret 38)"; }
+  fi
+
+  case $mode in
+    allow)   # @default is always allowed (execve, exit, ...)
+      SEEN=() OUT=()
+      expand @default
+      for s in "${!OUT[@]}"; do chosen[$s]=; done
+      for s in "${!chosen[@]}"; do
+        [ -n "${NR[$s]-}" ] || continue
+        ins $JEQ 0 1 "${NR[$s]}"; ins $RET 0 0 $ALLOW
+      done
+      ins $RET 0 0 "$default" ;;
+    deny)
+      for s in "${!chosen[@]}"; do
+        [ -n "${NR[$s]-}" ] || continue
+        f=$default; [ -z "${chosen[$s]}" ] || f=$(action "${chosen[$s]}") || return 1
+        ins $JEQ 0 1 "${NR[$s]}"; ins $RET 0 0 "$f"
+      done
+      ins $RET 0 0 $ALLOW ;;
+    *) ins $RET 0 0 $ALLOW ;;
+  esac
+  [ ${#BPF[@]} -le 4096 ] || { warn "syscall filter too long"; return 1; }
+  local IFS=
+  printf "${BPF[*]}"
+}
+
 # --- standalone: a user and mount namespace of our own ----------------------
 if [ -z "$ROOT" ]; then
   mkdir -p "$SCRATCH"
@@ -236,6 +409,10 @@ for b in ${BINDS[@]+"${BINDS[@]}"}; do
 done
 exec {sfd}<"$SCRATCH"
 S=/proc/self/fd/$sfd
+if [ -n "$SECCOMP" ]; then
+  seccomp_filter > "$SCRATCH/filter" || exit 1
+  exec {bpf}<"$SCRATCH/filter"
+fi
 
 ro() {  # make path $1 read-only, with everything under it
   mnt --rbind "$1" "$1" && mount -o remount,bind,ro=recursive "$1"
@@ -304,134 +481,8 @@ cd "$cwd" 2>/dev/null || cd /
 if [ -z "$SECCOMP" ]; then
   exec unshare -U --map-user="$uid" --map-group="$gid" -- "$@"
 fi
-export SUDO_LESS_SECCOMP=$SECCOMP
-exec unshare -U --map-user="$uid" --map-group="$gid" -- /usr/bin/python3 -c '
-# Load the syscall filters and exec argv: systemd.exec(5) SystemCallFilter=,
-# SystemCallErrorNumber=, SystemCallArchitectures=, RestrictNamespaces=.
-import ctypes, errno, os, platform, subprocess, sys
-C = ctypes
-lib = C.CDLL("libseccomp.so.2", use_errno=True)
-lib.seccomp_init.restype = C.c_void_p
-lib.seccomp_init.argtypes = [C.c_uint32]
-lib.seccomp_rule_add_array.argtypes = [C.c_void_p, C.c_uint32, C.c_int, C.c_uint, C.c_void_p]
-lib.seccomp_syscall_resolve_name.argtypes = [C.c_char_p]
-lib.seccomp_arch_resolve_name.argtypes = [C.c_char_p]
-lib.seccomp_arch_resolve_name.restype = C.c_uint32
-lib.seccomp_arch_add.argtypes = [C.c_void_p, C.c_uint32]
-lib.seccomp_load.argtypes = [C.c_void_p]
-
-class Cmp(C.Structure):
-    _fields_ = [("arg", C.c_uint), ("op", C.c_int), ("a", C.c_uint64), ("b", C.c_uint64)]
-MASKED_EQ, EQ = 7, 4
-ALLOW, KILL = 0x7FFF0000, 0x80000000
-def ERRNO(e): return 0x00050000 | (e & 0xFFFF)
-def fail(m): sys.exit("prefix-sandbox: " + m)
-
-conf = {}
-for l in os.environ.pop("SUDO_LESS_SECCOMP", "").splitlines():
-    k, _, v = l.partition("=")
-    conf.setdefault(k, []).append(v.strip())
-
-def errnum(s):
-    if s.isdigit(): return int(s)
-    if s == "kill": return None
-    return getattr(errno, s, None) or fail("unknown errno " + s)
-
-def ctx(default):
-    c = lib.seccomp_init(default)
-    if not c: fail("seccomp_init failed")
-    arches = conf.get("SystemCallArchitectures", [])
-    names = " ".join(arches).split()
-    if not names:   # no restriction: the other ABIs of this machine too
-        names = {"x86_64": ["x86", "x32"], "aarch64": ["arm"]}.get(platform.machine(), [])
-    alias = {"x86-64": "x86_64", "arm64": "aarch64"}
-    for a in names:
-        if a == "native": continue
-        n = lib.seccomp_arch_resolve_name(alias.get(a, a).encode())
-        if n: lib.seccomp_arch_add(c, n)
-    return c
-
-def rule(c, action, name, *cmps):
-    nr = lib.seccomp_syscall_resolve_name(name.encode())
-    if nr < 0: return
-    arr = (Cmp * max(len(cmps), 1))(*[Cmp(*x) for x in cmps])
-    lib.seccomp_rule_add_array(c, action, nr, len(cmps), arr)
-
-filters = []
-
-# SystemCallFilter=: the first line sets allow- or deny-listing, later lines
-# add to the set or take out of it; "" resets.
-lines = conf.get("SystemCallFilter", [])
-if lines:
-    groups, cur = {}, None
-    out = subprocess.run(["systemd-analyze", "syscall-filter", "--no-pager"],
-                         capture_output=True, text=True).stdout
-    for l in out.splitlines():
-        if l.startswith("@"): cur = groups.setdefault(l.strip(), [])
-        elif l.strip() and not l.strip().startswith("#") and cur is not None: cur.append(l.strip())
-    def expand(n, seen=None):
-        seen = seen or set()
-        if not n.startswith("@"): return {n}
-        if n in seen: return set()
-        seen.add(n)
-        if n not in groups: fail("unknown syscall group " + n)
-        r = set()
-        for m in groups[n]: r |= expand(m, seen)
-        return r
-    allow, chosen = None, {}
-    for v in lines:
-        if v == "": allow, chosen = None, {}; continue
-        inv = v.startswith("~")
-        if inv: v = v[1:]
-        if allow is None: allow = not inv
-        for item in v.split():
-            n, _, e = item.partition(":")
-            for s in expand(n):
-                if allow != inv: chosen[s] = e
-                else: chosen.pop(s, None)
-    e = conf.get("SystemCallErrorNumber", [""])[-1]
-    default = KILL if not e or errnum(e) is None else ERRNO(errnum(e))
-    if allow:
-        c = ctx(default)
-        for s in set(chosen) | expand("@default"): rule(c, ALLOW, s)
-    else:
-        c = ctx(ALLOW)
-        for s, e in chosen.items():
-            rule(c, KILL if (e and errnum(e) is None) else ERRNO(errnum(e)) if e else default, s)
-    filters.append(c)
-
-# RestrictNamespaces=: which namespace types unshare(), clone() and setns()
-# may still make or join.
-FLAGS = {"cgroup": 0x02000000, "ipc": 0x08000000, "net": 0x40000000, "mnt": 0x00020000,
-         "pid": 0x20000000, "user": 0x10000000, "uts": 0x04000000, "time": 0x00000080}
-allowed = None
-for v in conf.get("RestrictNamespaces", []):
-    if v.lower() in ("", "no", "false", "off", "0"): allowed = set(FLAGS)
-    elif v.lower() in ("yes", "true", "on", "1"): allowed = set()
-    elif v.startswith("~"): allowed = (set(FLAGS) if allowed is None else allowed) - set(v[1:].split())
-    else: allowed = (set() if allowed is None else allowed) | set(v.split())
-blocked = set(FLAGS) - (set(FLAGS) if allowed is None else allowed)
-if blocked:
-    c = ctx(ALLOW)
-    eperm = ERRNO(errno.EPERM)
-    for t in blocked:
-        f = FLAGS[t]
-        rule(c, eperm, "unshare", (0, MASKED_EQ, f, f))
-        rule(c, eperm, "clone", (0, MASKED_EQ, f, f))
-        rule(c, eperm, "setns", (1, MASKED_EQ, f, f))
-    rule(c, eperm, "setns", (1, EQ, 0, 0))
-    rule(c, ERRNO(errno.ENOSYS), "clone3")   # its flags are behind a pointer; libc falls back to clone()
-    filters.append(c)
-
-if filters:
-    if C.CDLL(None, use_errno=True).prctl(38, 1, 0, 0, 0) != 0:   # PR_SET_NO_NEW_PRIVS
-        fail("cannot set no_new_privs")
-    for c in filters:
-        r = lib.seccomp_load(c)
-        if r != 0: fail("seccomp_load: " + os.strerror(-r))
-argv = sys.argv[1:]
-try:
-    os.execvp(argv[0], argv)
-except OSError as e:
-    fail("%s: %s" % (argv[0], e.strerror))
-' "$@"
+# The filter file is hidden by now (the scratch is under $HOME); setpriv
+# reads it through the descriptor opened before, which the command inherits
+# (read-only, the filter itself: nothing to learn from it).
+exec unshare -U --map-user="$uid" --map-group="$gid" -- \
+  setpriv --no-new-privs --seccomp-filter "/proc/self/fd/$bpf" -- "$@"

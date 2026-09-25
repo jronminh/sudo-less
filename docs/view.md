@@ -186,7 +186,7 @@ user namespace, before the command gets the user's uid back:
 | `ReadWritePaths=`, `StateDirectory=`, `CacheDirectory=`, `LogsDirectory=`, `RuntimeDirectory=` | holes: opened before anything is hidden, and bound back from there (`/proc/self/fd/N/...`) once it is; the state directories are `/var/lib/X`, `/var/cache/X`, `/var/log/X`, `/run/X`, as on Debian, and `$STATE_DIRECTORY`, ... name them |
 | `PrivateTmp=`, `TemporaryFileSystem=` | a tmpfs |
 | `InaccessiblePaths=`, `BindPaths=`, `BindReadOnlyPaths=` | a mode 000 node bound over it; a bind |
-| `SystemCallFilter=`, `SystemCallErrorNumber=`, `SystemCallArchitectures=`, `RestrictNamespaces=` | seccomp filters loaded by python3 with libseccomp, after the uid is back, just before `exec`; the groups (`@system-service`) are the host's `systemd-analyze syscall-filter` |
+| `SystemCallFilter=`, `SystemCallErrorNumber=`, `SystemCallArchitectures=`, `RestrictNamespaces=` | a seccomp BPF program, built in bash and loaded by util-linux's `setpriv --no-new-privs --seccomp-filter` after the uid is back, just before `exec`; the groups (`@system-service`) are the host's `systemd-analyze syscall-filter`, the syscall numbers `tools/syscalls/ARCH` (x86_64, aarch64; `dev/syscall-tables.sh`); other ABIs (i386, x32) are refused, as with `SystemCallArchitectures=native` |
 
 The mounts belong to the view's user namespace, which the command is no
 longer root of: it cannot unmount them, and in a user namespace of its own
@@ -217,8 +217,10 @@ view never reach the host.
   later restrict them with AppArmor, see `admin/enable-userspace.sh`);
 - overlayfs in a user namespace (kernel 5.11 or later);
 - util-linux `unshare` 2.38 or later (`--map-user`).
-- for a sandbox's syscall filters only: python3 and libseccomp2 (both in a
-  standard Debian install).
+- for a sandbox's syscall filters only: util-linux `setpriv` with
+  `--seccomp-filter` (util-linux 2.40 or later; checked here on 2.42),
+  on x86_64 or aarch64. Without it a service that asks for a filter does
+  not start.
 
 ## Limits of an unprivileged overlay, and how the view works around them
 

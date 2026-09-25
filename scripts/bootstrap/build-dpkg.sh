@@ -70,14 +70,9 @@ for t in $VIEW_TOOLS; do
   for b in bin sbin; do
     [ -f "$PREFIX/$b/$t" ] || continue
     mv -f "$PREFIX/$b/$t" "$L/dpkg/$t"
-    install -m 0755 "$REPO/apt-dpkg/dpkg-wrapper.sh" "$PREFIX/$b/$t"
   done
   [ -x "$L/dpkg/$t" ] || die "dpkg did not install $t"
 done
-install -m 0755 "$REPO/tools/prefix-view.sh" "$L/prefix-view"
-install -m 0755 "$REPO/tools/prefix-wrap.sh" "$L/prefix-wrap"
-install -m 0755 "$REPO/tools/prefix-check.sh" "$L/prefix-check"
-install -m 0755 "$REPO/tools/prefix-sandbox.sh" "$L/prefix-sandbox"
-mkdir -p "$L/syscalls"
-install -m 0644 "$REPO"/tools/syscalls/* "$L/syscalls/"
+# The wrappers in $PREFIX/bin, and the tools they use.
+PREFIX=$PREFIX bash "$REPO/tools/install.sh"
 log "dpkg installed: $PREFIX/bin/dpkg ($("$PREFIX/bin/dpkg" --version | head -1))"

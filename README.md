@@ -228,7 +228,8 @@ tricks) is experimental. See [`docs/release.md`](docs/release.md).
 bootstrap.sh   one-command install (fetches prebuilt apt/dpkg)
 apt-dpkg/      apt/dpkg: setup, config/ (apt.conf.d hooks, dpkg.cfg),
                patches/ (a fork of Termux's, patches/UPSTREAM.md)
-tools/         prefix-view.sh (the install, run and service views),
+tools/         install.sh (puts the tools below into the prefix: run it after
+               changing one), prefix-view.sh (the install, run and service views),
                prefix-sandbox.sh (systemd's sandbox directives on a view),
                prefix-integrate.sh (after dpkg: launchers, then
                prefix-wrap.sh, which programs run in the view, then

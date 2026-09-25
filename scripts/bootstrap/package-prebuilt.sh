@@ -37,8 +37,8 @@ done
 
 # 2. the in-repo runtime files install-config.sh needs to configure it
 mkdir -p "$STAGE/share/sudo-less"
-# tools/: prefix-view, -sandbox, -integrate, -wrap, -units and -check (installed into lib/sudo-less by
-# apt-dpkg/install.sh), prefix-run.sh (for packages apt
+# tools/: the tools tools/install.sh installs into lib/sudo-less (it lists
+# them; apt-dpkg/install.sh calls it), and prefix-run.sh (for packages apt
 # cannot install)
 for d in apt-dpkg tools; do
   cp -a "$REPO/$d" "$STAGE/share/sudo-less/$d"

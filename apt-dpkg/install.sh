@@ -37,30 +37,9 @@ chmod 0644 "$PREFIX/etc/apt/apt.conf.d/00local-prefix"
 sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/dpkg/dpkg.cfg.in" > "$PREFIX/etc/dpkg/dpkg.cfg"
 chmod 0644 "$PREFIX/etc/dpkg/dpkg.cfg"
 
-# Packages that need root to install are refused before dpkg runs
-# (apt-dpkg/config/apt.conf.d/03check.in).
-sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/03check.in" \
-  > "$PREFIX/etc/apt/apt.conf.d/03check"
-chmod 0644 "$PREFIX/etc/apt/apt.conf.d/03check"
-# After apt's dpkg runs: launchers, view scripts for programs, user units
-# for services (apt-dpkg/config/apt.conf.d/02integrate.in).
-sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/02integrate.in" \
-  > "$PREFIX/etc/apt/apt.conf.d/02integrate"
-chmod 0644 "$PREFIX/etc/apt/apt.conf.d/02integrate"
-# The hooks 02integrate replaced, and their stamps.
-rm -f "$PREFIX/etc/apt/apt.conf.d/01update-desktop-database" \
-      "$PREFIX/etc/apt/apt.conf.d/02view-wrappers" \
-      "$PREFIX/etc/apt/apt.conf.d/04units" \
-      "$PREFIX/.sudo-less/view/wrappers.stamp" "$PREFIX/.sudo-less/units.stamp"
-mkdir -p "$PREFIX/lib/sudo-less"
-install -m 0755 "$REPO/tools/prefix-view.sh" "$PREFIX/lib/sudo-less/prefix-view"
-install -m 0755 "$REPO/tools/prefix-wrap.sh" "$PREFIX/lib/sudo-less/prefix-wrap"
-install -m 0755 "$REPO/tools/prefix-check.sh" "$PREFIX/lib/sudo-less/prefix-check"
-install -m 0755 "$REPO/tools/prefix-units.sh" "$PREFIX/lib/sudo-less/prefix-units"
-install -m 0755 "$REPO/tools/prefix-sandbox.sh" "$PREFIX/lib/sudo-less/prefix-sandbox"
-mkdir -p "$PREFIX/lib/sudo-less/syscalls"
-install -m 0644 "$REPO"/tools/syscalls/* "$PREFIX/lib/sudo-less/syscalls/"
-install -m 0755 "$REPO/tools/prefix-integrate.sh" "$PREFIX/lib/sudo-less/prefix-integrate"
+# sudo-less's tools, the dpkg wrappers and the apt hooks that call them
+# (prefix-check before dpkg runs, prefix-integrate after): tools/install.sh.
+PREFIX=$PREFIX bash "$REPO/tools/install.sh"
 
 # apt verifies signatures with the host's sqv (Debian's default verifier)
 if ! command -v sqv >/dev/null; then

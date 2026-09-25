@@ -32,33 +32,12 @@ scripts, triggers and `update-alternatives` see a normal system too: a script
 that writes `/etc/foo` or runs `/usr/bin/foo` works, and alternatives are the
 standard absolute links (`/usr/bin/java` → `/etc/alternatives/java` → ...).
 
-The install view is a private view with an empty `/run`
-(`-p TemporaryFileSystem=/run`). Without it a maintainer script
-reached the host's own services through the system bus: `php-common`'s
-postinst runs `systemctl --system daemon-reload`, and polkit popped up a
-password dialog for the admin's password on the desktop. With an empty
-`/run`, `systemctl` finds no systemd, `deb-systemd-invoke` and `pkexec`
-find no bus, and debhelper's `[ -d /run/systemd/system ]` guards skip the
-service steps. The run view keeps the host's `/run`: the programs in it are
-yours, run as you, just as outside the view.
-
-The install view also hides your home (`ProtectHome=yes`), but for the
-prefix's `/usr`, `/etc`, `/var`, `/opt` (writable) and sudo-less's own
-tools (`$PREFIX/bin`, `sbin`, `lib/sudo-less`, read-only); `/tmp` is
-private, and `/media` and `/mnt` are out of reach. A `.deb` from outside the
-prefix (`dpkg -i ~/Downloads/foo.deb`) is bound in read-only; the wrapper
-makes relative paths absolute, since the view starts in `/`. Debian trusts
-a package with root; here a package is trusted with the prefix, not with
-`~/.ssh` or `~/.bashrc`. `dev/hostile-debs.sh` checks it with crafted
-packages: a maintainer script that writes or reads `$HOME`, a file shipped
-through another package's symlink into `$HOME`, a `../` member in
-`data.tar`, a setuid bit. Without the sandbox all but the last reached
-`$HOME` (measured 2026-09-25); with it none does.
-
-Still reachable from a maintainer script: the network, and with it abstract
-unix sockets, which belong to the network namespace, not to a path (an X
-server's `@/tmp/.X11-unix/X1`; it wants its cookie, which is under the
-hidden `/run/user`).
+The install view is a private view with a sandbox on top: an empty `/run`
+(no system bus, no systemd, so maintainer scripts cannot reach the host's
+services), your home hidden but for the prefix, a private `/tmp`
+([`security.md`](security.md#installing-the-install-view) has why, and what
+it stops). The run view keeps the host's `/run` and your home: the programs
+in it are yours, run as you, just as outside the view.
 
 ## Why a view
 
@@ -206,9 +185,8 @@ user namespace, before the command gets the user's uid back:
 | `InaccessiblePaths=`, `BindPaths=`, `BindReadOnlyPaths=` | a mode 000 node bound over it; a bind |
 | `SystemCallFilter=`, `SystemCallErrorNumber=`, `SystemCallArchitectures=`, `RestrictNamespaces=` | a seccomp BPF program, built in bash and loaded by util-linux's `setpriv --no-new-privs --seccomp-filter` after the uid is back, just before `exec`; the groups (`@system-service`) are the host's `systemd-analyze syscall-filter`, the syscall numbers `tools/syscalls/ARCH` (x86_64, aarch64; `dev/syscall-tables.sh`); other ABIs (i386, x32) are refused, as with `SystemCallArchitectures=native` |
 
-The mounts belong to the view's user namespace, which the command is no
-longer root of: it cannot unmount them, and in a user namespace of its own
-they are locked, so it cannot uncover what they hide either.
+Why the command cannot undo them, and what they do not stop:
+[`security.md`](security.md#services-the-sandbox).
 
 systemd cannot build these itself around the view: its `ProtectSystem=`
 protects the host's `/usr` under the view's overlay (measured: `/usr` stays

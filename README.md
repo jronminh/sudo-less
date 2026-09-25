@@ -33,7 +33,7 @@ that has none gets a strict one, since here it runs as you.
 > **AI-assisted and unaudited.** The scripts, patches and docs were written with
 > AI assistants ([opencode](https://opencode.ai), [Claude Code](https://claude.com/claude-code)). Read the code before you run
 > it — especially the root script under `admin/`. This is not a security-reviewed
-> artifact.
+> artifact; [`docs/security.md`](docs/security.md) says what it protects and what not.
 
 ## Install
 
@@ -200,6 +200,9 @@ this repo.
 - [`docs/view.md`](docs/view.md) — the prefix views: the one dpkg runs in,
   the shared one for installed programs that need it, the one services run
   in, and the sandbox built on top.
+- [`docs/security.md`](docs/security.md) — what you trust, what a package
+  can reach while it installs and runs, the sandboxes, and their known
+  limits.
 - [`docs/services.md`](docs/services.md) — packages' services under your own
   systemd: what the user manager can do, how a unit is translated, the
   default sandbox.

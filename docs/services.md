@@ -50,7 +50,7 @@ a user unit in `~/.local/share/systemd/user`, tagged
 |---|---|
 | `User=`, `Group=`, `DynamicUser=`, `SupplementaryGroups=`, capabilities, `PAMName=`, `SocketUser=` | dropped: the service runs as the user |
 | every `Exec` line | `prefix-view --service --sandbox-from=UNIT -- CMD`: a fresh [service view](view.md#the-service-view), with the prefix on `/usr`, `/etc`, `/opt` and `/var` and the services' own `/run`, so the daemon reads its config, keeps its state and logs, and makes its sockets where Debian puts them, and it all lands in the prefix and in `$XDG_RUNTIME_DIR/sudo-less/run` |
-| sandboxing that names paths or filters syscalls (`ProtectSystem=`, `ProtectHome=`, `PrivateTmp=`, `ReadWritePaths=`, `BindPaths=`, `StateDirectory=`, `SystemCallFilter=`, `RestrictNamespaces=`, ...) | `# sudo-less sandbox: D=V` lines in the user unit, which [`prefix-sandbox`](view.md#the-sandbox) reads (`--sandbox-from=`) and builds on top of the view, where the paths are the prefix's. Not options on the `Exec` line: systemd parses that line, and a value from the package could then close its quotes and add options of its own ([#38](https://github.com/jronminh/sudo-less/issues/38)); read from the file it stays data. A package's own `# sudo-less sandbox:` lines are dropped |
+| sandboxing that names paths or filters syscalls (`ProtectSystem=`, `ProtectHome=`, `PrivateTmp=`, `ReadWritePaths=`, `BindPaths=`, `StateDirectory=`, `SystemCallFilter=`, `RestrictNamespaces=`, ...) | `# sudo-less sandbox: D=V` lines in the user unit, which [`prefix-sandbox`](view.md#the-sandbox) reads (`--sandbox-from=`) and builds on top of the view, where the paths are the prefix's. Not options on the `Exec` line, where a value from the package could add options of its own ([`security.md`](security.md#services-the-sandbox), #38). A package's own `# sudo-less sandbox:` lines are dropped |
 | sandboxing that names no path (`PrivateNetwork=`, `PrivateDevices=`, `ProtectKernel*=`, `ProtectClock=`, `NoNewPrivileges=`, `RestrictSUIDSGID=`, `LockPersonality=`, ...) | kept: systemd builds it around the view |
 | `ExecPaths=`, `NoExecPaths=`, `RootDirectory=`, `RootImage=`, `MountAPIVFS=` | dropped |
 | `CapabilityBoundingSet=`, `AmbientCapabilities=` | dropped: the service has no capability on the host to drop, and a user namespace of its own gives them all back inside it, bounding set or not (measured); `RestrictNamespaces=` is what stops that |
@@ -66,10 +66,10 @@ its user unit, unchanged but for the paths. Drop-in directories
 
 ### The default sandbox
 
-On Debian a system service runs as a system user, and that is what keeps
-it from your files. Here it runs as you, so a compromised daemon could
-rewrite `~/.bashrc`, or a program in `~/.local/bin` you run later. So a
-system unit gets, for each one it does not set itself:
+A system service runs here as you, not as a system user
+([`security.md`](security.md#services-the-sandbox) has why that needs a
+sandbox, and its limits). So a system unit gets, for each one it does not
+set itself:
 
 - `ProtectSystem=strict`: everything read-only but `/dev`, `/proc`, `/sys`,
   the services' `/run`, its state directories, and the directories its

@@ -10,12 +10,13 @@ host's system directories (`tools/prefix-view.sh`, installed as
   a path agree;
 - the command runs with the user's own uid.
 
-There are two kinds, and most programs use neither:
+There are three kinds, and most programs use none:
 
 | | overlays | built | used by |
 |---|---|---|---|
 | **install view** | `/usr`, `/etc`, `/var`, `/opt`; `/var/lib/dpkg` is the prefix's own database | fresh for each call (~0.2 s) | dpkg |
 | **run view** | `/usr`, `/etc`, `/opt`; `/var` stays the host's | once, kept running in the background; joining it takes ~0.02 s | installed programs that look for their files at `/usr/...`, `/etc/...`, `/opt/...` |
+| **service view** | like the install view, but `/run` stays the host's | fresh for each service start | services from the prefix (`tools/prefix-units.sh`) |
 | none | — | — | every other installed program: it runs directly from `$PREFIX/usr/bin` |
 
 In the install view dpkg runs exactly as on Debian: root `/`, admin dir
@@ -141,6 +142,50 @@ It is stopped, and rebuilt by the next `--run`, when:
 Programs already running in an old view keep it until they exit. Inside the
 run view `prefix-view --run` runs its command directly, so a wrapped program
 that starts another wrapped program stays in the same view.
+
+### The service view
+
+A package's systemd units are written for the system manager: the service
+runs as `User=redis`, after `network.target`, wanted by `multi-user.target`,
+and reads `/etc/redis/redis.conf` and writes `/var/lib/redis`. After every
+dpkg run `prefix-units` (`tools/prefix-units.sh`, hook
+`apt-dpkg/config/apt.conf.d/04units.in`) translates each unit of the
+packages that changed into a user unit in `~/.local/share/systemd/user`,
+where the user's own systemd (`systemd --user`) finds it:
+
+- `User=`, `Group=`, `DynamicUser=` and capabilities are dropped: the
+  service runs as the user;
+- an `Exec` line whose program has a `prefix-wrap` script, or that names a
+  file in the prefix, runs as `prefix-view --service CMD`: a fresh view
+  with the prefix on `/usr`, `/etc`, `/opt` and `/var`, so the daemon reads
+  its config and keeps its state and logs in `/var` as on Debian, and it all
+  lands in `$PREFIX/var`. `/run` stays the host's, so it still reaches the
+  user manager (`Type=notify`) and `/run/user`;
+- sandboxing that builds its own mount namespace (`ProtectSystem=`,
+  `ProtectHome=`, `PrivateTmp=`, `ReadWritePaths=`, ...) is dropped for a
+  program from the prefix: it names host paths and hides `$HOME`;
+- `/run/X` becomes `%t/X` (`$XDG_RUNTIME_DIR`); paths systemd reads itself
+  (`EnvironmentFile=`, `PIDFile=`, `Condition*=`) get their prefix copy;
+- targets only the system manager has are dropped from the dependencies,
+  and `WantedBy=multi-user.target` becomes `default.target`;
+- a package that ships a user unit of the same name (mpd, syncthing) gets
+  that one instead.
+
+A unit the package enabled (its postinst's `deb-systemd-helper enable`
+leaves symlinks in `$PREFIX/etc/systemd`) is enabled and started with
+`systemctl --user enable --now`, as Debian starts a service on install; a
+changed unit is restarted if running; a removed package's units are
+stopped, disabled and deleted. Services run while the user is logged in;
+running them without a session is linger, an admin grant
+([`admin-features.md`](admin-features.md)). `SUDO_LESS_UNITS=nostart`
+enables without starting, `SUDO_LESS_UNITS=off` skips it all.
+
+Tried on this host (2026-09-25): mini-httpd's system unit ran as a user
+service in the service view, serving `/var/www/html` and logging to
+`/var/log/mini_httpd.log` from the prefix, once its port was moved from 80
+to 8080; syncthing's own user unit ran as it is; removing both stopped them
+and deleted their units. Packages whose postinst creates the system user
+they run as (redis, memcached, caddy) are still refused by `prefix-check`.
 
 ### Host mounts
 

@@ -66,6 +66,7 @@ More admin steps, each unlocking some cells, are planned in
 | the prefix's programs are not on `PATH` | `$PREFIX/bin` and `$PREFIX/usr/bin` on `PATH`, for shells and the desktop session | `scripts/setup/install-shell-path.sh`, `install-session-env.sh` |
 | a program looks for its files at `/usr/...`, `/etc/...`, `/opt/...` (compiled-in paths, an interpreter's module path, a library only in the prefix, an alternatives link, a shebang naming an interpreter only in the prefix) | `prefix-wrap` gives it a script in `$PREFIX/bin` that runs it in the shared run view; every other program runs directly | [`view.md`](view.md#how-programs-get-there) |
 | a disk mounted after the run view started is not in it | the run view receives the host's mounts (`--propagation slave`) | [`view.md`](view.md#host-mounts) |
+| a package's service (a systemd unit, system or user) is never started | `prefix-units` translates it into a user unit run by the user's own systemd, in a service view with the prefix's `/var`, and starts it if the package enabled it | [`view.md`](view.md#the-service-view), `apt-dpkg/config/apt.conf.d/04units.in` |
 | a desktop app has no launcher or icon | `XDG_DATA_DIRS` for the session, and the desktop database refreshed after each dpkg run | `install-session-env.sh`, `apt-dpkg/config/apt.conf.d/01update-desktop-database.in` |
 
 ### Root, once
@@ -74,12 +75,13 @@ More admin steps, each unlocking some cells, are planned in
 |---|---|
 | no user namespaces: the run view cannot be built | `admin/enable-userspace.sh` (the same step as for installing) |
 | a program needs a device (`/dev/ttyUSB*`, `/dev/kvm`) | add the user to its group (`dialout`, `kvm`) |
+| a service must run without the user logged in | linger for the user (`loginctl enable-linger`) |
 
 ### Never
 
 | problem | why |
 |---|---|
-| a service or daemon (a system unit, an init script, a system user to run as) | started by the system's init, as root |
+| a service that runs as a system user its package creates, or has only an init script | the user cannot be created without root (`prefix-check` refuses the package); an init script is started by the system's init |
 | a setuid or setgid program, or one with file capabilities | the files in the prefix belong to the user, and a user namespace grants no privilege on the host |
 | a program that needs `/run/...`, a privileged port, or a system group | owned by root on the host |
 

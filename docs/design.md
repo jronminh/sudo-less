@@ -33,7 +33,7 @@ apt-get install ──▶ [2 classify]   DPkg::Pre-Install-Pkgs   (reads the .de
 | **1. sync** | re-seed the prefix's view of the system's packages from the host's dpkg database, and keep them held | when the admin upgrades the system, the prefix follows at the next `update`; a stale seed is what makes apt report "held broken packages" |
 | **2. classify** | for each incoming `.deb`: decide its **scope** (in scope, the admin's, or `never`, from its section and signals such as `adduser` or a service) and refuse what is out of scope with the reason; decide its **mechanism** (none, environment, overlay); find **unsafe maintainer scripts** (a root-only command with no shim) and stop before dpkg runs; record every decision | the `.deb` files are on disk and nothing is installed yet, so a wrong package costs nothing and the prefix never wedges |
 | **3. install** | dpkg runs in the prefix view ([`view.md`](view.md)): the prefix overlaid on `/usr`, `/etc`, `/var` and `/opt`, so maintainer scripts write to `/etc` and `/var` as on Debian and it all lands in the prefix. Shims for root-only helpers (`py3compile`, service helpers) sit in a directory that is on `DPkg::Path` only | maintainer scripts see the prefix and the shims; the user's shell never sees the shims |
-| **4. integrate** | for the packages this run changed: write or remove overlay wrappers, refresh launchers and icons, run each ecosystem's integration, and check for half-configured packages (repair, or say exactly what to do) | the files are in place; the user's next command just works |
+| **4. integrate** | for the packages this run changed: write or remove overlay wrappers, translate systemd units into user units and start the enabled ones, refresh launchers and icons, run each ecosystem's integration, and check for half-configured packages (repair, or say exactly what to do) | the files are in place; the user's next command just works |
 
 The hooks are small bash scripts in `$PREFIX/share/sudo-less/hooks/`, each
 dispatching to ordered parts (`run-parts` style), so adding a behaviour means
@@ -95,7 +95,7 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
 | stage 1 sync | manual: `lock-seeded.sh --reseed` |
 | stage 2 classify | `prefix-check` is hooked (`DPkg::Pre-Install-Pkgs`): it refuses a package that creates a system user or group, or installs kernel modules or into `/boot`, before dpkg runs; `check-package.sh` is not merged into it yet |
 | stage 3 install | dpkg runs in the install view, with an empty `/run` so maintainer scripts cannot reach the host's services; no shims needed so far (the view made `py3compile`'s unnecessary) |
-| stage 4 integrate | launchers (`01update-desktop-database`); `prefix-wrap` gives programs that need the view a script that runs them in the shared run view, and the rest run directly ([`view.md`](view.md#how-programs-get-there)) |
+| stage 4 integrate | launchers (`01update-desktop-database`); `prefix-wrap` gives programs that need the view a script that runs them in the shared run view, and the rest run directly ([`view.md`](view.md#how-programs-get-there)); `prefix-units` runs the packages' systemd units as user units ([`view.md`](view.md#the-service-view)) |
 | ecosystems | documented in [`ecosystems.md`](ecosystems.md); no per-language code |
 | state, `explain`, `doctor` | not yet |
 

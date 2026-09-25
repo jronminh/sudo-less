@@ -3,6 +3,7 @@
 #
 #   tools/prefix-view.sh CMD [ARG...]        in a fresh install view (dpkg)
 #   tools/prefix-view.sh --run CMD [ARG...]  in the shared run view
+#   tools/prefix-view.sh --service CMD [ARG...]  in a fresh service view
 #   tools/prefix-view.sh --start | --stop    start or stop the run view
 #
 # In a view the prefix's directories are persistent overlays on the host's:
@@ -19,6 +20,12 @@
 # host's. It is built once and kept running in the background; --run joins
 # it (~0.03 s), starting it first if needed. It is rebuilt after the prefix
 # or the host's packages change (prefix-wrap, --stop).
+#
+# The service view is the install view with the host's /run: a service from
+# the prefix (tools/prefix-units.sh) keeps its state in /var/lib, /var/log
+# and /var/cache as on Debian, and it all lands in the prefix, while it still
+# reaches the user manager and the session bus in /run/user. One per service
+# start.
 #
 # Host mounts made later (a USB stick) show up in a view too: its mounts are
 # slaves of the host's. Inside a view (SUDO_LESS_VIEW set) CMD runs directly.
@@ -155,15 +162,16 @@ if [ "${1-}" != --inner ]; then
   mode=install
   case ${1-} in
     --run) mode=run; shift ;;
+    --service) mode=service; shift ;;
     --start|--stop|--hold) mode=${1#--}; shift ;;
   esac
   case $mode in
-    install|run) [ $# -gt 0 ] || {
-      echo "usage: prefix-view [--run] CMD [ARG...] | --start | --stop" >&2; exit 2; } ;;
+    install|run|service) [ $# -gt 0 ] || {
+      echo "usage: prefix-view [--run | --service] CMD [ARG...] | --start | --stop" >&2; exit 2; } ;;
   esac
   case $mode:${SUDO_LESS_VIEW:-} in
     *:) ;;
-    install:install|run:*) exec "$@" ;;
+    install:install|run:*|service:service) exec "$@" ;;
     stop:*) ;;
     *) echo "prefix-view: already in the run view; run this from outside it" >&2
        exit 1 ;;
@@ -190,8 +198,8 @@ if [ "${1-}" != --inner ]; then
       cd /   # keep no directory busy (a USB stick could not be unmounted)
       set -- "$BASH" -c "exec -a $MARK sleep infinity"
       view=run DIRS="usr etc opt" ;;
-    install)
-      view=install DIRS="usr etc var opt"
+    install|service)
+      view=$mode DIRS="usr etc var opt"
       mkdir -p "$PREFIX/var/lib/dpkg"
       mirror ;;
   esac
@@ -279,8 +287,10 @@ layer() {
 shopt -s nullglob dotglob
 for d in $DIRS; do layer "/$d" "/$d"; done
 case " $DIRS " in
-  *" var "*)
-    fs "$PREFIX/var/lib/dpkg" /var/lib/dpkg none bind
+  *" var "*) fs "$PREFIX/var/lib/dpkg" /var/lib/dpkg none bind ;;
+esac
+case $SUDO_LESS_VIEW in
+  install)
     # Maintainer scripts must not reach the host's services: an empty /run
     # hides the system bus and systemd, so `systemctl daemon-reload`,
     # deb-systemd-invoke and pkexec find nothing to ask (and polkit shows no

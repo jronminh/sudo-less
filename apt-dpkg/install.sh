@@ -55,10 +55,16 @@ chmod 0644 "$PREFIX/etc/apt/apt.conf.d/02view-wrappers"
 sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/03check.in" \
   > "$PREFIX/etc/apt/apt.conf.d/03check"
 chmod 0644 "$PREFIX/etc/apt/apt.conf.d/03check"
+# The packages' systemd units run under the user's own systemd
+# (apt-dpkg/config/apt.conf.d/04units.in).
+sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/04units.in" \
+  > "$PREFIX/etc/apt/apt.conf.d/04units"
+chmod 0644 "$PREFIX/etc/apt/apt.conf.d/04units"
 mkdir -p "$PREFIX/lib/sudo-less"
 install -m 0755 "$REPO/tools/prefix-view.sh" "$PREFIX/lib/sudo-less/prefix-view"
 install -m 0755 "$REPO/tools/prefix-wrap.sh" "$PREFIX/lib/sudo-less/prefix-wrap"
 install -m 0755 "$REPO/tools/prefix-check.sh" "$PREFIX/lib/sudo-less/prefix-check"
+install -m 0755 "$REPO/tools/prefix-units.sh" "$PREFIX/lib/sudo-less/prefix-units"
 
 # apt verifies signatures with the host's sqv (Debian's default verifier)
 if ! command -v sqv >/dev/null; then

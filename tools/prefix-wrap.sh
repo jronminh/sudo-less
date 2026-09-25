@@ -2,7 +2,10 @@
 # prefix-wrap — make each program the prefix installed runnable by its name,
 # directly or in the run view.
 #
-#   tools/prefix-wrap.sh          the packages installed or changed since last time
+#   tools/prefix-wrap.sh FILE...  the programs of these packages or alternatives
+#                                 (dpkg .list files, alternatives files:
+#                                 prefix-integrate passes the changed ones),
+#                                 and the scripts of removed ones
 #   tools/prefix-wrap.sh --all    every package
 #   tools/prefix-wrap.sh --check PROG...   print how each would run, change nothing
 #
@@ -21,16 +24,15 @@
 #   libs      ldd cannot find a library (it is in $PREFIX/usr/lib)
 #   paths     it names a file or directory under /usr, /etc or /opt that the
 #             prefix has its own copy of
-# docs/view.md. The apt hook in apt-dpkg/config/apt.conf.d/02view-wrappers.in runs this
-# after every dpkg run. When a package changed it stops the run view, which
-# the next --run rebuilds on the new files.
+# docs/view.md. prefix-integrate runs this after each dpkg run
+# (tools/prefix-integrate.sh). When a package changed it stops the run view,
+# which the next --run rebuilds on the new files.
 set -eu
 
 : "${PREFIX:=$HOME/.local}"
 INFO=$PREFIX/var/lib/dpkg/info
 ALTS=$PREFIX/var/lib/dpkg/alternatives
 DB=$PREFIX/var/lib/sudo-less/wrappers   # per package (or alternatives=NAME): its scripts
-STAMP=$PREFIX/.sudo-less/view/wrappers.stamp
 VIEW=$PREFIX/lib/sudo-less/prefix-view
 TAG='# sudo-less view wrapper (prefix-wrap); regenerated, do not edit'
 
@@ -146,10 +148,8 @@ if [ "${1:-}" = --check ]; then
   exit 0
 fi
 
-ALL=
-[ "${1:-}" != --all ] || ALL=1
-mkdir -p "$DB" "${STAMP%/*}" "$PREFIX/bin" "$PREFIX/sbin"
-: > "$STAMP.new"
+if [ "${1:-}" = --all ]; then set -- "$INFO"/*.list "$ALTS"/*; fi
+mkdir -p "$DB" "$PREFIX/bin" "$PREFIX/sbin"
 changed=
 
 # Packages that are gone: remove their scripts.
@@ -164,10 +164,8 @@ for rec in "$DB"/*; do
 done
 
 lists=()
-for list in "$INFO"/*.list "$ALTS"/*; do
-  [ -f "$list" ] || continue
-  [ -n "$ALL" ] || [ ! -f "$STAMP" ] || [ "$list" -nt "$STAMP" ] || continue
-  lists+=("$list")
+for list; do
+  case $list in "$INFO"/*.list|"$ALTS"/*) [ -f "$list" ] && lists+=("$list") ;; esac
 done
 [ ${#lists[@]} -eq 0 ] || changed=1   # the prefix changed under the run view
 declare -A progs=()
@@ -196,7 +194,6 @@ for list in "${lists[@]}"; do
   if [ ${#made[@]} -gt 0 ]; then printf '%s\n' "${made[@]}" > "$rec"; elif [ -f "$rec" ]; then rm -f "$rec"; fi
 done
 
-mv -f "$STAMP.new" "$STAMP"
 if [ -n "$changed" ] && [ -x "$VIEW" ]; then
   PREFIX=$PREFIX "$VIEW" --stop
 fi

@@ -2,7 +2,9 @@
 # prefix-units — run the services the prefix installed under your own
 # systemd user manager.
 #
-#   tools/prefix-units.sh          the packages installed or changed since last time
+#   tools/prefix-units.sh LIST...  the units of these packages (their dpkg
+#                                  .list files: prefix-integrate passes the
+#                                  changed ones), and those of removed packages
 #   tools/prefix-units.sh --all    every package
 #   tools/prefix-units.sh --check UNIT-FILE...   print the translation, change nothing
 #
@@ -15,20 +17,32 @@
 #
 #   identity   User=, Group=, DynamicUser=, capabilities: dropped, the
 #              service runs as you
-#   programs   an Exec line whose program needs the view (it has a
-#              prefix-wrap script), names a file in the prefix or state in
-#              /var/lib, /var/log, /var/cache or /var/spool runs in a
-#              service view (prefix-view --service): /usr, /etc, /opt and
-#              /var from the prefix, so the service finds its config and
-#              keeps its state in /var as on Debian; a program that runs
-#              directly gets its $PREFIX path
-#   sandbox    for a program in the prefix, directives that give the service
-#              its own namespaces (ProtectSystem=, PrivateTmp=, ...) are
-#              dropped: they name host paths and hide $HOME. Otherwise
-#              kept.
-#   paths      /run/X and /var/run/X become %t/X ($XDG_RUNTIME_DIR); paths
-#              systemd itself reads (EnvironmentFile=, PIDFile=,
-#              Condition*=) get their $PREFIX copy when there is one
+#   programs   every Exec line runs in a service view (prefix-view
+#              --service): /usr, /etc, /opt and /var from the prefix, and
+#              /run the services' own ($XDG_RUNTIME_DIR/sudo-less/run), so
+#              the service finds its config and keeps its state and sockets
+#              where Debian does, and it all lands in the prefix
+#   sandbox    directives that name paths or filter syscalls
+#              (ProtectSystem=, ReadWritePaths=, StateDirectory=,
+#              SystemCallFilter=, ...) become prefix-view's -p options:
+#              prefix-sandbox applies them on top of the view, where the
+#              paths are the prefix's. The rest (PrivateNetwork=,
+#              ProtectKernelTunables=, NoNewPrivileges=, ...) stay for
+#              systemd, which builds them around the view.
+#   default    on Debian a system service runs as a system user, which
+#              cannot touch your files; here it runs as you. So a system
+#              unit gets ProtectSystem=strict, ProtectHome=yes,
+#              PrivateTmp=yes and NoNewPrivileges=yes unless it sets them
+#              itself, with its package's own directories in /var/lib,
+#              /var/cache, /var/log and /var/spool writable. A user unit
+#              (meant to run as you) gets no default. SUDO_LESS_SANDBOX=off
+#              in a drop-in's Environment= turns the sandbox off for one
+#              service (tools/prefix-sandbox.sh).
+#   paths      paths systemd itself reads (EnvironmentFile=, PIDFile=,
+#              Condition*=) get their $PREFIX copy when there is one, and
+#              /run/X is %t/sudo-less/run/X; in a system unit %t, %S, %C,
+#              %L and %E are /run, /var/lib, ... as the system manager has
+#              them
 #   ordering   targets only the system manager has (network.target,
 #              multi-user.target, ...) are dropped from dependencies, and
 #              WantedBy= them becomes default.target
@@ -44,9 +58,9 @@
 # while you are logged in; to keep them running without a session the admin
 # enables linger once (docs/admin-features.md).
 #
-# The apt hook in apt-dpkg/config/apt.conf.d/04units.in runs this after
-# every dpkg run (after prefix-wrap). SUDO_LESS_UNITS=off skips it,
-# SUDO_LESS_UNITS=nostart translates and enables but starts nothing.
+# prefix-integrate runs this after each dpkg run (tools/prefix-integrate.sh).
+# SUDO_LESS_UNITS=off skips it, SUDO_LESS_UNITS=nostart translates and
+# enables but starts nothing.
 set -eu
 
 [ "${SUDO_LESS_UNITS:-}" != off ] || exit 0
@@ -54,7 +68,6 @@ set -eu
 INFO=$PREFIX/var/lib/dpkg/info
 DB=$PREFIX/var/lib/sudo-less/units      # per package: the units it got
 ENABLED=$PREFIX/var/lib/sudo-less/units-enabled   # a file per unit enabled here
-STAMP=$PREFIX/.sudo-less/units.stamp
 VIEW=$PREFIX/lib/sudo-less/prefix-view
 UNITS=${XDG_DATA_HOME:-$HOME/.local/share}/systemd/user
 TAG='# sudo-less user unit (prefix-units); regenerated, do not edit'
@@ -71,62 +84,75 @@ user_target() {
   return 1
 }
 
-# Directives dropped in every unit: who the service runs as.
+# Directives dropped: who the service runs as, and what a non-root service
+# cannot have. CapabilityBoundingSet= would drop capabilities the service
+# does not have on the host, and it gets them all back inside a user
+# namespace of its own; RestrictNamespaces= is what stops that.
 IDENTITY=' User Group DynamicUser SupplementaryGroups CapabilityBoundingSet AmbientCapabilities SecureBits PAMName SocketUser SocketGroup '
-# Directives dropped when a program of the service is in the prefix: the
-# mount namespace they build is made of host paths (ProtectHome= hides the
-# prefix itself, ExecPaths= lists /usr/bin/..., ReadWritePaths= /var/lib/...).
-SANDBOX=' PrivateTmp PrivateDevices PrivateUsers PrivateMounts PrivateIPC PrivatePIDs PrivateNetwork NetworkNamespacePath IPCNamespacePath ProtectSystem ProtectHome ProtectKernelTunables ProtectKernelModules ProtectKernelLogs ProtectControlGroups ProtectClock ProtectHostname ProtectProc ProcSubset ReadWritePaths ReadOnlyPaths InaccessiblePaths ExecPaths NoExecPaths ReadWriteDirectories ReadOnlyDirectories InaccessibleDirectories TemporaryFileSystem BindPaths BindReadOnlyPaths RootDirectory RootImage MountAPIVFS '
-# Dropped too in the service view: they forbid unshare() and mount(), which
-# building it needs.
-NOSETNS=' RestrictNamespaces SystemCallFilter '
+# Directives prefix-sandbox applies inside the view: systemd would apply
+# them to the host's paths under it, or forbid the mount() and unshare() it
+# is built with (tools/prefix-sandbox.sh).
+TOSANDBOX=' ProtectSystem ProtectHome PrivateTmp ReadWritePaths ReadOnlyPaths InaccessiblePaths ReadWriteDirectories ReadOnlyDirectories InaccessibleDirectories TemporaryFileSystem BindPaths BindReadOnlyPaths StateDirectory CacheDirectory LogsDirectory ConfigurationDirectory SystemCallFilter SystemCallErrorNumber SystemCallArchitectures RestrictNamespaces '
+# Directives with no way to keep them (a root of the unit's own, a mount
+# option on host paths), and the modes of the directories prefix-sandbox
+# makes in /var (they are yours).
+NOSANDBOX=' ExecPaths NoExecPaths RootDirectory RootImage MountAPIVFS StateDirectoryMode CacheDirectoryMode LogsDirectoryMode ConfigurationDirectoryMode '
+# The default sandbox of a system unit, for what it does not set itself.
+DEFAULT_SANDBOX=' ProtectSystem=strict ProtectHome=yes PrivateTmp=yes '
 DEPS=' After Before Wants Requires Requisite BindsTo PartOf Upholds Conflicts OnFailure OnSuccess '
 
 in_prefix() { [ -e "$PREFIX$1" ] || [ -L "$PREFIX$1" ]; }
 
-# A path that systemd itself reads, outside any view.
+# The services' /run outside the view (tools/prefix-view.sh --service).
+RUN=%t/sudo-less/run
+
+# In a system unit, the specifiers the user manager would expand to paths
+# under $HOME or $XDG_RUNTIME_DIR, as the system manager does: the view has
+# them where Debian does.
+system_specifiers() {
+  local v=$1
+  if [ -n "${system:-}" ]; then
+    v=${v//%t//run}; v=${v//%S//var/lib}; v=${v//%C//var/cache}
+    v=${v//%L//var/log}; v=${v//%E//etc}
+  fi
+  printf %s "$v"
+}
+
+# A path that systemd itself reads, outside any view: the prefix's copy, or
+# the services' /run.
 host_path() {
-  local flag=${1%%/*} p=/${1#*/}
-  case $1 in /*|-/*|!/*|\|/*|!\|/*) ;; *) printf %s "$1"; return ;; esac
+  local flag p
+  p=$(system_specifiers "$1")
+  flag=${p%%/*} p=/${p#*/}
+  case $1 in /*|-/*|!/*|\|/*|!\|/*|%*|-%*) ;; *) printf %s "$1"; return ;; esac
   case $p in
-    /run/*) p=%t/${p#/run/} ;;
-    /var/run/*) p=%t/${p#/var/run/} ;;
+    /run/*) p=$RUN/${p#/run/} ;;
+    /var/run/*) p=$RUN/${p#/var/run/} ;;
     *) ! in_prefix "$p" || p=$PREFIX$p ;;
   esac
   printf %s "$flag$p"
 }
 
-# The wrapper prefix-wrap made for program $1, if it made one.
-has_wrapper() {
-  local w
-  case $1 in */sbin/*) w=$PREFIX/sbin/${1##*/} ;; *) w=$PREFIX/bin/${1##*/} ;; esac
-  [ -f "$w" ] && grep -q 'sudo-less view wrapper' "$w" 2>/dev/null
+# A path of a sandbox directive, for prefix-sandbox in the view.
+sandbox_path() {
+  local f=${1%%[!-+]*} v=${1#"${1%%[!-+]*}"}
+  v=$(system_specifiers "$v")
+  case $v in /var/run/*) v=/run/${v#/var/run/} ;; esac
+  printf %s "$f$v"
 }
 
-# Of an Exec line's value: whether its program is in the prefix
-# (exec_in_prefix) and whether it must run in the service view (exec_needs_view).
-exec_in_prefix() {
-  local v=${1#"${1%%[!-@:+!]*}"}
-  set -f; set -- $v; set +f
-  in_prefix "${1:-/}"
-}
-exec_needs_view() {
-  local v=$1 w prog
-  v=${v#"${v%%[!-@:+!]*}"}          # the prefixes - @ : + !
-  set -f; set -- $v; set +f
-  prog=${1:-}
-  if in_prefix "$prog" && has_wrapper "$prog"; then return 0; fi
-  for w; do
-    case $w in -*=/*) w=/${w#*=/} ;; esac      # --state=/var/lib/...
-    case $w in
-      /usr/*|/etc/*|/opt/*) [ ! -f "$PREFIX$w" ] || return 0 ;;
-      /var/lib/*|/var/log/*|/var/cache/*|/var/spool/*) return 0 ;;
-    esac
-  done
-  return 1
+# Under the default ProtectSystem=strict, the directories the unit's
+# package ($PKG_LIST, its dpkg .list) has in /var/lib, /var/cache, /var/log
+# and /var/spool stay writable: on Debian its system user owns them.
+own_var_dirs() {
+  local d
+  [ -n "${PKG_LIST:-}" ] || return 0
+  while IFS= read -r d; do
+    [ -d "$PREFIX$d" ] && [ ! -L "$PREFIX$d" ] && SBX+=" -p ReadWritePaths=-$d"
+  done < <(grep -E '^/var/(lib|cache|log|spool)/[^/]+$' "$PKG_LIST" 2>/dev/null)
 }
 
-exec_value() {  # the Exec line's value, for $VIEWED
+exec_value() {  # the Exec line's value, in the view with the sandbox $SBX
   local v=$1 pre prog out w
   pre=${v%%[!-@:+!]*}
   v=${v#"$pre"}
@@ -134,22 +160,25 @@ exec_value() {  # the Exec line's value, for $VIEWED
   set -f; set -- $v; set +f
   [ $# -gt 0 ] || { printf %s "$pre"; return; }
   prog=$1; shift
+  # @: the next word is argv[0]; the view runs the program by its path.
+  case $pre in *@*) pre=${pre//@/}; [ $# -eq 0 ] || shift ;; esac
   out=
-  for w; do
-    case $w in
-      /run/*) w=%t/${w#/run/} ;;
-      /var/run/*) w=%t/${w#/var/run/} ;;
-      -*=/run/*) w=${w%%=*}=%t/${w#*=/run/} ;;
-      -*=/var/run/*) w=${w%%=*}=%t/${w#*=/var/run/} ;;
-    esac
-    out+=" $w"
-  done
-  if [ "$VIEWED" = 1 ]; then
-    printf '%s%s --service %s%s' "$pre" "$VIEW" "$prog" "$out"
-  else
-    ! in_prefix "$prog" || prog=$PREFIX$prog
-    printf '%s%s%s' "$pre" "$prog" "$out"
-  fi
+  for w; do out+=" $(system_specifiers "$w")"; done
+  printf '%s%s --service%s -- %s%s' "$pre" "$VIEW" "$SBX" "$prog" "$out"
+}
+
+# sandbox_opt KEY VALUE: the -p options for prefix-sandbox, on $SBX.
+sandbox_opt() {
+  local k=$1 v=$2 w
+  case $k in
+    SystemCallFilter|RestrictNamespaces|SystemCallArchitectures)
+      SBX+=" -p \"$k=$v\"" ;;
+    *)
+      [ -n "$v" ] || { SBX+=" -p $k="; return; }
+      set -f
+      for w in $v; do SBX+=" -p $k=$(sandbox_path "$w")"; done
+      set +f ;;
+  esac
 }
 
 # Translate unit file $1 to stdout.
@@ -159,20 +188,36 @@ translate() {
     if [ "${l%\\}" != "$l" ]; then cont+="${l%\\} "; continue; fi
     lines+=("$cont$l"); cont=
   done < "$src"
-  VIEWED=0 PREFIXED=0
+  # The sandbox, from the [Service] section, before the Exec lines use it.
+  SBX= sec=
+  local set=' ' system=
+  case $src in */systemd/system/*) system=1 ;; esac
   for l in "${lines[@]}"; do
-    case $l in
-      Exec*=*)
-        ! exec_in_prefix "${l#*=}" || PREFIXED=1
-        ! exec_needs_view "${l#*=}" || VIEWED=1 PREFIXED=1 ;;
-    esac
+    case $l in \[*\]) sec=$l; continue ;; esac
+    [ "$sec" = '[Service]' ] || continue
+    case $l in *=*) ;; *) continue ;; esac
+    k=${l%%=*} v=${l#*=}
+    k=${k%"${k##*[![:space:]]}"}; v=${v#"${v%%[![:space:]]*}"}
+    set+="$k "
+    # RuntimeDirectory= stays for systemd too, which makes it in $RUN.
+    case "$TOSANDBOX RuntimeDirectory " in *" $k "*) sandbox_opt "$k" "$v" ;; esac
   done
+  if [ -n "$system" ] && [ "${#lines[@]}" -gt 0 ]; then
+    for d in $DEFAULT_SANDBOX; do
+      case $set in *" ${d%%=*} "*) ;; *) SBX+=" -p $d" ;; esac
+    done
+    # /run (the services' own, tools/prefix-view.sh) stays writable for
+    # pid files, as it is on Debian without ProtectSystem=strict.
+    case $set in *" ProtectSystem "*) ;; *) SBX+=" -p ReadWritePaths=/run"; own_var_dirs ;; esac
+  fi
   printf '%s\n# from %s\n' "$TAG" "$src"
   for l in "${lines[@]}"; do
     case $l in
       \[*\]) sec=$l; printf '%s\n' "$l"
-        if [ "$sec" = '[Service]' ] && [ $VIEWED = 1 ]; then
+        if [ "$sec" = '[Service]' ]; then
           printf 'Environment=PREFIX=%s\n' "$PREFIX"
+          [ -z "$system" ] || case $set in *" NoNewPrivileges "*) ;; *)
+            printf 'NoNewPrivileges=yes\n' ;; esac
         fi
         continue ;;
     esac
@@ -180,13 +225,7 @@ translate() {
     k=${l%%=*} v=${l#*=}
     k=${k%"${k##*[![:space:]]}"}
     case $k in ''|'#'*|';'*) printf '%s\n' "$l"; continue ;; esac
-    case "$IDENTITY" in *" $k "*) continue ;; esac
-    if [ $PREFIXED = 1 ]; then
-      case "$SANDBOX" in *" $k "*) continue ;; esac
-    fi
-    if [ $VIEWED = 1 ]; then
-      case "$NOSETNS" in *" $k "*) continue ;; esac
-    fi
+    case "$IDENTITY$TOSANDBOX$NOSANDBOX" in *" $k "*) continue ;; esac
     case $sec:$k in
       \[Unit\]:*)
         if [[ $DEPS == *" $k "* ]]; then
@@ -206,6 +245,10 @@ translate() {
         [ -z "$v" ] || v=$(exec_value "$v") ;;
       \[Service\]:PIDFile|\[Service\]:EnvironmentFile|\[Service\]:WorkingDirectory)
         v=$(host_path "$v") ;;
+      \[Service\]:RuntimeDirectory)   # systemd makes it, and removes it on stop
+        out=
+        for t in $v; do out+=" sudo-less/run/$t"; done
+        v=${out# } ;;
       \[Socket\]:Listen*|\[Path\]:Path*)
         v=$(host_path "$v") ;;
       \[Install\]:WantedBy|\[Install\]:RequiredBy|\[Install\]:UpheldBy)
@@ -246,10 +289,8 @@ if [ "${1:-}" = --check ]; then
   exit 0
 fi
 
-ALL=
-[ "${1:-}" != --all ] || ALL=1
-mkdir -p "$DB" "$ENABLED" "${STAMP%/*}" "$UNITS"
-: > "$STAMP.new"
+if [ "${1:-}" = --all ]; then set -- "$INFO"/*.list; fi
+mkdir -p "$DB" "$ENABLED" "$UNITS"
 # The user manager, if there is one to tell (not in a container or over su).
 USERMGR=
 if [ -n "${XDG_RUNTIME_DIR:-}" ] && systemctl --user show-environment >/dev/null 2>&1; then
@@ -284,14 +325,13 @@ for rec in "$DB"/*; do
   rm -f "$rec"
 done
 
-for list in "$INFO"/*.list; do
-  [ -f "$list" ] || continue
-  [ -n "$ALL" ] || [ ! -f "$STAMP" ] || [ "$list" -nt "$STAMP" ] || continue
+for list; do
+  case $list in "$INFO"/*.list) [ -f "$list" ] || continue ;; *) continue ;; esac
   pkg=${list##*/}; pkg=${pkg%.list}
   rec=$DB/$pkg made=()
   while IFS= read -r f; do
     n=${f##*/}
-    out=$(translate "$PREFIX$f")
+    out=$(PKG_LIST=$list translate "$PREFIX$f")
     write_unit "$n" <<<"$out" || continue
     made+=("$n")
   done < <(unit_files "$list")
@@ -303,8 +343,10 @@ for list in "$INFO"/*.list; do
   if [ ${#made[@]} -gt 0 ]; then printf '%s\n' "${made[@]}" > "$rec"; elif [ -f "$rec" ]; then rm -f "$rec"; fi
 done
 # Units the package enabled that are not enabled here yet. The postinst
-# enables them in dpkg's configure run, which apt may make separately from
-# the unpack run that brought the unit files, so every unit is looked at.
+# enables them in dpkg's configure run, which can come in a later dpkg run
+# than the unpack run that brought the unit files (dpkg --unpack by hand,
+# or apt with Pre-Depends), so every unit is looked at. The marker keeps a
+# unit you disabled from being enabled again.
 for rec in "$DB"/*; do
   [ -f "$rec" ] || continue
   while IFS= read -r u; do
@@ -312,8 +354,6 @@ for rec in "$DB"/*; do
     start+=("$u"); : > "$ENABLED/$u"; reload=1
   done < "$rec"
 done
-mv -f "$STAMP.new" "$STAMP"
-
 [ -n "$reload" ] || exit 0
 sc daemon-reload
 if [ ${#start[@]} -gt 0 ]; then

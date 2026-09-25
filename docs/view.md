@@ -10,14 +10,19 @@ host's system directories (`tools/prefix-view.sh`, installed as
   a path agree;
 - the command runs with the user's own uid.
 
-There are three kinds, and most programs use none:
+There are two kinds, and most programs use none:
 
 | | overlays | built | used by |
 |---|---|---|---|
-| **install view** | `/usr`, `/etc`, `/var`, `/opt`; `/var/lib/dpkg` is the prefix's own database | fresh for each call (~0.2 s) | dpkg |
+| **private view** | `/usr`, `/etc`, `/var`, `/opt`; `/var/lib/dpkg` is the prefix's own database | fresh for each call (~0.2 s), with a sandbox on top | dpkg (the **install view**: `/run` empty), services from the prefix (the **service view**: the services' own `/run`, the unit's sandbox) |
 | **run view** | `/usr`, `/etc`, `/opt`; `/var` stays the host's | once, kept running in the background; joining it takes ~0.02 s | installed programs that look for their files at `/usr/...`, `/etc/...`, `/opt/...` |
-| **service view** | like the install view, but `/run` stays the host's | fresh for each service start | services from the prefix (`tools/prefix-units.sh`) |
 | none | — | — | every other installed program: it runs directly from `$PREFIX/usr/bin` |
+
+A view only overlays the prefix. Whatever a sandbox can do (an empty
+`/run`, read-only `/usr`, a hidden `/home`) is done by
+`tools/prefix-sandbox.sh` on top of a private view, last:
+`prefix-view --private -p DIRECTIVE=VALUE ... -- CMD`, with systemd's
+directives ([The sandbox](#the-sandbox)).
 
 In the install view dpkg runs exactly as on Debian: root `/`, admin dir
 `/var/lib/dpkg`, config `/etc/dpkg`, log `/var/log/dpkg.log`. It is built
@@ -27,7 +32,8 @@ scripts, triggers and `update-alternatives` see a normal system too: a script
 that writes `/etc/foo` or runs `/usr/bin/foo` works, and alternatives are the
 standard absolute links (`/usr/bin/java` → `/etc/alternatives/java` → ...).
 
-The install view also gets an empty `/run`. Without it a maintainer script
+The install view is a private view with an empty `/run`
+(`-p TemporaryFileSystem=/run`). Without it a maintainer script
 reached the host's own services through the system bus: `php-common`'s
 postinst runs `systemctl --system daemon-reload`, and polkit popped up a
 password dialog for the admin's password on the desktop. With an empty
@@ -83,9 +89,11 @@ which inside the view is the same directory as `/var/lib/dpkg`.
 
 ## How programs get there
 
-After every dpkg run apt calls `prefix-wrap` (`tools/prefix-wrap.sh`, hook
-`apt-dpkg/config/apt.conf.d/02view-wrappers.in`). For each package installed or
-changed since its last run, and each alternative, it looks at the programs
+After dpkg runs, `prefix-integrate` (`tools/prefix-integrate.sh`) runs
+`prefix-wrap` (`tools/prefix-wrap.sh`); apt runs it once after all its dpkg
+runs (hook `apt-dpkg/config/apt.conf.d/02integrate.in`), the dpkg wrapper
+after a dpkg run apt did not make. For each package installed or changed
+since the last run, and each alternative, it looks at the programs
 the package puts on `PATH` and decides whether each one needs the view. A
 program needs it when (first match):
 
@@ -145,17 +153,53 @@ that starts another wrapped program stays in the same view.
 
 ### The service view
 
-A package's daemon reads `/etc/redis/redis.conf` and writes
-`/var/lib/redis`. When `prefix-units` translates its systemd unit into a
-user unit ([`services.md`](services.md)), an `Exec` line whose program has
-a `prefix-wrap` script, names a file in the prefix, or names state in
-`/var` runs as `prefix-view --service CMD`: a fresh view with the prefix on
-`/usr`, `/etc`, `/opt` and `/var`, so the daemon reads its config and keeps
-its state and logs where Debian puts them, and it all lands in
-`$PREFIX/var`; the run view leaves `/var` the host's. It is fresh for each
-start, like the install view. `/run`
-stays the host's, so the daemon still reaches the user manager
-(`Type=notify`) and `$XDG_RUNTIME_DIR`, where its `/run` paths were moved.
+A package's daemon reads `/etc/redis/redis.conf`, writes `/var/lib/redis`
+and makes `/run/redis/redis.sock`. When `prefix-units` translates its
+systemd unit into a user unit ([`services.md`](services.md)), every `Exec`
+line runs as `prefix-view --service -p ... -- CMD`: a private view, so the
+daemon reads its config and keeps its state and logs where Debian puts
+them, and it all lands in `$PREFIX/var`; the run view leaves `/var` the
+host's. It is fresh for each start.
+
+Its `/run` is `$XDG_RUNTIME_DIR/sudo-less/run`, a directory of the user's
+that the prefix's services share, as Debian's services share `/run`, and
+that is gone at reboot. The daemon writes `/run/redis/redis.sock` where
+Debian has it; outside the view it is
+`$XDG_RUNTIME_DIR/sudo-less/run/redis/redis.sock`, where systemd reads its
+pid files and clients connect. What the host has in `/run` (the system bus,
+`/run/systemd/resolve`, which `/etc/resolv.conf` points to) is bound in on
+top, each on an empty file or directory of the same name in that directory.
+It is not an overlay like `/var`: a unix socket made through an overlay
+cannot be reached from outside it (measured: `connect` is refused on the
+upper layer's path).
+
+### The sandbox
+
+`prefix-sandbox` (`tools/prefix-sandbox.sh`) takes systemd.exec(5)'s
+directives and builds them on top of a private view, as root of the view's
+user namespace, before the command gets the user's uid back:
+
+| directives | how |
+|---|---|
+| `ProtectSystem=`, `ReadOnlyPaths=` | a read-only bind of each path over itself (`ro=recursive`); `strict` leaves `/dev`, `/proc`, `/sys` |
+| `ProtectHome=` | an empty read-only tmpfs on `/home`, `/root` and `/run/user` (the user bus, the user manager's private socket, Wayland, the agents); only `$NOTIFY_SOCKET` is bound back |
+| `ReadWritePaths=`, `StateDirectory=`, `CacheDirectory=`, `LogsDirectory=`, `RuntimeDirectory=` | holes: opened before anything is hidden, and bound back from there (`/proc/self/fd/N/...`) once it is; the state directories are `/var/lib/X`, `/var/cache/X`, `/var/log/X`, `/run/X`, as on Debian, and `$STATE_DIRECTORY`, ... name them |
+| `PrivateTmp=`, `TemporaryFileSystem=` | a tmpfs |
+| `InaccessiblePaths=`, `BindPaths=`, `BindReadOnlyPaths=` | a mode 000 node bound over it; a bind |
+| `SystemCallFilter=`, `SystemCallErrorNumber=`, `SystemCallArchitectures=`, `RestrictNamespaces=` | seccomp filters loaded by python3 with libseccomp, after the uid is back, just before `exec`; the groups (`@system-service`) are the host's `systemd-analyze syscall-filter` |
+
+The mounts belong to the view's user namespace, which the command is no
+longer root of: it cannot unmount them, and in a user namespace of its own
+they are locked, so it cannot uncover what they hide either.
+
+systemd cannot build these itself around the view: its `ProtectSystem=`
+protects the host's `/usr` under the view's overlay (measured: `/usr` stays
+writable), its paths are the host's (`ReadWritePaths=/var/lib/foo`), its
+`ProtectHome=` hides the prefix before the view is built (203/EXEC), and
+its `SystemCallFilter=@system-service` and `RestrictNamespaces=` forbid the
+`mount()` and `unshare()` the view is made with (SIGSYS, EPERM). The
+directives that name no path (`PrivateNetwork=`, `ProtectKernelTunables=`,
+`NoNewPrivileges=`, ...) work around the view and stay systemd's.
 
 ### Host mounts
 
@@ -173,6 +217,8 @@ view never reach the host.
   later restrict them with AppArmor, see `admin/enable-userspace.sh`);
 - overlayfs in a user namespace (kernel 5.11 or later);
 - util-linux `unshare` 2.38 or later (`--map-user`).
+- for a sandbox's syscall filters only: python3 and libseccomp2 (both in a
+  standard Debian install).
 
 ## Limits of an unprivileged overlay, and how the view works around them
 

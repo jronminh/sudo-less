@@ -195,9 +195,12 @@ tricks) is experimental. See [`docs/release.md`](docs/release.md).
 bootstrap.sh   one-command install (fetches prebuilt apt/dpkg)
 apt-dpkg/      apt/dpkg: setup, config/ (apt.conf.d hooks, dpkg.cfg),
                patches/ (a fork of Termux's, patches/UPSTREAM.md)
-tools/         prefix-view.sh (the install, run and service views), prefix-wrap.sh
-               (which programs run in the view), prefix-units.sh (packages'
-               systemd units as user units), prefix-check.sh (refuses what
+tools/         prefix-view.sh (the install, run and service views),
+               prefix-sandbox.sh (systemd's sandbox directives on a view),
+               prefix-integrate.sh (after dpkg: launchers, then
+               prefix-wrap.sh, which programs run in the view, then
+               prefix-units.sh, packages' systemd units as user units),
+               prefix-check.sh (refuses what
                needs root), prefix-run.sh (the older overlay), deb2home.sh (extract
                without scripts)
 scripts/       build, setup and catalog helpers

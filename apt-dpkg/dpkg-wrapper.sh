@@ -4,6 +4,8 @@
 # (in $PREFIX/lib/sudo-less/dpkg) inside the prefix view, where it has root
 # "/" and admin dir /var/lib/dpkg, like Debian's (docs/view.md).
 #
+# dpkg --install, --remove, ... are followed by prefix-integrate (below).
+#
 # Queries that only read the database skip the view (it costs ~0.15 s, and
 # apt asks dpkg for the foreign architectures on every run): they get the
 # prefix's admin dir instead. In the run view anything else is refused:
@@ -13,8 +15,8 @@ P=${self%/bin/*}
 n=${0##*/}
 real=$P/lib/sudo-less/dpkg/$n
 
-# In the install view already: run it.
-[ "${SUDO_LESS_VIEW:-}" != install ] || exec "$real" "$@"
+# In a private view already (the install view, or a service's): run it.
+[ "${SUDO_LESS_VIEW:-}" != private ] || exec "$real" "$@"
 fast=
 case $n in
   dpkg-query) fast=1 ;;
@@ -46,4 +48,16 @@ if [ "$n" = dpkg ]; then
     esac
   done
 fi
-PREFIX=$P PREFIX_VIEW_DEBS=$debs exec "$P/lib/sudo-less/prefix-view" "$real" "$@"
+# apt runs prefix-integrate itself, once after all its dpkg runs
+# (apt-dpkg/config/apt.conf.d/02integrate.in), and says so with
+# DPKG_FRONTEND_LOCKED; after any other run that can change packages or
+# alternatives, it runs here.
+integrate=
+case $n in dpkg|update-alternatives) [ -n "${DPKG_FRONTEND_LOCKED:-}" ] || integrate=1 ;; esac
+if [ -z "$integrate" ] || [ ! -x "$P/lib/sudo-less/prefix-integrate" ]; then
+  PREFIX=$P PREFIX_VIEW_DEBS=$debs exec "$P/lib/sudo-less/prefix-view" "$real" "$@"
+fi
+rc=0
+PREFIX=$P PREFIX_VIEW_DEBS=$debs "$P/lib/sudo-less/prefix-view" "$real" "$@" || rc=$?
+PREFIX=$P "$P/lib/sudo-less/prefix-integrate" || :
+exit $rc

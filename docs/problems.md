@@ -38,8 +38,8 @@ is the inside view, for people working on sudo-less. The numbers are from
 | install | kernel | | | unprivileged user namespaces and overlayfs | kernel modules, `/boot` |
 | run | files | `PATH`; the run view for programs that look for their files at `/usr`, `/etc`, `/opt`; host mounts in the view; desktop launchers | | | a path in `/run` owned by root |
 | run | identity | | | | a system group |
-| run | service | a unit translated into a user unit, started, restarted and removed with its package | its sandbox dropped; drop-ins not read; a failed unit not restarted on upgrade | running without a login (linger) | a service run as a system user, or from an init script alone |
-| run | network | ports from 1024; sockets in `$XDG_RUNTIME_DIR` | a userspace mode instead of a TUN device (tailscale); the kernel's default socket buffers | ports below 1024; larger socket buffers | a TUN device, firewall rules, raw sockets |
+| run | service | a unit translated into a user unit, started, restarted and removed with its package; its sandbox, and a default one for a system unit | drop-ins not read; a failed unit not restarted on upgrade | running without a login (linger) | a service run as a system user, or from an init script alone |
+| run | network | ports from 1024; sockets in the services' own `/run` | a userspace mode instead of a TUN device (tailscale); the kernel's default socket buffers | ports below 1024; larger socket buffers | a TUN device, firewall rules, raw sockets |
 | run | device | | | a device group (`dialout`, `kvm`) | |
 | run | privilege | | | | setuid and setgid programs, file capabilities |
 | run | kernel | | | unprivileged user namespaces (the same step as for installing) | |
@@ -84,8 +84,8 @@ An empty cell means nothing has been found there yet.
 | the prefix's programs are not on `PATH` | done | `$PREFIX/bin` and `$PREFIX/usr/bin` on `PATH`, for shells and the desktop session | `scripts/setup/install-shell-path.sh`, `install-session-env.sh` |
 | a program looks for its files at `/usr/...`, `/etc/...`, `/opt/...` (compiled-in paths, an interpreter's module path, a library only in the prefix, an alternatives link, a shebang naming an interpreter only in the prefix) | done | `prefix-wrap` gives it a script in `$PREFIX/bin` that runs it in the shared run view; every other program runs directly | [`view.md`](view.md#how-programs-get-there) |
 | a disk mounted after the run view started is not in it | done | the run view receives the host's mounts (`--propagation slave`) | [`view.md`](view.md#host-mounts) |
-| a desktop app has no launcher or icon | done | `XDG_DATA_DIRS` for the session, and the desktop database refreshed after each dpkg run | `install-session-env.sh`, `apt-dpkg/config/apt.conf.d/01update-desktop-database.in` |
-| a program that is not a service needs a path in `/run` owned by root | never | owned by root on the host; a service's `/run` paths are moved to `$XDG_RUNTIME_DIR` instead | |
+| a desktop app has no launcher or icon | done | `XDG_DATA_DIRS` for the session, and the desktop database refreshed after each dpkg run | `install-session-env.sh`, `tools/prefix-integrate.sh` |
+| a program that is not a service needs a path in `/run` owned by root | never | owned by root on the host; a service has a `/run` of its own instead ([`view.md`](view.md#the-service-view)) | |
 
 ### Identity
 
@@ -97,8 +97,9 @@ An empty cell means nothing has been found there yet.
 
 | problem | cell | what solves it | where |
 |---|---|---|---|
-| a package's service (a systemd unit, system or user) is never started | done | `prefix-units` translates it into a user unit run by the user's own systemd, in a service view with the prefix's `/var`, starts it if the package enabled it, restarts it on upgrade and removes it with the package | [`services.md`](services.md), `apt-dpkg/config/apt.conf.d/04units.in` |
-| the unit's own sandbox (`ProtectSystem=`, `PrivateTmp=`, ...) is dropped, so the service runs less isolated than on Debian | partly | not yet: the user manager can build it around the service view ([`services.md`](services.md#what-is-left)) | |
+| a package's service (a systemd unit, system or user) is never started | done | `prefix-units` translates it into a user unit run by the user's own systemd, in a service view with the prefix's `/var` and the services' own `/run`, starts it if the package enabled it, restarts it on upgrade and removes it with the package | [`services.md`](services.md), `tools/prefix-integrate.sh` |
+| the unit's own sandbox (`ProtectSystem=`, `ReadWritePaths=`, `SystemCallFilter=`, ...) names host paths, or forbids the `mount()` and `unshare()` the view is built with | done | `prefix-sandbox` builds the path and syscall directives on top of the view; systemd keeps the rest | [`view.md`](view.md#the-sandbox), `tools/prefix-sandbox.sh` |
+| a system service runs as you, not as a system user, so nothing keeps it from your files | done | a system unit gets `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes` and `NoNewPrivileges=yes` where it sets none | [`services.md`](services.md#the-default-sandbox) |
 | drop-ins (`*.service.d`) are not read; a failed unit is not restarted on upgrade | partly | not yet | `tools/prefix-units.sh` |
 | a service must run without the user logged in | root, once | linger for the user (`loginctl enable-linger`) | |
 | a service that runs as a system user its package creates, or has only an init script | never | the user cannot be created without root (`prefix-check` refuses the package); an init script is started by the system's init | |
@@ -107,7 +108,7 @@ An empty cell means nothing has been found there yet.
 
 | problem | cell | what solves it |
 |---|---|---|
-| a service listens on a port from 1024, or on a socket in `/run` | done | any user can bind the port; the socket path is moved to `$XDG_RUNTIME_DIR` |
+| a service listens on a port from 1024, or on a socket in `/run` | done | any user can bind the port; the service's `/run` is `$XDG_RUNTIME_DIR/sudo-less/run` |
 | a daemon wants a TUN device and has a userspace mode (tailscale's `--tun=userspace-networking`) | partly | set the mode in the package's config; other programs reach the network through its proxy, not an interface |
 | a daemon asks for larger socket buffers | partly, or root, once | it runs with the kernel's defaults, slower; `net.core.rmem_max` and `wmem_max` raise them for all |
 | a service listens on a port below 1024 | root, once | `net.ipv4.ip_unprivileged_port_start`; until then, another port in its config (mini-httpd on 8080) |

@@ -77,4 +77,5 @@ done
 install -m 0755 "$REPO/tools/prefix-view.sh" "$L/prefix-view"
 install -m 0755 "$REPO/tools/prefix-wrap.sh" "$L/prefix-wrap"
 install -m 0755 "$REPO/tools/prefix-check.sh" "$L/prefix-check"
+install -m 0755 "$REPO/tools/prefix-sandbox.sh" "$L/prefix-sandbox"
 log "dpkg installed: $PREFIX/bin/dpkg ($("$PREFIX/bin/dpkg" --version | head -1))"

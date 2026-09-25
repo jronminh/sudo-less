@@ -3,7 +3,7 @@
 A package's services are systemd units written for the system manager
 (PID 1, root). sudo-less runs them under the user's own manager,
 `systemd --user`, after translating them: `tools/prefix-units.sh`, run by
-the apt hook `apt-dpkg/config/apt.conf.d/04units.in` after every dpkg run.
+`tools/prefix-integrate.sh` after dpkg runs (once per apt run).
 This page is what the user manager can do, how a unit is translated, and
 what is left.
 
@@ -49,12 +49,14 @@ a user unit in `~/.local/share/systemd/user`, tagged
 | part of the unit | becomes |
 |---|---|
 | `User=`, `Group=`, `DynamicUser=`, `SupplementaryGroups=`, capabilities, `PAMName=`, `SocketUser=` | dropped: the service runs as the user |
-| an `Exec` line whose program has a `prefix-wrap` script, names a file in the prefix, or names state in `/var/lib`, `/var/log`, `/var/cache`, `/var/spool` | `prefix-view --service CMD`: a fresh [service view](view.md#the-service-view), with the prefix on `/usr`, `/etc`, `/opt` and `/var`, so the daemon reads its config and keeps its state and logs where Debian puts them, and it all lands in the prefix |
-| any other `Exec` line | runs directly, the program's path in the prefix if it is there |
-| sandboxing that names paths or builds a mount namespace (`ProtectSystem=`, `ProtectHome=`, `Private*=`, `ReadWritePaths=`, `BindPaths=`, ...), for a program from the prefix | dropped: the paths are the host's, and `ProtectHome=` would hide the prefix itself |
-| `RestrictNamespaces=`, `SystemCallFilter=`, for a unit run in the view | dropped: the view needs `unshare` and `setns` |
-| `/run/X`, `/var/run/X` anywhere | `%t/X` (`$XDG_RUNTIME_DIR/X`) |
-| `EnvironmentFile=`, `PIDFile=`, `WorkingDirectory=`, `Condition*=`, `Listen*=`, `Path*=` | the prefix's copy of the path, when there is one: systemd reads these itself, outside the view |
+| every `Exec` line | `prefix-view --service -p ... -- CMD`: a fresh [service view](view.md#the-service-view), with the prefix on `/usr`, `/etc`, `/opt` and `/var` and the services' own `/run`, so the daemon reads its config, keeps its state and logs, and makes its sockets where Debian puts them, and it all lands in the prefix and in `$XDG_RUNTIME_DIR/sudo-less/run` |
+| sandboxing that names paths or filters syscalls (`ProtectSystem=`, `ProtectHome=`, `PrivateTmp=`, `ReadWritePaths=`, `BindPaths=`, `StateDirectory=`, `SystemCallFilter=`, `RestrictNamespaces=`, ...) | `-p` options: [`prefix-sandbox`](view.md#the-sandbox) builds them on top of the view, where the paths are the prefix's |
+| sandboxing that names no path (`PrivateNetwork=`, `PrivateDevices=`, `ProtectKernel*=`, `ProtectClock=`, `NoNewPrivileges=`, `RestrictSUIDSGID=`, `LockPersonality=`, ...) | kept: systemd builds it around the view |
+| `ExecPaths=`, `NoExecPaths=`, `RootDirectory=`, `RootImage=`, `MountAPIVFS=` | dropped |
+| `CapabilityBoundingSet=`, `AmbientCapabilities=` | dropped: the service has no capability on the host to drop, and a user namespace of its own gives them all back inside it, bounding set or not (measured); `RestrictNamespaces=` is what stops that |
+| `%t`, `%S`, `%C`, `%L`, `%E` in a system unit | `/run`, `/var/lib`, `/var/cache`, `/var/log`, `/etc`, as the system manager expands them; the user manager would expand them under `$HOME` |
+| `RuntimeDirectory=X` | `RuntimeDirectory=sudo-less/run/X`: systemd makes it in the services' `/run`, and removes it on stop |
+| `EnvironmentFile=`, `PIDFile=`, `WorkingDirectory=`, `Condition*=`, `Listen*=`, `Path*=` | the prefix's copy of the path, when there is one, and `/run/X` is `%t/sudo-less/run/X`: systemd reads these itself, outside the view |
 | dependencies on system targets, `.mount`, `.device`, `.slice` units | dropped |
 | `WantedBy=`, `RequiredBy=` a system target | `WantedBy=default.target` |
 
@@ -62,16 +64,38 @@ A package that ships a user unit of the same name (syncthing, mpd) gets
 its user unit, unchanged but for the paths. Drop-in directories
 (`*.service.d`) are not read.
 
+### The default sandbox
+
+On Debian a system service runs as a system user, and that is what keeps
+it from your files. Here it runs as you, so a compromised daemon could
+rewrite `~/.bashrc`, or a program in `~/.local/bin` you run later. So a
+system unit gets, for each one it does not set itself:
+
+- `ProtectSystem=strict`: everything read-only but `/dev`, `/proc`, `/sys`,
+  the services' `/run`, its state directories, and the directories its
+  package has in `/var/lib`, `/var/cache`, `/var/log` and `/var/spool` (on
+  Debian its system user owns them);
+- `ProtectHome=yes`: `/home`, `/root` and `/run/user` empty;
+- `PrivateTmp=yes`, `NoNewPrivileges=yes`.
+
+A user unit is meant to run as you (syncthing syncs `~/Sync`) and gets no
+default. `SUDO_LESS_SANDBOX=off` in a drop-in's `Environment=` turns the
+sandbox off for one service; any other value adds directives
+(`SUDO_LESS_SANDBOX="ReadWritePaths=/var/www"`).
+
 ## Lifecycle
 
 - **install:** a unit the package enabled (its postinst's
   `deb-systemd-helper enable`, run in the install view, leaves symlinks in
   `$PREFIX/etc/systemd`) is enabled and started, `systemctl --user enable
   --now`, as Debian starts a service on install. apt runs dpkg twice
-  (unpack, configure) and the symlinks appear in the second run, so
-  `prefix-units` keeps a marker per unit it enabled
-  (`$PREFIX/var/lib/sudo-less/units-enabled`) and checks every package's
-  units on each run.
+  (`--unpack`, then `--configure --pending`) but its `Post-Invoke` hook,
+  and so `prefix-units`, once after both (measured). The postinst can still
+  come in a later dpkg run than the unit files (`dpkg --unpack` by hand, or
+  apt with `Pre-Depends`), so every package's units are checked on each
+  run, and a marker per unit enabled
+  (`$PREFIX/var/lib/sudo-less/units-enabled`) keeps a unit you disabled
+  from being enabled again.
 - **upgrade:** a unit whose translation changed is rewritten and
   restarted if it is running.
 - **remove:** the package's units are stopped, disabled and deleted.
@@ -83,9 +107,9 @@ its user unit, unchanged but for the paths. Drop-in directories
 
 | package | unit | result |
 |---|---|---|
-| mini-httpd | system | ran in the service view, serving the prefix's `/var/www/html` and logging to its `/var/log/mini_httpd.log`, once its port was moved from 80 to 8080 |
+| mini-httpd | system, with its own sandbox (`ProtectSystem=full`, a syscall deny list, `RestrictNamespaces=`) | ran in the service view with that sandbox (`Seccomp: 2`), serving the prefix's `/var/www/html` and logging to its `/var/log/mini_httpd.log`, pid file `/run/mini_httpd.pid`, once its port was moved from 80 to 8080 |
 | syncthing | its own user unit | ran as it is |
-| tailscale | system, runs as root | ran, state in the prefix's `/var/lib/tailscale`, socket at `$XDG_RUNTIME_DIR/tailscale/tailscaled.sock` (the CLI needs `--socket=`), once `FLAGS="--tun=userspace-networking"` was set in `/etc/default/tailscaled`: a TUN device needs CAP_NET_ADMIN. The kernel also refuses its larger UDP buffers, which costs only throughput |
+| tailscale | system, runs as root, no sandbox | ran with the default sandbox (`/usr` read-only, `/home` and `/run/user` empty), state in the prefix's `/var/lib/tailscale`, socket `/run/tailscale/tailscaled.sock` in the view, `$XDG_RUNTIME_DIR/sudo-less/run/tailscale/tailscaled.sock` outside it (the CLI needs `--socket=`), once `FLAGS="--tun=userspace-networking"` was set in `/etc/default/tailscaled`: a TUN device needs CAP_NET_ADMIN. The kernel also refuses its larger UDP buffers, which costs only throughput |
 | webfs | system | not installed: its postinst runs `ucf`, which refuses a non-root user |
 
 Removing mini-httpd and syncthing stopped them and deleted their units.
@@ -118,12 +142,7 @@ The 1250 are the upper bound for this mechanism: a postinst that runs
 | running before login and after logout | run, root once | linger |
 | a postinst calling `ucf` | install, non-root, not done | `ucf` checks only the uid; the install view could satisfy it as it does `update-alternatives` |
 | drop-ins; a failed unit is not restarted on upgrade | run, non-root, not done | `prefix-units` does not read `*.service.d` and restarts only running units |
-| the unit's own sandbox is dropped | not a cell: it runs, less isolated | see below |
+| a daemon of a system unit with no sandbox writes outside its state directories | run, non-root, done: the default sandbox refuses it | `SUDO_LESS_SANDBOX` in a drop-in, as for any unit whose sandbox is too tight |
 
-The sandbox is dropped for units run from the prefix, but the table above
-shows the user manager builds it, and a probe (`ProtectSystem=strict`,
-`PrivateTmp=yes` around `prefix-view --service`) ran the view inside it.
-`ProtectSystem=` and `PrivateTmp=` could be kept, and likely
-`PrivateDevices=` and `PrivateNetwork=` (untested with the view); the directives that name host paths
-(`ReadWritePaths=`, `ProtectHome=`) would need their prefix paths instead.
-Not done yet.
+Starting a command in the service view takes ~0.35 s, ~0.45 s with a
+syscall filter (python3 loads it).

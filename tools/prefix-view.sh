@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # prefix-view — run a command in a prefix view.
 #
-#   tools/prefix-view.sh CMD [ARG...]        in a fresh install view (dpkg)
+#   tools/prefix-view.sh [--install] CMD [ARG...]   in a fresh install view (dpkg)
+#   tools/prefix-view.sh --private [-p D=V]... [--] CMD [ARG...]
+#                                            in a fresh private view, sandboxed
+#   tools/prefix-view.sh --service ...       --private, with the services' /run
 #   tools/prefix-view.sh --run CMD [ARG...]  in the shared run view
-#   tools/prefix-view.sh --service CMD [ARG...]  in a fresh service view
 #   tools/prefix-view.sh --start | --stop    start or stop the run view
 #
 # In a view the prefix's directories are persistent overlays on the host's:
@@ -11,9 +13,18 @@
 # on the host. $PREFIX/usr and /usr (and so on) are the same tree inside it,
 # so both spellings of a path agree. The command runs with your own uid.
 #
-# The install view overlays /usr, /etc, /var and /opt, with the prefix's own
-# dpkg database on /var/lib/dpkg: dpkg runs in it with root "/" and admin dir
-# /var/lib/dpkg, like Debian's. Each call builds a fresh one (~0.15 s).
+# A private view overlays /usr, /etc, /var and /opt, with the prefix's own
+# dpkg database on /var/lib/dpkg. Each call builds a fresh one (~0.15 s).
+# The -p options are systemd sandbox directives (ProtectSystem=strict, ...),
+# which tools/prefix-sandbox.sh applies on top of the view, last.
+#
+# The install view is a private view with an empty /run
+# (-p TemporaryFileSystem=/run): dpkg runs in it with root "/" and admin dir
+# /var/lib/dpkg, like Debian's, and its maintainer scripts cannot reach the
+# host's services: no system bus, no systemd, so `systemctl daemon-reload`,
+# deb-systemd-invoke and pkexec find nothing to ask (and polkit shows no
+# password dialog), and debhelper's `[ -d /run/systemd/system ]` guards skip
+# their service steps.
 #
 # The run view overlays /usr, /etc and /opt only: what installed programs
 # need to find their files by the paths compiled into them. /var stays the
@@ -21,11 +32,17 @@
 # it (~0.03 s), starting it first if needed. It is rebuilt after the prefix
 # or the host's packages change (prefix-wrap, --stop).
 #
-# The service view is the install view with the host's /run: a service from
-# the prefix (tools/prefix-units.sh) keeps its state in /var/lib, /var/log
-# and /var/cache as on Debian, and it all lands in the prefix, while it still
-# reaches the user manager and the session bus in /run/user. One per service
-# start.
+# A service from the prefix (tools/prefix-units.sh) runs in a private view
+# with its unit's sandbox (--service): it keeps its state in /var/lib,
+# /var/log and /var/cache as on Debian, and it all lands in the prefix. Its
+# /run is $XDG_RUNTIME_DIR/sudo-less/run, a directory of yours that the
+# prefix's services share (as Debian's services share /run), gone at
+# reboot: the service writes /run/foo.pid and makes /run/foo/foo.sock where
+# Debian has them, and outside the view they are in that directory. What
+# the host has in /run (the system bus, resolved's resolv.conf) is bound in
+# on top, on an empty file or directory of the same name there. Not an
+# overlay: a unix socket made through one cannot be reached from outside
+# it. One view per start of each of its commands.
 #
 # Host mounts made later (a USB stick) show up in a view too: its mounts are
 # slaves of the host's. Inside a view (SUDO_LESS_VIEW set) CMD runs directly.
@@ -159,23 +176,43 @@ start_run() {
 }
 
 if [ "${1-}" != --inner ]; then
-  mode=install
+  mode=install SANDBOX=() RUNDIR=
   case ${1-} in
+    --install) shift ;;
     --run) mode=run; shift ;;
-    --service) mode=service; shift ;;
+    --private) mode=private; shift ;;
+    --service) mode=private; shift
+      [ -z "${XDG_RUNTIME_DIR:-}" ] || [ ! -d "$XDG_RUNTIME_DIR" ] || RUNDIR=$XDG_RUNTIME_DIR ;;
     --start|--stop|--hold) mode=${1#--}; shift ;;
   esac
+  if [ $mode = private ]; then
+    while [ $# -gt 0 ]; do
+      case $1 in
+        -p) [ $# -ge 2 ] || break; SANDBOX+=("--property=$2"); shift 2 ;;
+        --) shift; break ;;
+        *) break ;;
+      esac
+    done
+  fi
   case $mode in
-    install|run|service) [ $# -gt 0 ] || {
-      echo "usage: prefix-view [--run | --service] CMD [ARG...] | --start | --stop" >&2; exit 2; } ;;
+    install|run|private) [ $# -gt 0 ] || {
+      echo "usage: prefix-view [--install | --private [-p D=V]... [--] | --run] CMD [ARG...] | --start | --stop" >&2; exit 2; } ;;
   esac
   case $mode:${SUDO_LESS_VIEW:-} in
     *:) ;;
-    install:install|run:*|service:service) exec "$@" ;;
+    install:private|run:*) exec "$@" ;;
+    private:private)
+      [ ${#SANDBOX[@]} -eq 0 ] && [ -z "${SUDO_LESS_SANDBOX:-}" ] || exec "${BASH_SOURCE[0]%/*}/prefix-sandbox" "${SANDBOX[@]}" -- "$@"
+      exec "$@" ;;
     stop:*) ;;
     *) echo "prefix-view: already in the run view; run this from outside it" >&2
        exit 1 ;;
   esac
+  if [ $mode = install ]; then
+    # Not a sandbox the user may turn off (SUDO_LESS_SANDBOX=off).
+    mode=private SANDBOX=(--property=TemporaryFileSystem=/run)
+    unset SUDO_LESS_SANDBOX NOTIFY_SOCKET
+  fi
   case "$PREFIX" in
     /*) ;;
     *) echo "prefix-view: PREFIX must be an absolute path" >&2; exit 1 ;;
@@ -198,10 +235,13 @@ if [ "${1-}" != --inner ]; then
       cd /   # keep no directory busy (a USB stick could not be unmounted)
       set -- "$BASH" -c "exec -a $MARK sleep infinity"
       view=run DIRS="usr etc opt" ;;
-    install|service)
-      view=$mode DIRS="usr etc var opt"
+    private)
+      view=private DIRS="usr etc var opt"
       mkdir -p "$PREFIX/var/lib/dpkg"
-      mirror ;;
+      mirror
+      if [ -n "$RUNDIR" ]; then
+        mkdir -p "$RUNDIR/sudo-less/run"
+      fi ;;
   esac
   unset PREFIX_VIEW_DEBS
   for d in $DIRS; do mkdir -p "$PREFIX/$d"; done
@@ -214,14 +254,16 @@ if [ "${1-}" != --inner ]; then
   export PREFIX SUDO_LESS_VIEW=$view
   # $$ stays the command's pid: unshare and the inner script exec. The view's
   # mounts are slaves of the host's, so host mounts made later show up.
-  exec unshare -Urm --propagation slave "$BASH" "$0" --inner "$DIRS" \
-    "$(id -u)" "$(id -g)" "$PWD" "$@"
+  exec unshare -Urm --propagation slave "$BASH" "$0" --inner "$DIRS" "$RUNDIR" \
+    "$(id -u)" "$(id -g)" "$PWD" ${#SANDBOX[@]} ${SANDBOX[@]+"${SANDBOX[@]}"} "$@"
 fi
 
 # --- inside the new user + mount namespace, as its root ---------------------
 shift
-DIRS=$1 uid=$2 gid=$3 cwd=$4
-shift 4
+DIRS=$1 RUNDIR=$2 uid=$3 gid=$4 cwd=$5
+shift 5
+SANDBOX=("${@:2:$1}")
+shift $(($1 + 1))
 
 W=$STATE/work/$$    # this view's overlay workdirs (same fs as the uppers)
 K=$STATE/tmp        # skeletons and host stashes, on a tmpfs gone on exit
@@ -286,23 +328,37 @@ layer() {
 
 shopt -s nullglob dotglob
 for d in $DIRS; do layer "/$d" "/$d"; done
+if [ -n "$RUNDIR" ]; then
+  R=$RUNDIR/sudo-less/run
+  fs /run "$K/host/run" none rbind
+  MK+=("$K/host/run")
+  fs "$R" /run none bind
+  for e in /run/*; do
+    n=${e##*/}
+    if [ -L "$e" ]; then
+      [ -L "$R/$n" ] || cp -P "$e" "$R/$n" 2>/dev/null || :
+      continue
+    elif [ -d "$e" ]; then
+      [ -d "$R/$n" ] && [ ! -L "$R/$n" ] || { rm -f "$R/$n"; mkdir "$R/$n"; } || continue
+    else
+      [ -f "$R/$n" ] && [ ! -L "$R/$n" ] || { rm -rf "$R/$n"; : > "$R/$n"; } || continue
+    fi
+    fs "$K/host/run/$n" "/run/$n" none rbind
+  done
+fi
 case " $DIRS " in
   *" var "*) fs "$PREFIX/var/lib/dpkg" /var/lib/dpkg none bind ;;
 esac
-case $SUDO_LESS_VIEW in
-  install)
-    # Maintainer scripts must not reach the host's services: an empty /run
-    # hides the system bus and systemd, so `systemctl daemon-reload`,
-    # deb-systemd-invoke and pkexec find nothing to ask (and polkit shows no
-    # password dialog), and debhelper's `[ -d /run/systemd/system ]` guards
-    # skip their service steps.
-    fs sudo-less-run /run tmpfs mode=0755 ;;   # a source name mount -a has not seen
-esac
 # $PREFIX/<dir> shows the view too, so both spellings of a path agree.
-for d in $DIRS; do fs "/$d" "$PREFIX/$d" none rbind; done
+for d in $DIRS; do [ $d = run ] || fs "/$d" "$PREFIX/$d" none rbind; done
 mkdir -p "${MK[@]}"
 printf '%s' "$FSTAB" > "$K/fstab"
 mount -a -T "$K/fstab"
 
 cd "$cwd" 2>/dev/null || cd /
+if [ ${#SANDBOX[@]} -gt 0 ] || { [ -n "${SUDO_LESS_SANDBOX:-}" ] && [ "$SUDO_LESS_SANDBOX" != off ]; }; then
+  sbx=${0%/*}/prefix-sandbox
+  [ -f "$sbx" ] || sbx=$sbx.sh   # run from the repo
+  exec "$BASH" "$sbx" --as-root "$uid" "$gid" "${SANDBOX[@]}" -- "$@"
+fi
 exec unshare -U --map-user="$uid" --map-group="$gid" -- "$@"

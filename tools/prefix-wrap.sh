@@ -21,6 +21,8 @@
 #   shebang   its script interpreter is not on the host
 #   interp    its interpreter searches only compiled-in module paths
 #             (python, perl, ruby, node, php, lua, tcl, R, guile)
+#   loader    its ELF loader is only in the prefix (a foreign
+#             architecture: /lib/ld-linux.so.2 for i386)
 #   libs      ldd cannot find a library (it is in $PREFIX/usr/lib)
 #   paths     it names a file or directory under /usr, /etc or /opt that the
 #             prefix has its own copy of
@@ -75,6 +77,11 @@ classify() {
         echo "view interp ${interp##*/}"; return ;;
     esac
   elif [ "${head:0:4}" = $'\x7fELF' ]; then
+    # Its loader (PT_INTERP) only in the prefix: a program of a foreign
+    # architecture (i386 on amd64), which ldd does not read at all.
+    hit=$(head -c 4096 "$f" | tr -c '[:print:]' '\n' |
+      grep -m1 -E '^/([a-z0-9_]+/)*ld-[^/]*\.so(\.[0-9]+)*$') || :
+    if [ -n "$hit" ] && [ ! -e "$hit" ]; then echo "view loader $hit"; return; fi
     hit=$(ldd "$f" 2>/dev/null | awk '/not found/ { print $1; exit }')
     [ -z "$hit" ] || { echo "view libs $hit"; return; }
   fi

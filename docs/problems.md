@@ -33,10 +33,10 @@ is the inside view, for people working on sudo-less. The numbers are from
 
 | when | what | non-root, done | non-root, partly | root, once | never |
 |---|---|---|---|---|---|
-| install | files | dpkg and its database in the prefix; the host's packages counted as installed; maintainer scripts in the install view; refusing what cannot work before dpkg runs | a postinst calling `ucf` | version skew (upgrade the host) | |
+| install | files | dpkg and its database in the prefix; the host's packages counted as installed; maintainer scripts in the install view; refusing what cannot work before dpkg runs | a postinst calling `ucf`; another architecture (i386) added by hand | version skew (upgrade the host), which also blocks another architecture's shared libraries | |
 | install | identity | | | `chown` to a system group (subid) | a system user or group |
 | install | kernel | | | unprivileged user namespaces and overlayfs | kernel modules, `/boot` |
-| run | files | `PATH`; the run view for programs that look for their files at `/usr`, `/etc`, `/opt`; host mounts in the view; desktop launchers | | | a path in `/run` owned by root |
+| run | files | `PATH`; the run view for programs that look for their files at `/usr`, `/etc`, `/opt`, or for a loader only the prefix has (i386); host mounts in the view; desktop launchers | | | a path in `/run` owned by root |
 | run | identity | | | | a system group |
 | run | service | a unit translated into a user unit, started, restarted and removed with its package; its sandbox, and a default one for a system unit | drop-ins not read; a failed unit not restarted on upgrade | running without a login (linger) | a service run as a system user, or from an init script alone |
 | run | network | ports from 1024; sockets in the services' own `/run` | a userspace mode instead of a TUN device (tailscale); the kernel's default socket buffers | ports below 1024; larger socket buffers | a TUN device, firewall rules, raw sockets |
@@ -61,6 +61,7 @@ An empty cell means nothing has been found there yet.
 | a package that cannot install fails half way and leaves the prefix wedged: every later apt run tries to configure it again | done | `prefix-check` reads each `.deb` before dpkg runs and refuses the run, naming the package and the reason, if one falls in a **never** cell | `tools/prefix-check.sh`, `apt-dpkg/config/apt.conf.d/03check.in` |
 | a postinst calls `ucf`, which refuses a non-root user ("Need to be run as root"; webfs) | partly | not yet: `ucf` checks only the uid, so the install view could satisfy it as it does `update-alternatives` | |
 | **version skew:** on a rolling host a newer package needs a newer system library than the host has, and the host's copy is held | root, once | upgrade the host (`apt upgrade`); the prefix follows at its next reseed | |
+| a package of another architecture (i386 on amd64: `pv:i386`, `steam-installer`) | partly, then root, once | `dpkg --add-architecture i386` in the prefix, by hand. Its `Multi-Arch: same` libraries (`libc6`, `libgcc-s1`, `libudev1`, ...) must be the version the host's amd64 copies have, so on a rolling host they hit version skew; with the host's versions (from snapshot.debian.org) `libc6:i386` and `pv:i386` installed (measured 2026-09-25) | |
 
 ### Identity
 
@@ -84,6 +85,7 @@ An empty cell means nothing has been found there yet.
 |---|---|---|---|
 | the prefix's programs are not on `PATH` | done | `$PREFIX/bin` and `$PREFIX/usr/bin` on `PATH`, for shells and the desktop session | `scripts/setup/install-shell-path.sh`, `install-session-env.sh` |
 | a program looks for its files at `/usr/...`, `/etc/...`, `/opt/...` (compiled-in paths, an interpreter's module path, a library only in the prefix, an alternatives link, a shebang naming an interpreter only in the prefix) | done | `prefix-wrap` gives it a script in `$PREFIX/bin` that runs it in the shared run view; every other program runs directly | [`view.md`](view.md#how-programs-get-there) |
+| a program of another architecture (i386) needs its loader, `/lib/ld-linux.so.2`, which only the prefix has, and `ldd` does not read it | done | `prefix-wrap` reads the program's loader and runs it in the run view, where the prefix's loader is at `/lib` (`pv:i386` ran, 2026-09-25) | `tools/prefix-wrap.sh` |
 | a disk mounted after the run view started is not in it | done | the run view receives the host's mounts (`--propagation slave`) | [`view.md`](view.md#host-mounts) |
 | a desktop app has no launcher or icon | done | `XDG_DATA_DIRS` for the session, and the desktop database refreshed after each dpkg run | `install-session-env.sh`, `tools/prefix-integrate.sh` |
 | a program that is not a service needs a path in `/run` owned by root | never | owned by root on the host; a service has a `/run` of its own instead ([`view.md`](view.md#the-service-view)) | |
@@ -132,6 +134,32 @@ An empty cell means nothing has been found there yet.
 | problem | cell | what the admin does |
 |---|---|---|
 | no user namespaces: the run view cannot be built | root, once | `admin/enable-userspace.sh` (the same step as for installing) |
+
+## At the edge
+
+Cases that look like **never** and are not, measured on the test host
+(2026-09-25):
+
+- **Steam.** `steam-installer` (contrib) depends on `steam-libs-i386`,
+  that is dozens of i386 libraries with `Multi-Arch: same`, each at the
+  host's version: on this rolling host `libudev1:i386` (262-1) against the
+  host's `libudev1` (261.2-1) stops it, which is version skew, not
+  something sudo-less cannot do. Where the versions match it is untested.
+  Its controllers need the udev rules of `steam-devices` (**root, once**,
+  the device row). It then downloads and updates itself in
+  `~/.local/share/Steam`, as on any system.
+- **Applications that update themselves** (Steam, some proprietary
+  launchers): the package installs a launcher, and the application keeps
+  its updates in your home, as it does on Debian. dpkg does not track
+  them, with or without root.
+- **Other ways without root**, for what sudo-less does not cover:
+  - Flatpak with `--user`: no root at all (measured: the flathub remote and
+    an application installed per user; bubblewrap is not setuid, it uses
+    the same user namespaces as the view). Steam is there as
+    `com.valvesoftware.Steam`.
+  - rootless Podman or distrobox, a whole distribution in a container:
+    they need subordinate ids, the **subid** grant in
+    [`admin-features.md`](admin-features.md).
 
 ## Survey
 

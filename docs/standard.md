@@ -26,7 +26,7 @@ Two questions, asked of every package:
 |---|---|---|
 | `user` | installs and runs from `~/.local` | `apt-get install PKG`, then `PKG` |
 | `admin` | belongs to the system: needs root to install or to work | a refusal naming what the admin must do |
-| `never` | no way fits the rules (32-bit only, self-updating, needs root at run time) | a refusal with the reason |
+| `never` | no way fits the rules (a system user, a setuid program, a kernel module: needs root at install or run time) | a refusal with the reason |
 
 ### By Debian section
 

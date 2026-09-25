@@ -78,10 +78,25 @@ set itself:
 - `ProtectHome=yes`: `/home`, `/root` and `/run/user` empty;
 - `PrivateTmp=yes`, `NoNewPrivileges=yes`.
 
+Last, a security stage checks the sandbox of a system unit as translated
+and supplemented, since the package wrote the unit and the sandbox is there
+to protect you from its service. It never goes below the floor:
+`ProtectHome=yes`, `ProtectSystem=` `full` or `strict`, `PrivateTmp=yes`,
+`NoNewPrivileges=yes` (a lower value from the unit is raised); the
+package database and apt's state read-only; `ReadWritePaths=` and
+`BindPaths=` only into a service's state (`/var/lib/X`, `/var/log/X`,
+`/run`, `/srv`, ...; not your home, your session, `/usr`, `/etc`); no
+`..` in paths or directory names; no `Exec` line outside `[Service]` (a
+socket's `ExecStartPre=` would run without the sandbox). Each change is a
+`# sudo-less security:` line in the unit and a line on the terminal.
+
 A user unit is meant to run as you (syncthing syncs `~/Sync`) and gets no
-default. `SUDO_LESS_SANDBOX=off` in a drop-in's `Environment=` turns the
-sandbox off for one service; any other value adds directives
-(`SUDO_LESS_SANDBOX="ReadWritePaths=/var/www"`).
+default. Only you loosen or tighten a unit's sandbox, in
+`~/.config/sudo-less/sandbox/UNIT` (for example
+`~/.config/sudo-less/sandbox/mini-httpd.service`): a line `off` turns it
+off, any other line is one more directive (`ReadWritePaths=/var/www`,
+`ProtectHome=read-only`). A package cannot write there: your home is
+hidden from it while it installs and while its services run.
 
 ## Lifecycle
 
@@ -142,7 +157,7 @@ The 1250 are the upper bound for this mechanism: a postinst that runs
 | running before login and after logout | run, root once | linger |
 | a postinst calling `ucf` | install, non-root, not done | `ucf` checks only the uid; the install view could satisfy it as it does `update-alternatives` |
 | drop-ins; a failed unit is not restarted on upgrade | run, non-root, not done | `prefix-units` does not read `*.service.d` and restarts only running units |
-| a daemon of a system unit with no sandbox writes outside its state directories | run, non-root, done: the default sandbox refuses it | `SUDO_LESS_SANDBOX` in a drop-in, as for any unit whose sandbox is too tight |
+| a daemon of a system unit with no sandbox writes outside its state directories | run, non-root, done: the default sandbox refuses it | a line in `~/.config/sudo-less/sandbox/UNIT`, as for any unit whose sandbox is too tight |
 
 Starting a command in the service view takes ~0.35 s, ~0.4 s with a
 syscall filter.

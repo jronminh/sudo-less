@@ -6,7 +6,11 @@
 # --from=FILE also takes the directives on FILE's "# sudo-less sandbox: D=V"
 # lines: prefix-units writes a service's sandbox into its user unit that
 # way, so that what the package wrote reaches this script as data, never
-# through systemd's parsing of an Exec line (issue #38).
+# through systemd's parsing of an Exec line (issue #38). Then your own
+# settings for that unit, from ~/.config/sudo-less/sandbox/UNIT (UNIT is
+# FILE's name): "off" on a line turns the sandbox off, any other line is
+# one more DIRECTIVE=VALUE. A package cannot write there: the install view
+# and the service sandbox hide your home.
 #
 # The directives are systemd.exec(5)'s, with their meaning there:
 #
@@ -37,9 +41,10 @@
 #
 # Run on its own it makes a user and mount namespace of its own first.
 #
-# SUDO_LESS_SANDBOX=off in the environment ignores every directive (a
-# drop-in's Environment= can set it for one service); any other value is
-# more DIRECTIVE=VALUE words, applied after the -p ones.
+# Without --from, SUDO_LESS_SANDBOX=off in the environment ignores every
+# directive; any other value is more DIRECTIVE=VALUE words, applied after
+# the -p ones. With --from (a service) the environment is not read: the
+# unit, and so its package, sets it (Environment=, EnvironmentFile=).
 #
 # Directives it cannot give a non-root service are not taken:
 # CapabilityBoundingSet= (the service has no capability on the host to
@@ -82,14 +87,14 @@ set_directive() {
   esac
 }
 
-ROOT= CHECK= opts=()
+ROOT= CHECK= FROM= opts=()
 while [ $# -gt 0 ]; do
   case $1 in
     -p) [ $# -ge 2 ] || usage; opts+=("$2"); shift 2 ;;
     -p*) opts+=("${1#-p}"); shift ;;
     --property=*) opts+=("${1#*=}"); shift ;;
     --from=*)
-      f=${1#*=}; shift
+      f=${1#*=} FROM=${1#*=}; shift
       [ -f "$f" ] || { echo "prefix-sandbox: no such file: $f" >&2; exit 1; }
       while IFS= read -r l; do
         case $l in "# sudo-less sandbox: "*) opts+=("${l#"# sudo-less sandbox: "}") ;; esac
@@ -103,12 +108,27 @@ while [ $# -gt 0 ]; do
 done
 [ $# -gt 0 ] || [ -n "$CHECK" ] || usage
 
-given=(${opts[@]+"${opts[@]}"})
-case ${SUDO_LESS_SANDBOX:-} in
-  off) opts=() ;;
-  '') ;;
-  *) set -f; opts+=($SUDO_LESS_SANDBOX); set +f ;;
-esac
+if [ -n "$FROM" ]; then
+  f=${XDG_CONFIG_HOME:-$HOME/.config}/sudo-less/sandbox/${FROM##*/}
+  if [ -f "$f" ]; then
+    while IFS= read -r l; do
+      case $l in
+        ''|'#'*) ;;
+        off) opts=(); break ;;
+        *=*) opts+=("$l") ;;
+        *) echo "prefix-sandbox: $f: not DIRECTIVE=VALUE: $l" >&2 ;;
+      esac
+    done < "$f"
+  fi
+  given=(${opts[@]+"${opts[@]}"})
+else
+  given=(${opts[@]+"${opts[@]}"})
+  case ${SUDO_LESS_SANDBOX:-} in
+    off) opts=() ;;
+    '') ;;
+    *) set -f; opts+=($SUDO_LESS_SANDBOX); set +f ;;
+  esac
+fi
 for o in ${opts[@]+"${opts[@]}"}; do set_directive "$o"; done
 
 yes() { case ${1,,} in 1|yes|true|on) return 0 ;; esac; return 1; }

@@ -22,22 +22,31 @@
 #              /run the services' own ($XDG_RUNTIME_DIR/sudo-less/run), so
 #              the service finds its config and keeps its state and sockets
 #              where Debian does, and it all lands in the prefix
-#   sandbox    directives that name paths or filter syscalls
-#              (ProtectSystem=, ReadWritePaths=, StateDirectory=,
-#              SystemCallFilter=, ...) become prefix-view's -p options:
-#              prefix-sandbox applies them on top of the view, where the
-#              paths are the prefix's. The rest (PrivateNetwork=,
-#              ProtectKernelTunables=, NoNewPrivileges=, ...) stay for
-#              systemd, which builds them around the view.
-#   default    on Debian a system service runs as a system user, which
-#              cannot touch your files; here it runs as you. So a system
-#              unit gets ProtectSystem=strict, ProtectHome=yes,
-#              PrivateTmp=yes and NoNewPrivileges=yes unless it sets them
-#              itself, with its package's own directories in /var/lib,
-#              /var/cache, /var/log and /var/spool writable. A user unit
-#              (meant to run as you) gets no default. SUDO_LESS_SANDBOX=off
-#              in a drop-in's Environment= turns the sandbox off for one
-#              service (tools/prefix-sandbox.sh).
+#   sandbox    in three stages:
+#              1. redirected: directives that name paths or filter
+#                 syscalls (ProtectSystem=, ReadWritePaths=,
+#                 StateDirectory=, SystemCallFilter=, ...) become
+#                 "# sudo-less sandbox:" lines in the unit, which
+#                 prefix-sandbox applies on top of the view, where the
+#                 paths are the prefix's. The rest (PrivateNetwork=,
+#                 ProtectKernelTunables=, ...) stay for systemd, which
+#                 builds them around the view.
+#              2. supplemented: on Debian a system service runs as a
+#                 system user, which cannot touch your files; here it runs
+#                 as you. So a system unit gets ProtectSystem=strict,
+#                 ProtectHome=yes, PrivateTmp=yes unless it sets them,
+#                 with /run and its package's own directories in /var/lib,
+#                 /var/cache, /var/log and /var/spool writable.
+#              3. secured: the package wrote the unit, so a system unit's
+#                 sandbox is checked last and never goes below the floor:
+#                 ProtectHome= yes, ProtectSystem= full or strict,
+#                 PrivateTmp= yes, NoNewPrivileges= yes; no write access
+#                 or bind outside a service's state (not $HOME, your
+#                 session, /usr, /etc, the package database); no Exec
+#                 outside [Service]. What it changes is noted in the unit.
+#              A user unit (meant to run as you) gets no default. Only you
+#              loosen a sandbox: ~/.config/sudo-less/sandbox/UNIT
+#              (tools/prefix-sandbox.sh).
 #   paths      paths systemd itself reads (EnvironmentFile=, PIDFile=,
 #              Condition*=) get their $PREFIX copy when there is one, and
 #              /run/X is %t/sudo-less/run/X; in a system unit %t, %S, %C,
@@ -177,8 +186,10 @@ exec_value() {  # the Exec line's value, in the view with the sandbox $SBX
   # The sandbox is read from the unit file itself (the "# sudo-less
   # sandbox:" lines), not passed here: what the package wrote never goes
   # through systemd's parsing of this line into prefix-view's options.
-  local from=
-  [ -z "$SBX" ] || from=" --sandbox-from=$(exec_path "$OUTUNIT")" || return 1
+  # Always, even with no directives: your own settings for the unit
+  # (~/.config/sudo-less/sandbox/UNIT) come in there.
+  local from
+  from=" --sandbox-from=$(exec_path "$OUTUNIT")" || return 1
   printf '%s%s --service%s -- %s%s' "$pre" "$VIEW" "$from" "$prog" "$out"
 }
 
@@ -195,6 +206,92 @@ sandbox_opt() {
       for w in $v; do SBX+="$k=$(sandbox_path "$w")"$'\n'; done
       set +f ;;
   esac
+}
+
+# --- the security stage ---------------------------------------------------
+# The package wrote the unit, and the sandbox is there to protect you from
+# its service: so whatever the unit says, a system unit's sandbox never
+# goes below the floor, the protection a Debian system user has. The
+# checks run on the sandbox as translated and supplemented, just before
+# the unit is written; what they change is noted in the unit and on
+# stderr ($NOTES).
+
+# Paths of sudo-less's own that no service may write: the prefix's package
+# database and apt's state.
+PROTECTED='/var/lib/dpkg /var/lib/apt /var/cache/apt /var/log/apt /var/lib/sudo-less'
+
+clean_path() {  # an absolute path with no . or .. component
+  case $1 in /*) ;; *) return 1 ;; esac
+  case /$1/ in */../*|*/./*) return 1 ;; esac
+}
+# A path a service may be given write access to: its state, not your home,
+# your session, the prefix's programs or sudo-less's own state.
+writable_ok() {
+  local p=${1#[-+]} q
+  clean_path "$p" || return 1
+  for q in $PROTECTED; do case $p in "$q"|"$q"/*) return 1 ;; esac; done
+  case $p in /run/user|/run/user/*) return 1 ;; esac
+  case $p in
+    /run|/run/*|/tmp/?*|/var/tmp/?*|/srv/?*|/var/www|/var/www/*|/var/mail/?*) return 0 ;;
+    /var/lib/?*|/var/cache/?*|/var/log/?*|/var/spool/?*|/var/opt/?*|/var/backups/?*) return 0 ;;
+  esac
+  return 1
+}
+# A path a service may have bound elsewhere: not your home or session, nor
+# a directory holding them (a bind of / or /run would show them again,
+# out of reach of ProtectHome=).
+bind_source_ok() {
+  local p=${1#[-+]}
+  clean_path "$p" || return 1
+  case $p in /|/home|/home/*|/root|/root/*|/run|/run/user|/run/user/*) return 1 ;; esac
+}
+# A name for StateDirectory= and the like: relative, no . or .. component.
+dir_name_ok() {
+  local n=${1%%:*}
+  case $n in ''|/*|*[!A-Za-z0-9._+@/-]*) return 1 ;; esac
+  case /$n/ in */../*|*/./*) return 1 ;; esac
+}
+
+note() { NOTES+="$1"$'\n'; }
+
+# secure_sandbox: rewrite $SBX for a system unit, to the floor.
+secure_sandbox() {
+  local out= l k v src dst
+  while IFS= read -r l; do
+    [ -n "$l" ] || continue
+    k=${l%%=*} v=${l#*=}
+    case $k in
+      ProtectHome)
+        case ${v,,} in yes|true|on|1|tmpfs) ;; *)
+          note "ProtectHome=$v raised to yes: a service does not see your home"; l=ProtectHome=yes ;; esac ;;
+      ProtectSystem)
+        case ${v,,} in strict|full) ;; *)
+          note "ProtectSystem=$v raised to full: a service does not write /usr or /etc"
+          l=ProtectSystem=full ;; esac ;;
+      PrivateTmp)
+        case ${v,,} in ''|no|false|off|0)
+          note "PrivateTmp=$v raised to yes: /tmp holds your session's files"; l=PrivateTmp=yes ;; esac ;;
+      ReadWritePaths)
+        [ -z "$v" ] || writable_ok "$v" || { note "dropped ReadWritePaths=$v: not a service's state"; continue; } ;;
+      BindPaths|BindReadOnlyPaths)
+        src=${v%%:*} dst=$src
+        case $v in *:*) dst=${v#*:}; dst=${dst%%:*} ;; esac
+        if ! bind_source_ok "$src" || ! clean_path "${dst#[-+]}"; then
+          note "dropped $k=$v: it would show your home or session"; continue
+        fi
+        if [ $k = BindPaths ] && { ! writable_ok "$src" || ! writable_ok "$dst"; }; then
+          note "dropped $k=$v: not a service's state"; continue
+        fi ;;
+      StateDirectory|CacheDirectory|LogsDirectory|RuntimeDirectory|ConfigurationDirectory)
+        [ -z "$v" ] || dir_name_ok "$v" || { note "dropped $k=$v: not a plain directory name"; continue; } ;;
+      TemporaryFileSystem|ReadOnlyPaths|InaccessiblePaths)
+        v=${v%%:*}; [ -z "$v" ] || clean_path "${v#[-+]}" || { note "dropped $k=$v: not a clean path"; continue; } ;;
+    esac
+    out+=$l$'\n'
+  done <<<"$SBX"
+  SBX=$out
+  # The floor itself: what a Debian system user cannot write stays so.
+  for v in $PROTECTED; do SBX+="ReadOnlyPaths=-$v"$'\n'; done
 }
 
 # Translate unit file $1 to stdout.
@@ -219,6 +316,7 @@ translate() {
     # RuntimeDirectory= stays for systemd too, which makes it in $RUN.
     case "$TOSANDBOX RuntimeDirectory " in *" $k "*) sandbox_opt "$k" "$v" ;; esac
   done
+  NOTES=
   if [ -n "$system" ] && [ "${#lines[@]}" -gt 0 ]; then
     for d in $DEFAULT_SANDBOX; do
       case $set in *" ${d%%=*} "*) ;; *) SBX+="$d"$'\n' ;; esac
@@ -226,8 +324,14 @@ translate() {
     # /run (the services' own, tools/prefix-view.sh) stays writable for
     # pid files, as it is on Debian without ProtectSystem=strict.
     case $set in *" ProtectSystem "*) ;; *) SBX+="ReadWritePaths=/run"$'\n'; own_var_dirs ;; esac
+    secure_sandbox
   fi
   printf '%s\n# from %s\n' "$TAG" "$src"
+  if [ -n "$NOTES" ]; then
+    while IFS= read -r d; do
+      [ -z "$d" ] || { printf '# sudo-less security: %s\n' "$d"; echo "prefix-units: ${src##*/}: $d" >&2; }
+    done <<<"$NOTES"
+  fi
   for l in "${lines[@]}"; do
     case $l in
       \[*\]) sec=$l; printf '%s\n' "$l"
@@ -236,8 +340,9 @@ translate() {
           while IFS= read -r d; do
             [ -z "$d" ] || printf '%s%s\n' "$SBXMARK" "$d"
           done <<<"$SBX"
-          [ -z "$system" ] || case $set in *" NoNewPrivileges "*) ;; *)
-            printf 'NoNewPrivileges=yes\n' ;; esac
+          # Setuid programs of the host (sudo, pkexec) stay out of reach,
+          # whatever the unit says (the security stage).
+          [ -z "$system" ] || printf 'NoNewPrivileges=yes\n'
         fi
         continue ;;
     esac
@@ -248,6 +353,15 @@ translate() {
     k=${k%"${k##*[![:space:]]}"}
     case $k in ''|'#'*|';'*) printf '%s\n' "$l"; continue ;; esac
     case "$IDENTITY$TOSANDBOX$NOSANDBOX" in *" $k "*) continue ;; esac
+    if [ -n "$system" ]; then
+      case $k in NoNewPrivileges) continue ;; esac
+      # The security stage: a command outside [Service] (a socket's
+      # ExecStartPre=) would run outside the view and its sandbox.
+      case $sec:$k in \[Service\]:*) ;; *:Exec*)
+        printf '# sudo-less security: dropped %s=%s: it would run without the sandbox\n' "$k" "$v"
+        echo "prefix-units: ${src##*/}: dropped $k=$v: it would run without the sandbox" >&2
+        continue ;; esac
+    fi
     case $sec:$k in
       \[Unit\]:*)
         if [[ $DEPS == *" $k "* ]]; then
@@ -269,7 +383,8 @@ translate() {
         v=$(host_path "$v") ;;
       \[Service\]:RuntimeDirectory)   # systemd makes it, and removes it on stop
         out=
-        for t in $v; do out+=" sudo-less/run/$t"; done
+        for t in $v; do dir_name_ok "$t" && out+=" sudo-less/run/$t"; done
+        [ -n "$out" ] || continue
         v=${out# } ;;
       \[Socket\]:Listen*|\[Path\]:Path*)
         v=$(host_path "$v") ;;

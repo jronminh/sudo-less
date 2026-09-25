@@ -73,10 +73,12 @@ On Debian a system service runs as a system user, and that is what keeps
 it from your files. Here it runs as you, so a compromised daemon could
 rewrite `~/.bashrc`, or a program in `~/.local/bin` you run later. So a
 system unit keeps the sandbox it declares (`ProtectSystem=`,
-`ProtectHome=`, `SystemCallFilter=`, `RestrictNamespaces=`, ...), and gets
-for each of these it does not set itself ([`services.md`](services.md#the-default-sandbox)):
-`ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`,
-`NoNewPrivileges=yes`.
+`SystemCallFilter=`, `RestrictNamespaces=`, ...), gets
+`ProtectSystem=strict`, `ProtectHome=yes` and `PrivateTmp=yes` where it
+sets none, and never goes below a floor: `ProtectHome=yes`,
+`ProtectSystem=` `full` or `strict`, `PrivateTmp=yes`,
+`NoNewPrivileges=yes`, the package database read-only
+([`services.md`](services.md#the-default-sandbox)).
 
 How it holds ([`view.md`](view.md#the-sandbox) has the mechanics):
 
@@ -100,13 +102,23 @@ How it holds ([`view.md`](view.md#the-sandbox) has the mechanics):
   lines, which `prefix-sandbox` reads; the `ExecStart=` line carries none
   of the package's values, so none can close a quote and add options
   (#38). A package's own lines with that marker are dropped.
+- **The package does not decide its sandbox.** It declares one, and a
+  security stage in `prefix-units` checks the result last: the floor
+  above cannot be lowered (`ProtectHome=no` is raised to `yes`), write
+  access and binds stay inside a service's state, paths with `..` are
+  dropped, and so is a command outside `[Service]`, which would run
+  without the sandbox (a socket's `ExecStartPre=`). The environment the
+  unit sets is not read. Only you loosen a sandbox, in
+  `~/.config/sudo-less/sandbox/UNIT`, where a package cannot write.
+  Measured with a unit that tried all of these at once: `ProtectHome=no`,
+  `ProtectSystem=no`, `PrivateTmp=no`, `NoNewPrivileges=no`,
+  `Environment=SUDO_LESS_SANDBOX=off`, `ReadWritePaths=` into `$HOME`, its
+  runtime directory and the package database, `BindPaths=$HOME:...`,
+  `BindReadOnlyPaths=/:...` and `/run:...`, `StateDirectory=../../home/...`,
+  and a socket's `ExecStartPre=` writing `$HOME`; nothing reached `$HOME`.
 
 ## Known limits
 
-- **A package can turn off its service's sandbox.** `SUDO_LESS_SANDBOX=off`
-  in the environment turns it off, meant for your drop-ins, but a unit's
-  own `Environment=` or `EnvironmentFile=` can set it too (measured). To be
-  fixed by reading your overrides from a place a package cannot write.
 - **User units and the programs you run are not sandboxed.** A package can
   ship a user unit and enable it from its postinst; it then runs as you,
   with your home.

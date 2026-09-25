@@ -6,31 +6,12 @@ by `mobian`: `admin/enable-userspace.sh` (user namespaces, `~/.local/bin`
 on PATH; base tools only). Unprivileged tools such as bwrap
 `master` installs with the userspace apt.
 
-There are four levels of "no-root", from lightest to heaviest. Pick the
+There are three levels of "no-root", from lightest to heaviest. Pick the
 lightest that does the job.
 
 ---
 
-## 1. `deb2home` — extract a `.deb` into `$HOME`
-
-`tools/deb2home.sh` (installed as `~/.local/bin/deb2home`):
-
-```sh
-deb2home PKG [PKG...]        # -d DIR prefix, -b DIR bin dir, -n no-deps, -N dry-run
-```
-
-It resolves `Depends`/`PreDepends` with `apt-cache`, downloads with
-`apt-get download`, extracts with `dpkg -x` into `~/.local/opt/<pkg>`, and links
-each binary into `~/.local/bin` (a wrapper setting `LD_LIBRARY_PATH` /
-`XDG_DATA_DIRS` when the package ships its own libs).
-
-Use when: the package is mostly self-contained binaries/data.
-Limits: **no** maintainer scripts, conffiles, alternatives, or dpkg database;
-apps with hardcoded `/usr` paths may fail.
-
----
-
-## 2. User namespaces — `unshare`
+## 1. User namespaces — `unshare`
 
 ```sh
 unshare -Ur id          # uid=0(root) inside, uid=1001 outside
@@ -45,7 +26,7 @@ This is the primitive that every "rootless container" is built on.
 
 ---
 
-## 3. A real rootfs
+## 2. A real rootfs
 
 A directory shaped like `/`, built unprivileged with `mmdebstrap
 --mode=unshare` and entered with `bwrap` or `unshare` + `chroot`, is one more
@@ -54,7 +35,7 @@ use it; `docs/porting.md` sketches it.
 
 ---
 
-## 4. Rootless containers — podman / distrobox
+## 3. Rootless containers — podman / distrobox
 
 Same user-namespace machinery, packaged:
 

@@ -210,8 +210,29 @@ if [ "${1-}" != --inner ]; then
        exit 1 ;;
   esac
   if [ $mode = install ]; then
-    # Not a sandbox the user may turn off (SUDO_LESS_SANDBOX=off).
-    mode=private SANDBOX=(--property=TemporaryFileSystem=/run)
+    # dpkg and the maintainer scripts see the prefix and nothing else of
+    # yours: /home is empty but for the prefix's /usr, /etc, /var and /opt
+    # (writable) and sudo-less's own tools (read-only), /tmp is private,
+    # removable disks are out of reach, and /run is empty (no system bus, no
+    # systemd; see above). A .deb from outside the prefix is bound in,
+    # read-only. Debian trusts a package with root; here a package is
+    # trusted with the prefix only, not with ~/.ssh or ~/.bashrc. Not a
+    # sandbox the user may turn off (SUDO_LESS_SANDBOX=off).
+    mode=private
+    SANDBOX=(--property=TemporaryFileSystem=/run --property=ProtectHome=yes
+      --property=PrivateTmp=yes --property=InaccessiblePaths=-/media
+      --property=InaccessiblePaths=-/mnt)
+    for d in usr etc var opt; do SANDBOX+=("--property=ReadWritePaths=$PREFIX/$d"); done
+    for d in bin sbin lib/sudo-less; do
+      [ ! -d "$PREFIX/$d" ] || SANDBOX+=("--property=BindReadOnlyPaths=$PREFIX/$d")
+    done
+    while IFS= read -r f; do
+      case $f in
+        ''|"$PREFIX"/*) ;;
+        *[[:space:]:]*) echo "prefix-view: $f cannot be shown to dpkg (a space or ':' in its path)" >&2 ;;
+        /*) SANDBOX+=("--property=BindReadOnlyPaths=$f") ;;
+      esac
+    done <<<"${PREFIX_VIEW_DEBS:-}"
     unset SUDO_LESS_SANDBOX NOTIFY_SOCKET
   fi
   case "$PREFIX" in

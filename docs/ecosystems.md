@@ -78,12 +78,9 @@ needed: Perl programs are run in the run view. Verified with `cowsay` and
 `mkdir -m 755 /etc/.java`, which is not guarded, so `dpkg --configure` fails
 without root (issue #7). There was no safe shim: the failing call is a plain
 `mkdir` on `/etc`, and a `mkdir` shim would catch every other script too.
-The workaround skipped the maintainer scripts:
-
-```sh
-tools/deb2home.sh openjdk-25-jre-headless
-JAVA_HOME=$PREFIX/opt/openjdk-25-jre-headless/usr/lib/jvm/java-25-openjdk-amd64
-```
+The workaround skipped the maintainer scripts: `deb2home` (since removed)
+extracted the package into `$PREFIX/opt` with `dpkg -x`, and `JAVA_HOME`
+pointed at it.
 
 The JVM creates its preferences directory when it first needs it, so
 `/etc/.java` is not needed at run time. The JDK version and `JAVA_HOME` were
@@ -124,7 +121,7 @@ What individual packages showed, each a case the classifier got wrong:
 | `ranger` | the Python case above | shim + `.pth` | installs, runs |
 | `pmarkdown` | the Perl case above | `PERL5LIB` | not tested |
 | `yard` | the Ruby case above | overlay | not tested |
-| `openjdk-25-jre-headless` | the Java case above | `deb2home` + `JAVA_HOME` | installs (tested with 21) |
+| `openjdk-25-jre-headless` | the Java case above | `dpkg -x` (the removed `deb2home`) + `JAVA_HOME` | installs (tested with 21) |
 | `jq` | seeded on most desktops, so its check passed through the system `jq`. In a clean container the prefix's `jq` failed: `libjq.so.1` is found through the default linker path, not an RPATH | `LD_LIBRARY_PATH=$PREFIX/usr/lib/<triplet>` | should work, as in the overlay; not tested |
 | `nodejs` | needs `LD_LIBRARY_PATH` for `libnode.so`, then loads `/usr/share/nodejs/undici/...` by a path compiled into the binary, which no variable reaches | overlay | should work, as in the overlay; not tested |
 | `golang-go` | expected to need `GOROOT`; it does not: `go` finds its toolchain from its own path, like `java` | directly | — |

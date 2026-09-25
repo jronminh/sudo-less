@@ -32,10 +32,16 @@ case $n in
 esac
 [ -z "$fast" ] || exec "$real" --admindir="$P/var/lib/dpkg" "$@"
 # The view gives the prefix a copy of each host directory these .deb files
-# install into (tools/prefix-view.sh). apt passes a directory of them with
-# --recursive.
+# install into, and binds them into the install view, where your home is
+# hidden (tools/prefix-view.sh). apt passes a directory of them with
+# --recursive. A relative path becomes absolute: the view starts in /.
 debs= rec=
 if [ "$n" = dpkg ]; then
+  for a; do
+    shift
+    case $a in -*|/*) ;; *) [ ! -e "$a" ] || a=$PWD/$a ;; esac
+    set -- "$@" "$a"
+  done
   for a; do case $a in -R|--recursive) rec=1 ;; esac; done
   for a; do
     case $a in

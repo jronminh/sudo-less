@@ -231,8 +231,7 @@ tools/         prefix-view.sh (the install, run and service views),
                prefix-wrap.sh, which programs run in the view, then
                prefix-units.sh, packages' systemd units as user units),
                prefix-check.sh (refuses what
-               needs root), prefix-run.sh (the older overlay), deb2home.sh (extract
-               without scripts)
+               needs root), prefix-run.sh (the older overlay)
 scripts/       build, setup and catalog helpers
 admin/         one-time root step that enables userspace: enable-userspace.sh
 dev/           tools for developing sudo-less (dsb test policy, survey.sh)

@@ -151,7 +151,7 @@ problems we have, so we learn from them:
 |---|---|
 | host-side vs guest environment kept apart; `isolated`/`minimal` env modes (`execenv.py`, `commands/login/env.py`) | the rootfs runners (since removed) built the environment from an allowlist instead of inheriting the host's — #28 |
 | bind checklist for a guest `/`: `/dev`, `/proc`, `/sys`, `/dev/shm`, `/dev/fd`, `resolv.conf`, `hosts` (`commands/login/proot_cmd.py`) | the `rootfs-native` runner (since removed) — #28 |
-| safe archive extraction: drop `..`, re-root every symlink hop inside the target, never write through a planted hardlink, skip device nodes (`helpers/tar_extract.py`) | audit of `deb2home` and the userspace dpkg unpack — #29 |
+| safe archive extraction: drop `..`, re-root every symlink hop inside the target, never write through a planted hardlink, skip device nodes (`helpers/tar_extract.py`) | audit of the userspace dpkg unpack (`deb2home`, which extracted with `dpkg -x`, was removed instead) — #29 |
 | atomic writes (temp file + `rename`) and a per-container lock (`atomic.py`, `locking.py`) | prefix state written by the setup scripts — #30 |
 
 Not taken: OCI image pulls, container `ps`/`kill` bookkeeping (our runners

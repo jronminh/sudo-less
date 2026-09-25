@@ -42,6 +42,24 @@ find no bus, and debhelper's `[ -d /run/systemd/system ]` guards skip the
 service steps. The run view keeps the host's `/run`: the programs in it are
 yours, run as you, just as outside the view.
 
+The install view also hides your home (`ProtectHome=yes`), but for the
+prefix's `/usr`, `/etc`, `/var`, `/opt` (writable) and sudo-less's own
+tools (`$PREFIX/bin`, `sbin`, `lib/sudo-less`, read-only); `/tmp` is
+private, and `/media` and `/mnt` are out of reach. A `.deb` from outside the
+prefix (`dpkg -i ~/Downloads/foo.deb`) is bound in read-only; the wrapper
+makes relative paths absolute, since the view starts in `/`. Debian trusts
+a package with root; here a package is trusted with the prefix, not with
+`~/.ssh` or `~/.bashrc`. `dev/hostile-debs.sh` checks it with crafted
+packages: a maintainer script that writes or reads `$HOME`, a file shipped
+through another package's symlink into `$HOME`, a `../` member in
+`data.tar`, a setuid bit. Without the sandbox all but the last reached
+`$HOME` (measured 2026-09-25); with it none does.
+
+Still reachable from a maintainer script: the network, and with it abstract
+unix sockets, which belong to the network namespace, not to a path (an X
+server's `@/tmp/.X11-unix/X1`; it wants its cookie, which is under the
+hidden `/run/user`).
+
 ## Why a view
 
 Debian builds every package for the root prefix `/`, so a path such as
@@ -76,7 +94,7 @@ a whole distribution without root, use rootless podman or distrobox.
 `dpkg-trigger`, `update-alternatives`) is a wrapper
 (`apt-dpkg/dpkg-wrapper.sh`) that runs the real program from
 `$PREFIX/lib/sudo-less/dpkg` inside the install view. Inside the install
-view (`SUDO_LESS_VIEW=install`) it runs it directly. Queries that only read
+view (`SUDO_LESS_VIEW=private`) it runs it directly. Queries that only read
 the database (`dpkg -l`, `-L`, `-S`, `-s`, `--print-foreign-architectures`,
 `dpkg-query`) skip the view and get `--admindir=$PREFIX/var/lib/dpkg`, which
 works anywhere, the run view included: apt asks dpkg for the foreign

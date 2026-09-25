@@ -475,10 +475,21 @@ under_empty() {
 for p in ${EMPTY[@]+"${EMPTY[@]}"}; do
   [ -d "$p" ] && mount -t tmpfs -o mode=0755 sudo-less-sandbox "$p" || :
 done
-for p in "${!HOLE[@]}"; do
-  [ -n "${HOLE[$p]}" ] && under_empty "$p" || continue
-  put "$p" "${HOLE[$p]}" || warn "cannot keep $p visible"
-done
+# Holes and binds inside what it hides come back, parents first.
+inside_empty() {
+  local p b m src dst
+  for p in "${!HOLE[@]}"; do
+    [ -n "${HOLE[$p]}" ] && under_empty "$p" && printf '%s\t%s\t%s\n' "$p" "${HOLE[$p]}" rw
+  done
+  for b in ${BINDS[@]+"${BINDS[@]}"}; do
+    read -r m src dst <<<"$b"; src=${src#-}
+    [ -n "${BSRC[$src]-}" ] && under_empty "$dst" && printf '%s\t%s\t%s\n' "$dst" "${BSRC[$src]}" "$m"
+  done
+  return 0
+}
+while IFS=$'\t' read -r p n m; do
+  put "$p" "$n" "$m" || warn "cannot keep $p visible"
+done < <(inside_empty | LC_ALL=C sort -t $'\t' -k1,1)
 # The empty tmpfs got the mount points of the holes; now nothing else.
 for p in ${EMPTY[@]+"${EMPTY[@]}"}; do
   [ -d "$p" ] && mount -o remount,bind,ro "$p" 2>/dev/null || :

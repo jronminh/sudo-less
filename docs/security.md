@@ -122,10 +122,24 @@ How it holds ([`view.md`](view.md#the-sandbox) has the mechanics):
 
 - **The programs you run are not sandboxed.** Running a program is
   trusting it, as on any system.
-- **A user unit's sandbox is by name and by list.** It may write
-  `~/.local/state/NAME` and `~/.cache/NAME` whatever NAME the package
-  picked, and the runtime directories it must not have are a list (the
-  session's sockets known today).
+- **A user unit's sandbox is by name and by list.** A user unit writes
+  its directories where its user manager has them, so that it works with
+  what else you run, and the package picks their names:
+  - it may read and write `~/.local/state/NAME` and `~/.cache/NAME` for
+    its unit's name and any `StateDirectory=`/`CacheDirectory=` it
+    declares, so a unit named after another program reaches that
+    program's state or cache (a `syncthing` unit, the config of a
+    syncthing you run yourself; a `pip` one, pip's cache of wheels);
+  - its `RuntimeDirectory=` in `$XDG_RUNTIME_DIR` is refused only for the
+    names of the session's sockets known today (`systemd`, `bus`,
+    `gnupg`, `pipewire-0`, `wayland-0`, ...); another program's socket
+    directory (a password manager's, say) is not on the list, and
+    systemd removes a runtime directory when the unit stops.
+
+  Isolating these directories in sudo-less's own area was tried and
+  rolled back: a service's files and sockets would no longer be where
+  other programs look for them. `~/.config` and `~/.local/share`, where
+  shells and desktops find code to run, stay closed either way.
 - **The network is shared.** Maintainer scripts and services can reach the
   network, and with it abstract unix sockets, which belong to the network
   namespace, not to a path. The one found on the test host is Xwayland's

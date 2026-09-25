@@ -25,11 +25,12 @@ can. Within that, each stage gives it less than you have:
 |---|---|---|---|
 | **installing**: dpkg and the maintainer scripts, in the [install view](view.md) | you, as "root" of a user namespace | the prefix's `/usr`, `/etc`, `/var`, `/opt`; the host's system files, read-only (they are root's) | your home (hidden but for the prefix), `/tmp` (private), `/media`, `/mnt`, `/run` (empty: no system bus, no systemd, no polkit) |
 | **a service** from a system unit, in the [service view](view.md#the-service-view) | you | its state directories, the services' `/run`; the rest read-only (default sandbox) | your home, `/run/user` (the session bus, the user manager's private socket, Wayland, the agents), setuid programs (`NoNewPrivileges=`) |
-| **a service** from a user unit | you | what you can | nothing more than any program you run: a user unit is meant to run as you (syncthing syncs `~/Sync`) |
+| **a service** from a user unit | you | its own `~/.local/state/NAME`, `~/.cache/NAME` and runtime directory; the rest read-only (default sandbox) | the rest of your home, your session's sockets, setuid programs; what else it needs you open ([`services.md`](services.md#the-default-sandbox)) |
 | **a program you run**, directly or in the [run view](view.md#the-run-view) | you | what you can | nothing: running a program is trusting it, as on any system |
 
 So the sandboxes protect you from a package while it **installs**, and from
-a **service** that gets compromised while it runs. Once you run what a
+its **services**, system or user, whether the package or a compromised
+daemon is what misbehaves. Once you run what a
 package installed, it runs as you.
 
 ## Installing: the install view
@@ -119,9 +120,12 @@ How it holds ([`view.md`](view.md#the-sandbox) has the mechanics):
 
 ## Known limits
 
-- **User units and the programs you run are not sandboxed.** A package can
-  ship a user unit and enable it from its postinst; it then runs as you,
-  with your home.
+- **The programs you run are not sandboxed.** Running a program is
+  trusting it, as on any system.
+- **A user unit's sandbox is by name and by list.** It may write
+  `~/.local/state/NAME` and `~/.cache/NAME` whatever NAME the package
+  picked, and the runtime directories it must not have are a list (the
+  session's sockets known today).
 - **The network is shared.** Maintainer scripts and services can reach the
   network, and with it abstract unix sockets, which belong to the network
   namespace, not to a path. The one found on the test host is Xwayland's

@@ -416,7 +416,7 @@ mkdir -m 000 "$SCRATCH/none.d"; : > "$SCRATCH/none.f"; chmod 000 "$SCRATCH/none.
 
 # Make the state directories (in the view they land in the prefix).
 for p in ${HOLES[@]+"${HOLES[@]}"}; do
-  case $p in /var/lib/*|/var/cache/*|/var/log/*|/run/*) mkdir -p "$p" 2>/dev/null || :;; esac
+  case $p in /var/lib/*|/var/cache/*|/var/log/*|/run/*|"$HOME"/?*) mkdir -p "$p" 2>/dev/null || :;; esac
 done
 
 # stash PATH: bind it into the scratch now, as $SCRATCH/$n.

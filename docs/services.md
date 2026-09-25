@@ -90,8 +90,21 @@ package database and apt's state read-only; `ReadWritePaths=` and
 socket's `ExecStartPre=` would run without the sandbox). Each change is a
 `# sudo-less security:` line in the unit and a line on the terminal.
 
-A user unit is meant to run as you (syncthing syncs `~/Sync`) and gets no
-default. Only you loosen or tighten a unit's sandbox, in
+A user unit is meant to run as you, but its package wrote it too, so it
+goes through the same stages with a sandbox of its own: the same defaults
+and floor, and instead of `/run` and `/var` it may write its own
+`~/.local/state/NAME` and `~/.cache/NAME` (NAME is the unit's name; made on
+its first start), and the directories it declares with `StateDirectory=`,
+`CacheDirectory=`, `LogsDirectory=`, `RuntimeDirectory=`, as its user
+manager has them. Not `~/.config` or `~/.local/share`: your shell and
+desktop find code to run there, and the package picks the unit's name (a
+unit called `fish` would own `~/.config/fish`). Nor a runtime directory
+your session's sockets live in (`systemd`, `bus`, `gnupg`, `pipewire-0`,
+...). Its `ConfigurationDirectory=` is not shown. What it must read or
+write beyond that (syncthing's folders, mpd's music, the session bus) you
+open in its file below.
+
+Only you loosen or tighten a unit's sandbox, in
 `~/.config/sudo-less/sandbox/UNIT` (for example
 `~/.config/sudo-less/sandbox/mini-httpd.service`): a line `off` turns it
 off, any other line is one more directive (`ReadWritePaths=/var/www`,
@@ -123,7 +136,7 @@ hidden from it while it installs and while its services run.
 | package | unit | result |
 |---|---|---|
 | mini-httpd | system, with its own sandbox (`ProtectSystem=full`, a syscall deny list, `RestrictNamespaces=`) | ran in the service view with that sandbox (`Seccomp: 2`), serving the prefix's `/var/www/html` and logging to its `/var/log/mini_httpd.log`, pid file `/run/mini_httpd.pid`, once its port was moved from 80 to 8080 |
-| syncthing | its own user unit | ran as it is |
+| syncthing | its own user unit | ran in its sandbox (2026-09-25): config, keys and database in `~/.local/state/syncthing`; its default folder `~/Sync` is hidden until you open it |
 | tailscale | system, runs as root, no sandbox | ran with the default sandbox (`/usr` read-only, `/home` and `/run/user` empty), state in the prefix's `/var/lib/tailscale`, socket `/run/tailscale/tailscaled.sock` in the view, `$XDG_RUNTIME_DIR/sudo-less/run/tailscale/tailscaled.sock` outside it (the CLI needs `--socket=`), once `FLAGS="--tun=userspace-networking"` was set in `/etc/default/tailscaled`: a TUN device needs CAP_NET_ADMIN. The kernel also refuses its larger UDP buffers, which costs only throughput |
 | webfs | system | not installed: its postinst runs `ucf`, which refuses a non-root user |
 

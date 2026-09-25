@@ -44,9 +44,12 @@
 #                 or bind outside a service's state (not $HOME, your
 #                 session, /usr, /etc, the package database); no Exec
 #                 outside [Service]. What it changes is noted in the unit.
-#              A user unit (meant to run as you) gets no default. Only you
-#              loosen a sandbox: ~/.config/sudo-less/sandbox/UNIT
-#              (tools/prefix-sandbox.sh).
+#              A user unit gets the same, with its own
+#              ~/.local/state/NAME and ~/.cache/NAME writable instead of
+#              /run and /var (not ~/.config or ~/.local/share, where your
+#              shell and desktop find code to run: the package picks the
+#              unit's name). Only you loosen a sandbox:
+#              ~/.config/sudo-less/sandbox/UNIT (tools/prefix-sandbox.sh).
 #   paths      paths systemd itself reads (EnvironmentFile=, PIDFile=,
 #              Condition*=) get their $PREFIX copy when there is one, and
 #              /run/X is %t/sudo-less/run/X; in a system unit %t, %S, %C,
@@ -143,10 +146,18 @@ host_path() {
   printf %s "$flag$p"
 }
 
+# In a user unit, the specifiers as its user manager expands them.
+user_specifiers() {
+  local v=$1
+  v=${v//%h/$HOME}; v=${v//%t/$XRUN}; v=${v//%S/$XSTATE}; v=${v//%C/$XCACHE}
+  v=${v//%L/$XSTATE/log}; v=${v//%E/${XDG_CONFIG_HOME:-$HOME/.config}}
+  printf %s "$v"
+}
+
 # A path of a sandbox directive, for prefix-sandbox in the view.
 sandbox_path() {
   local f=${1%%[!-+]*} v=${1#"${1%%[!-+]*}"}
-  v=$(system_specifiers "$v")
+  if [ -n "${system:-}" ]; then v=$(system_specifiers "$v"); else v=$(user_specifiers "$v"); fi
   case $v in /var/run/*) v=/run/${v#/var/run/} ;; esac
   printf %s "$f$v"
 }
@@ -220,6 +231,29 @@ sandbox_opt() {
 # database and apt's state.
 PROTECTED='/var/lib/dpkg /var/lib/apt /var/cache/apt /var/log/apt /var/lib/sudo-less'
 
+# A user unit's own directories, as its user manager has them. It may
+# write only its state and cache (~/.local/state/X, ~/.cache/X): not
+# ~/.config or ~/.local/share, where your shell and desktop find code to
+# run, and the package picks the unit's name (a unit called fish would own
+# ~/.config/fish). Nor runtime directories your session's sockets live in.
+XSTATE=${XDG_STATE_HOME:-$HOME/.local/state}
+XCACHE=${XDG_CACHE_HOME:-$HOME/.cache}
+XRUN=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+RUNDENY=' systemd bus dbus-1 gnupg keyring pulse pipewire-0 pipewire-0-manager wayland-0 wayland-1 sudo-less gvfs doc at-spi dconf gcr p11-kit flatpak podman containers ssh-agent '
+
+# A path in a user unit's own place: $XSTATE/X, $XCACHE/X, $XRUN/X (X not
+# one of your session's).
+user_own() {
+  local p=${1#[-+]} n
+  clean_path "$p" || return 1
+  case $p in
+    "$XSTATE"/?*|"$XCACHE"/?*) return 0 ;;
+    "$XRUN"/?*) n=${p#"$XRUN"/}; n=${n%%/*}
+      case $RUNDENY in *" $n "*) return 1 ;; esac; return 0 ;;
+  esac
+  return 1
+}
+
 clean_path() {  # an absolute path with no . or .. component
   case $1 in /*) ;; *) return 1 ;; esac
   case /$1/ in */../*|*/./*) return 1 ;; esac
@@ -230,6 +264,7 @@ writable_ok() {
   local p=${1#[-+]} q
   clean_path "$p" || return 1
   for q in $PROTECTED; do case $p in "$q"|"$q"/*) return 1 ;; esac; done
+  [ -n "${system:-}" ] || ! user_own "$p" || return 0
   case $p in /run/user|/run/user/*) return 1 ;; esac
   case $p in
     /run|/run/*|/tmp/?*|/var/tmp/?*|/srv/?*|/var/www|/var/www/*|/var/mail/?*) return 0 ;;
@@ -302,7 +337,7 @@ translate() {
     lines+=("$cont$l"); cont=
   done < "$src"
   # The sandbox, from the [Service] section, before the Exec lines use it.
-  SBX= sec=
+  SBX= sec= NOTES=
   local set=' ' system=
   case $src in */systemd/system/*) system=1 ;; esac
   for l in "${lines[@]}"; do
@@ -313,17 +348,45 @@ translate() {
     k=${k%"${k##*[![:space:]]}"}; v=${v#"${v%%[![:space:]]*}"}
     case $k in ''|'#'*|';'*|*[[:space:]]*) continue ;; esac   # a comment, not a directive
     set+="$k "
+    if [ -z "$system" ]; then
+      # A user unit's directories stay its user manager's (under $HOME and
+      # $XDG_RUNTIME_DIR), and those it may write become holes.
+      case $k in
+        StateDirectory|CacheDirectory|LogsDirectory|RuntimeDirectory)
+          for t in $v; do
+            t=${t%%:*}
+            dir_name_ok "$t" || { note "dropped $k=$t: not a plain directory name"; continue; }
+            case $k in
+              StateDirectory) SBX+="ReadWritePaths=$XSTATE/$t"$'\n' ;;
+              CacheDirectory) SBX+="ReadWritePaths=$XCACHE/$t"$'\n' ;;
+              LogsDirectory) SBX+="ReadWritePaths=$XSTATE/log/$t"$'\n' ;;
+              RuntimeDirectory) SBX+="ReadWritePaths=$XRUN/$t"$'\n' ;;
+            esac
+          done
+          continue ;;
+        ConfigurationDirectory)
+          note "ConfigurationDirectory=$v is not shown: add it to ~/.config/sudo-less/sandbox/${src##*/} (BindReadOnlyPaths=)"
+          continue ;;
+      esac
+    fi
     # RuntimeDirectory= stays for systemd too, which makes it in $RUN.
     case "$TOSANDBOX RuntimeDirectory " in *" $k "*) sandbox_opt "$k" "$v" ;; esac
   done
-  NOTES=
-  if [ -n "$system" ] && [ "${#lines[@]}" -gt 0 ]; then
+  if [ "${#lines[@]}" -gt 0 ]; then
     for d in $DEFAULT_SANDBOX; do
       case $set in *" ${d%%=*} "*) ;; *) SBX+="$d"$'\n' ;; esac
     done
-    # /run (the services' own, tools/prefix-view.sh) stays writable for
-    # pid files, as it is on Debian without ProtectSystem=strict.
-    case $set in *" ProtectSystem "*) ;; *) SBX+="ReadWritePaths=/run"$'\n'; own_var_dirs ;; esac
+    if [ -n "$system" ]; then
+      # /run (the services' own, tools/prefix-view.sh) stays writable for
+      # pid files, as it is on Debian without ProtectSystem=strict.
+      case $set in *" ProtectSystem "*) ;; *) SBX+="ReadWritePaths=/run"$'\n'; own_var_dirs ;; esac
+    else
+      # A user unit's own state and cache, made on its first start.
+      local name=${src##*/}; name=${name%.*}; name=${name%%@*}
+      if dir_name_ok "$name"; then
+        SBX+="ReadWritePaths=$XSTATE/$name"$'\n'"ReadWritePaths=$XCACHE/$name"$'\n'
+      fi
+    fi
     secure_sandbox
   fi
   printf '%s\n# from %s\n' "$TAG" "$src"
@@ -342,7 +405,7 @@ translate() {
           done <<<"$SBX"
           # Setuid programs of the host (sudo, pkexec) stay out of reach,
           # whatever the unit says (the security stage).
-          [ -z "$system" ] || printf 'NoNewPrivileges=yes\n'
+          printf 'NoNewPrivileges=yes\n'
         fi
         continue ;;
     esac
@@ -352,16 +415,25 @@ translate() {
     k=${l%%=*} v=${l#*=}
     k=${k%"${k##*[![:space:]]}"}
     case $k in ''|'#'*|';'*) printf '%s\n' "$l"; continue ;; esac
-    case "$IDENTITY$TOSANDBOX$NOSANDBOX" in *" $k "*) continue ;; esac
-    if [ -n "$system" ]; then
-      case $k in NoNewPrivileges) continue ;; esac
-      # The security stage: a command outside [Service] (a socket's
-      # ExecStartPre=) would run outside the view and its sandbox.
-      case $sec:$k in \[Service\]:*) ;; *:Exec*)
-        printf '# sudo-less security: dropped %s=%s: it would run without the sandbox\n' "$k" "$v"
-        echo "prefix-units: ${src##*/}: dropped $k=$v: it would run without the sandbox" >&2
-        continue ;; esac
-    fi
+    # A user unit's state, cache and logs directories are its user
+    # manager's: they stay, if their names are plain (systemd makes them,
+    # outside the sandbox). Its configuration directory is not shown.
+    case $system:$k in
+      :StateDirectory|:CacheDirectory|:LogsDirectory)
+        out=
+        for t in $v; do ! dir_name_ok "$t" || out+=" $t"; done
+        [ -n "$out" ] || continue
+        v=${out# } l="$k=$v" ;;
+      :*DirectoryMode) ;;
+      *) case "$IDENTITY$TOSANDBOX$NOSANDBOX" in *" $k "*) continue ;; esac ;;
+    esac
+    case $k in NoNewPrivileges) continue ;; esac   # always yes, above
+    # The security stage: a command outside [Service] (a socket's
+    # ExecStartPre=) would run outside the view and its sandbox.
+    case $sec:$k in \[Service\]:*) ;; *:Exec*)
+      printf '# sudo-less security: dropped %s=%s: it would run without the sandbox\n' "$k" "$v"
+      echo "prefix-units: ${src##*/}: dropped $k=$v: it would run without the sandbox" >&2
+      continue ;; esac
     case $sec:$k in
       \[Unit\]:*)
         if [[ $DEPS == *" $k "* ]]; then
@@ -383,7 +455,11 @@ translate() {
         v=$(host_path "$v") ;;
       \[Service\]:RuntimeDirectory)   # systemd makes it, and removes it on stop
         out=
-        for t in $v; do dir_name_ok "$t" && out+=" sudo-less/run/$t"; done
+        for t in $v; do
+          dir_name_ok "${t%%:*}" || continue
+          if [ -n "$system" ]; then out+=" sudo-less/run/$t"
+          else case $RUNDENY in *" ${t%%/*} "*) continue ;; esac; out+=" $t"; fi
+        done
         [ -n "$out" ] || continue
         v=${out# } ;;
       \[Socket\]:Listen*|\[Path\]:Path*)

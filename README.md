@@ -12,6 +12,23 @@ need admin rights, and you can undo everything by deleting one folder.
 
 Use it when you can't — or would rather not — install software system-wide.
 
+**Built only on what Debian already has.** The install and run path needs
+no container, no proot, no fakeroot, no bubblewrap, no daemon of our own,
+no helper binary. sudo-less stands on three mechanisms every standard
+Debian install ships:
+
+| mechanism | from | what sudo-less does with it |
+|---|---|---|
+| **user and mount namespaces** | the kernel, driven by util-linux's `unshare`, `nsenter`, `mount`, `setpriv` (Essential and required packages) | a private *view* where dpkg is "root" of a system whose `/usr`, `/etc`, `/var` are your `~/.local`; a sandbox for services |
+| **overlayfs**, unprivileged | the kernel (5.11 and later) | your prefix laid over the host's directories: the host's files show through, every write lands in `~/.local` |
+| **systemd's user manager** | `systemd --user`, running as you | the packages' services, translated into user units, started, restarted and removed with their package |
+
+On top of them: the real `apt` and `dpkg`, rebuilt to live in `~/.local`,
+and plain bash scripts. A package's service keeps its own systemd sandbox
+(`ProtectSystem=`, `SystemCallFilter=`, ...), rebuilt with the same
+namespaces and a seccomp filter loaded by `setpriv`, and a system service
+that has none gets a strict one, since here it runs as you.
+
 > [!CAUTION]
 > **AI-assisted and unaudited.** The scripts, patches and docs were written with
 > an AI assistant ([opencode](https://opencode.ai)). Read the code before you run
@@ -116,6 +133,12 @@ It depends first on the package's Debian **section**
 - **The admin's:** `admin`, `kernel`, `net` and `mail` servers, `database` and
   `httpd` servers, `tasks`, `metapackages`, and anything that creates a system
   user or ships a service, in any section.
+- **Services, experimental:** a service package that needs no system user
+  can already run its systemd units as your own user units, sandboxed,
+  while you are logged in ([`docs/services.md`](docs/services.md)). The
+  standard still counts these packages as the admin's until a survey
+  measures how many work
+  ([#36](https://github.com/jronminh/sudo-less/issues/36)).
 
 `apt-get install` refuses a package that needs root (one that creates a
 system user, or installs kernel modules), before anything is installed,
@@ -146,7 +169,9 @@ system, just use `apt`.
 plus a few patches forked from [Termux](https://github.com/termux/termux-packages)'s, rebuilt to
 install into `~/.local`. dpkg runs in a private view where `~/.local` looks like
 `/usr`, `/etc` and `/var`, so packages install unchanged
-([`docs/view.md`](docs/view.md)). Your copy keeps its own package database, separate from
+([`docs/view.md`](docs/view.md)). After each apt run, `prefix-integrate`
+makes what was installed usable: launchers, a small script for each program
+that needs the view, and a user unit for each service. Your copy keeps its own package database, separate from
 the system's, and treats everything already on the system as already installed —
 so it only fetches what you actually ask for. Neither program is a fork.
 
@@ -156,7 +181,8 @@ plain `apt`/`apt-get` in your shell to manage your own tools.
 Full detail: [`docs/apt-dpkg-port.md`](docs/apt-dpkg-port.md).
 
 Everything here is **plain shell scripts** — no daemon, no third-party runtime,
-no binaries of our own. The only compiled code is `apt` and `dpkg` themselves.
+no binaries of our own. The only compiled code is `apt` and `dpkg` themselves;
+everything else is the kernel, util-linux and systemd, as Debian ships them.
 That's deliberate, and it's what makes the project special: you can read every
 line of what runs on your machine, and there is nothing to trust but the code in
 this repo.
@@ -172,7 +198,11 @@ this repo.
 - [`docs/ecosystems.md`](docs/ecosystems.md) — what each language and some
   single packages made hard, and what the prefix view changes.
 - [`docs/view.md`](docs/view.md) — the prefix views: the one dpkg runs in,
-  and the shared one for installed programs that need it.
+  the shared one for installed programs that need it, the one services run
+  in, and the sandbox built on top.
+- [`docs/services.md`](docs/services.md) — packages' services under your own
+  systemd: what the user manager can do, how a unit is translated, the
+  default sandbox.
 - [`docs/problems.md`](docs/problems.md) — every obstacle between a `.deb` and a user without root, by when it bites and who can fix it (for contributors).
 - [`docs/admin-features.md`](docs/admin-features.md) — planned: one-time admin steps that give userspace more (linger, subid, devices), and the rule that keeps them safe.
 - [`docs/porting.md`](docs/porting.md) — building apt/dpkg yourself.

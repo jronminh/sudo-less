@@ -16,7 +16,8 @@
 #   identity   User=, Group=, DynamicUser=, capabilities: dropped, the
 #              service runs as you
 #   programs   an Exec line whose program needs the view (it has a
-#              prefix-wrap script) or names a file in the prefix runs in a
+#              prefix-wrap script), names a file in the prefix or state in
+#              /var/lib, /var/log, /var/cache or /var/spool runs in a
 #              service view (prefix-view --service): /usr, /etc, /opt and
 #              /var from the prefix, so the service finds its config and
 #              keeps its state in /var as on Debian; a program that runs
@@ -116,7 +117,11 @@ exec_needs_view() {
   prog=${1:-}
   if in_prefix "$prog" && has_wrapper "$prog"; then return 0; fi
   for w; do
-    case $w in /usr/*|/etc/*|/opt/*) [ ! -f "$PREFIX$w" ] || return 0 ;; esac
+    case $w in -*=/*) w=/${w#*=/} ;; esac      # --state=/var/lib/...
+    case $w in
+      /usr/*|/etc/*|/opt/*) [ ! -f "$PREFIX$w" ] || return 0 ;;
+      /var/lib/*|/var/log/*|/var/cache/*|/var/spool/*) return 0 ;;
+    esac
   done
   return 1
 }
@@ -134,6 +139,8 @@ exec_value() {  # the Exec line's value, for $VIEWED
     case $w in
       /run/*) w=%t/${w#/run/} ;;
       /var/run/*) w=%t/${w#/var/run/} ;;
+      -*=/run/*) w=${w%%=*}=%t/${w#*=/run/} ;;
+      -*=/var/run/*) w=${w%%=*}=%t/${w#*=/var/run/} ;;
     esac
     out+=" $w"
   done
@@ -218,11 +225,12 @@ translate() {
 unit_files() {
   grep -E '^(/usr)?/lib/systemd/(system|user)/[^/]+\.(service|socket|timer|path)$' "$1" 2>/dev/null |
   while IFS= read -r f; do
+    f=/usr${f#/usr}   # /lib is /usr/lib (merged /usr); $PREFIX/lib is sudo-less's
     [ -f "$PREFIX$f" ] || continue
     case $f in
       */system/*)
         n=${f##*/}
-        grep -qE "^(/usr)?/lib/systemd/user/$n\$" "$1" && [ -f "$PREFIX/usr/lib/systemd/user/$n" ] && continue ;;
+        [ -f "$PREFIX/usr/lib/systemd/user/$n" ] && grep -qE "^(/usr)?/lib/systemd/user/$n\$" "$1" && continue ;;
     esac
     echo "$f"
   done

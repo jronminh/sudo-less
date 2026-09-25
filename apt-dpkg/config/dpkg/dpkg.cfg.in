@@ -3,4 +3,8 @@
 # /etc/dpkg/dpkg.cfg and the root, admin dir and log are Debian's own:
 # /, /var/lib/dpkg and /var/log/dpkg.log, all of them in the prefix.
 force-not-root
+# dpkg reopens each unpacked file O_WRONLY to fsync it; as non-root that
+# fails for a read-only file (tailscale's 0444 /etc/default/tailscaled:
+# "cannot open ... .dpkg-new: Permission denied"). Skip the fsync instead.
+force-unsafe-io
 log /var/log/dpkg.log

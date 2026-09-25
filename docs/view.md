@@ -184,7 +184,12 @@ Tried on this host (2026-09-25): mini-httpd's system unit ran as a user
 service in the service view, serving `/var/www/html` and logging to
 `/var/log/mini_httpd.log` from the prefix, once its port was moved from 80
 to 8080; syncthing's own user unit ran as it is; removing both stopped them
-and deleted their units. Packages whose postinst creates the system user
+and deleted their units. tailscale's `tailscaled.service` ran too, with
+state in the prefix's `/var/lib/tailscale` and its socket at
+`$XDG_RUNTIME_DIR/tailscale/tailscaled.sock` (the CLI needs `--socket=`
+that path), once `FLAGS="--tun=userspace-networking"` was set in
+`/etc/default/tailscaled`: creating a TUN device needs CAP_NET_ADMIN, so
+without it tailscaled cannot start its engine. Packages whose postinst creates the system user
 they run as (redis, memcached, caddy) are still refused by `prefix-check`.
 
 ### Host mounts

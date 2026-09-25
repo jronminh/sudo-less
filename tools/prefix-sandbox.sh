@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # prefix-sandbox — run a command in a systemd-like sandbox, without root.
 #
-#   tools/prefix-sandbox.sh [-p DIRECTIVE=VALUE]... [--check] [--] CMD [ARG...]
+#   tools/prefix-sandbox.sh [-p DIRECTIVE=VALUE]... [--from=FILE] [--check] [--] CMD [ARG...]
+#
+# --from=FILE also takes the directives on FILE's "# sudo-less sandbox: D=V"
+# lines: prefix-units writes a service's sandbox into its user unit that
+# way, so that what the package wrote reaches this script as data, never
+# through systemd's parsing of an Exec line (issue #38).
 #
 # The directives are systemd.exec(5)'s, with their meaning there:
 #
@@ -83,6 +88,12 @@ while [ $# -gt 0 ]; do
     -p) [ $# -ge 2 ] || usage; opts+=("$2"); shift 2 ;;
     -p*) opts+=("${1#-p}"); shift ;;
     --property=*) opts+=("${1#*=}"); shift ;;
+    --from=*)
+      f=${1#*=}; shift
+      [ -f "$f" ] || { echo "prefix-sandbox: no such file: $f" >&2; exit 1; }
+      while IFS= read -r l; do
+        case $l in "# sudo-less sandbox: "*) opts+=("${l#"# sudo-less sandbox: "}") ;; esac
+      done < "$f" ;;
     --check) CHECK=1; shift ;;
     --as-root) [ $# -ge 3 ] || usage; ROOT="$2 $3"; shift 3 ;;   # from prefix-view
     --) shift; break ;;

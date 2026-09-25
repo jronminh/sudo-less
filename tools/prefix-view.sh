@@ -2,7 +2,7 @@
 # prefix-view — run a command in a prefix view.
 #
 #   tools/prefix-view.sh [--install] CMD [ARG...]   in a fresh install view (dpkg)
-#   tools/prefix-view.sh --private [-p D=V]... [--] CMD [ARG...]
+#   tools/prefix-view.sh --private [-p D=V]... [--sandbox-from=FILE] [--] CMD [ARG...]
 #                                            in a fresh private view, sandboxed
 #   tools/prefix-view.sh --service ...       --private, with the services' /run
 #   tools/prefix-view.sh --run CMD [ARG...]  in the shared run view
@@ -189,6 +189,7 @@ if [ "${1-}" != --inner ]; then
     while [ $# -gt 0 ]; do
       case $1 in
         -p) [ $# -ge 2 ] || break; SANDBOX+=("--property=$2"); shift 2 ;;
+        --sandbox-from=*) SANDBOX+=("--from=${1#*=}"); shift ;;
         --) shift; break ;;
         *) break ;;
       esac

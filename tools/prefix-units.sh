@@ -71,6 +71,7 @@ ENABLED=$PREFIX/var/lib/sudo-less/units-enabled   # a file per unit enabled here
 VIEW=$PREFIX/lib/sudo-less/prefix-view
 UNITS=${XDG_DATA_HOME:-$HOME/.local/share}/systemd/user
 TAG='# sudo-less user unit (prefix-units); regenerated, do not edit'
+SBXMARK='# sudo-less sandbox: '   # a directive for prefix-sandbox (--sandbox-from)
 
 # Targets the user manager has (systemd.special(7), "Units managed by the
 # user service manager"); any other target is the system manager's.
@@ -148,8 +149,17 @@ own_var_dirs() {
   local d
   [ -n "${PKG_LIST:-}" ] || return 0
   while IFS= read -r d; do
-    [ -d "$PREFIX$d" ] && [ ! -L "$PREFIX$d" ] && SBX+=" -p ReadWritePaths=-$d"
+    [ -d "$PREFIX$d" ] && [ ! -L "$PREFIX$d" ] && SBX+="ReadWritePaths=-$d"$'\n'
   done < <(grep -E '^/var/(lib|cache|log|spool)/[^/]+$' "$PKG_LIST" 2>/dev/null)
+}
+
+# The generated unit's path on an Exec line: systemd unescapes \, and
+# expands % and $ there.
+exec_path() {
+  local p=$1
+  case $p in *[!A-Za-z0-9/._@:+\\-]*)
+    echo "prefix-units: cannot name $p on an Exec line" >&2; return 1 ;; esac
+  printf %s "${p//\\/\\\\}"
 }
 
 exec_value() {  # the Exec line's value, in the view with the sandbox $SBX
@@ -164,19 +174,25 @@ exec_value() {  # the Exec line's value, in the view with the sandbox $SBX
   case $pre in *@*) pre=${pre//@/}; [ $# -eq 0 ] || shift ;; esac
   out=
   for w; do out+=" $(system_specifiers "$w")"; done
-  printf '%s%s --service%s -- %s%s' "$pre" "$VIEW" "$SBX" "$prog" "$out"
+  # The sandbox is read from the unit file itself (the "# sudo-less
+  # sandbox:" lines), not passed here: what the package wrote never goes
+  # through systemd's parsing of this line into prefix-view's options.
+  local from=
+  [ -z "$SBX" ] || from=" --sandbox-from=$(exec_path "$OUTUNIT")" || return 1
+  printf '%s%s --service%s -- %s%s' "$pre" "$VIEW" "$from" "$prog" "$out"
 }
 
-# sandbox_opt KEY VALUE: the -p options for prefix-sandbox, on $SBX.
+# sandbox_opt KEY VALUE: the directives for prefix-sandbox, one per line on
+# $SBX (written to the unit as "# sudo-less sandbox: K=V" lines).
 sandbox_opt() {
   local k=$1 v=$2 w
   case $k in
     SystemCallFilter|RestrictNamespaces|SystemCallArchitectures)
-      SBX+=" -p \"$k=$v\"" ;;
+      SBX+="$k=$v"$'\n' ;;
     *)
-      [ -n "$v" ] || { SBX+=" -p $k="; return; }
+      [ -n "$v" ] || { SBX+="$k="$'\n'; return; }
       set -f
-      for w in $v; do SBX+=" -p $k=$(sandbox_path "$w")"; done
+      for w in $v; do SBX+="$k=$(sandbox_path "$w")"$'\n'; done
       set +f ;;
   esac
 }
@@ -198,17 +214,18 @@ translate() {
     case $l in *=*) ;; *) continue ;; esac
     k=${l%%=*} v=${l#*=}
     k=${k%"${k##*[![:space:]]}"}; v=${v#"${v%%[![:space:]]*}"}
+    case $k in ''|'#'*|';'*|*[[:space:]]*) continue ;; esac   # a comment, not a directive
     set+="$k "
     # RuntimeDirectory= stays for systemd too, which makes it in $RUN.
     case "$TOSANDBOX RuntimeDirectory " in *" $k "*) sandbox_opt "$k" "$v" ;; esac
   done
   if [ -n "$system" ] && [ "${#lines[@]}" -gt 0 ]; then
     for d in $DEFAULT_SANDBOX; do
-      case $set in *" ${d%%=*} "*) ;; *) SBX+=" -p $d" ;; esac
+      case $set in *" ${d%%=*} "*) ;; *) SBX+="$d"$'\n' ;; esac
     done
     # /run (the services' own, tools/prefix-view.sh) stays writable for
     # pid files, as it is on Debian without ProtectSystem=strict.
-    case $set in *" ProtectSystem "*) ;; *) SBX+=" -p ReadWritePaths=/run"; own_var_dirs ;; esac
+    case $set in *" ProtectSystem "*) ;; *) SBX+="ReadWritePaths=/run"$'\n'; own_var_dirs ;; esac
   fi
   printf '%s\n# from %s\n' "$TAG" "$src"
   for l in "${lines[@]}"; do
@@ -216,11 +233,16 @@ translate() {
       \[*\]) sec=$l; printf '%s\n' "$l"
         if [ "$sec" = '[Service]' ]; then
           printf 'Environment=PREFIX=%s\n' "$PREFIX"
+          while IFS= read -r d; do
+            [ -z "$d" ] || printf '%s%s\n' "$SBXMARK" "$d"
+          done <<<"$SBX"
           [ -z "$system" ] || case $set in *" NoNewPrivileges "*) ;; *)
             printf 'NoNewPrivileges=yes\n' ;; esac
         fi
         continue ;;
     esac
+    # A line only prefix-units may write: prefix-sandbox reads it.
+    case $l in "$SBXMARK"*|"${SBXMARK% }"*) continue ;; esac
     case $l in *=*) ;; *) printf '%s\n' "$l"; continue ;; esac
     k=${l%%=*} v=${l#*=}
     k=${k%"${k##*[![:space:]]}"}
@@ -285,7 +307,7 @@ enabled_by_package() {   # the package's postinst enabled unit $1
 
 if [ "${1:-}" = --check ]; then
   shift
-  for f; do translate "$f"; echo; done
+  for f; do OUTUNIT=$UNITS/${f##*/} translate "$f"; echo; done
   exit 0
 fi
 
@@ -331,7 +353,7 @@ for list; do
   rec=$DB/$pkg made=()
   while IFS= read -r f; do
     n=${f##*/}
-    out=$(PKG_LIST=$list translate "$PREFIX$f")
+    out=$(PKG_LIST=$list OUTUNIT=$UNITS/$n translate "$PREFIX$f") || continue
     write_unit "$n" <<<"$out" || continue
     made+=("$n")
   done < <(unit_files "$list")

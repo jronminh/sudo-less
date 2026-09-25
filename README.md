@@ -68,13 +68,13 @@ and plain bash scripts. A package's service keeps its own systemd sandbox
 namespaces and a seccomp filter loaded by `setpriv`, and a system service
 that has none gets a strict one, since here it runs as you.
 
+## Install
+
 > [!CAUTION]
 > **AI-assisted and unaudited.** The scripts, patches and docs were written with
 > AI assistants ([opencode](https://opencode.ai), [Claude Code](https://claude.com/claude-code)). Read the code before you run
 > it — especially the root script under `admin/`. This is not a security-reviewed
 > artifact; [`docs/security.md`](docs/security.md) says what it protects and what not.
-
-## Install
 
 No root, no compiling:
 

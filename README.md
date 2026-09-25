@@ -1,6 +1,7 @@
 # sudo-less
 
 Install Debian packages into your home folder — **no root, no `sudo`**.
+It feels like apt because it is apt.
 
 ![license: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
 ![platform: Debian](https://img.shields.io/badge/platform-Debian-A81D33)
@@ -9,6 +10,9 @@ Install Debian packages into your home folder — **no root, no `sudo`**.
 `sudo-less` gives you a real `apt` and `dpkg` that install `.deb` packages into
 `~/.local` instead of the system. Your system files stay untouched, you don't
 need admin rights, and you can undo everything by deleting one folder.
+And nothing changes in how you work: a program you install runs by its
+name, a desktop app shows up in your launcher, a service starts on its
+own. No `enter`, no `run`, no second system to step into.
 
 Use it when you can't — or would rather not — install software system-wide.
 
@@ -26,16 +30,21 @@ of the system you already run, with no root at any point.**
   it runs on the system's own libraries.
 - **No root:** not to install, not to run. The admin's only step is
   enabling unprivileged user namespaces, which Debian does by default.
+- **Seamless:** the same `apt-get install`, then the program runs by its
+  name, like everything else on your system. When a package needs to find
+  its files at `/usr` or `/etc`, a small script under its name steps into
+  the view for it (~0.03 s); launchers, services and their restarts on
+  upgrade come with the package.
 
 How it compares:
 
-| | packages from | relation to the host | root |
-|---|---|---|---|
-| **sudo-less** | the Debian archive | shares it: installs only what the host lacks, into `~/.local` | no |
-| `sudo apt` | the Debian archive | installs into the system, for everyone | yes |
-| Homebrew, Nix, Guix, conda | their own repositories | a second world of packages and libraries beside the host's | no (Nix often once) |
-| Flatpak `--user`, AppImage | bundles with their own runtimes | isolated from the host | no |
-| distrobox, toolbox, podman, proot | a whole distribution | a second system in a container | subordinate ids (root once), proot none |
+| | packages from | relation to the host | root | what you installed runs |
+|---|---|---|---|---|
+| **sudo-less** | the Debian archive | shares it: installs only what the host lacks, into `~/.local` | no | by its name |
+| `sudo apt` | the Debian archive | installs into the system, for everyone | yes | by its name |
+| Homebrew, Nix, Guix, conda | their own repositories | a second world of packages and libraries beside the host's | no (Nix often once) | by its name, from that world (conda: once activated) |
+| Flatpak `--user`, AppImage | bundles with their own runtimes | isolated from the host | no | `flatpak run org.example.App`, or the AppImage file |
+| distrobox, toolbox, podman, proot | a whole distribution | a second system in a container | subordinate ids (root once), proot none | inside it (`distrobox enter`), or exported app by app |
 
 So it is for this: you run Debian, you need more of **Debian's**
 packages, you have no `sudo`, and you want neither a second package world

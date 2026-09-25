@@ -31,7 +31,7 @@ that has none gets a strict one, since here it runs as you.
 
 > [!CAUTION]
 > **AI-assisted and unaudited.** The scripts, patches and docs were written with
-> an AI assistant ([opencode](https://opencode.ai)). Read the code before you run
+> AI assistants ([opencode](https://opencode.ai), [Claude Code](https://claude.com/claude-code)). Read the code before you run
 > it — especially the root script under `admin/`. This is not a security-reviewed
 > artifact.
 
@@ -251,7 +251,8 @@ path. Not affiliated with Debian or Termux.
 ## Contributors & license
 
 Built by **jronminh** with **deepseek-v4-flash** ([opencode](https://opencode.ai))
-as pairing assistant — see [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
+and **Claude** ([Claude Code](https://claude.com/claude-code)) as pairing
+assistants — see [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
 
 [GPL-3.0-or-later](LICENSE). The patches under `apt-dpkg/patches/` are a fork of
 [`termux/termux-packages`](https://github.com/termux/termux-packages)'s and remain

@@ -8,8 +8,8 @@ It feels like apt because it is apt.
 ![root: not required](https://img.shields.io/badge/root-not%20required-brightgreen)
 
 `sudo-less` gives you a real `apt` and `dpkg` that install `.deb` packages into
-`~/.local` instead of the system. Your system files stay untouched, you don't
-need admin rights, and you can undo everything by deleting one folder.
+`~/.local` instead of the system. Your system files stay untouched, and you
+don't need admin rights.
 And nothing changes in how you work: a program you install runs by its
 name, a desktop app shows up in your launcher, a service starts on its
 own. No `enter`, no `run`, no second system to step into.
@@ -105,6 +105,26 @@ dpkg -l                                 # your own package list
 download is checked against a published hash; see
 [`docs/release.md`](docs/release.md) for how the trust works and how to verify a
 build yourself.
+
+### Uninstall
+
+Your system is never touched, so there is nothing to undo there. In your
+home, sudo-less uses `~/.local`, which other programs share (Flatpak's
+`--user` apps, `pip install --user`, their data in `~/.local/share`):
+**do not delete `~/.local` as a whole.** What is sudo-less's:
+
+- `~/.local/usr`, `etc`, `var`, `opt`, `lib/sudo-less`, `.sudo-less`, and
+  apt, dpkg and the view scripts in `~/.local/bin` and `sbin`;
+- the user units it made (`~/.local/share/systemd/user/*.service` marked
+  `# sudo-less user unit`) and their links in
+  `~/.config/systemd/user/*.wants/`;
+- `~/.config/environment.d/50-sudo-less.conf`,
+  `~/.config/systemd/user/sudo-less-run-view.service`,
+  `~/.config/sudo-less/`;
+- the `# >>> sudo-less PATH >>>` block in `~/.bashrc` and `~/.profile`.
+
+Stop its services first (`systemctl --user disable --now UNIT`). A command
+that removes exactly these is planned.
 
 ## Goal
 

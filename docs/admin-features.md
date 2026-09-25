@@ -39,7 +39,7 @@ maintainer script reach the host's root services. It hides the host's
 | feature | the admin runs | the kernel or distro enforces it | what it unlocks | risk |
 |---|---|---|---|---|
 | **userns** (done) | a sysctl in `/etc/sysctl.d` | kernel | the install and run views | low: Debian's default |
-| **linger** | `loginctl enable-linger USER` | systemd's per-user manager, running as the user | services from packages that ship **user** units (`/usr/lib/systemd/user`), started at boot and kept after logout | low: the services run as the user |
+| **linger** | `loginctl enable-linger USER` | systemd's per-user manager, running as the user | the user manager, and with it every service from the prefix ([`services.md`](services.md)), started at boot and kept after logout instead of only while the user is logged in | low: the services run as the user |
 | **subid** | ranges in `/etc/subuid` and `/etc/subgid`, and the `uidmap` package | `newuidmap` and `newgidmap` (setuid, from shadow) | a view that maps more ids, so `chown` and `install -g adm` in maintainer scripts work; rootless podman as a whole-system fallback for packages that stay **never** | low to medium: files may end up owned by subordinate ids, which the user manages only from inside a namespace |
 | **devices** | the user added to a group from a fixed list: `dialout`, `plugdev`, `video`, `render`, `kvm`; or a udev rule tagging one device `uaccess` | kernel file permissions and ACLs | serial and USB devices, the GPU, KVM | low, if the list stays fixed |
 | **cgroups** | `Delegate=` in a drop-in for `user@.service` | systemd, and the kernel's cgroup v2 delegation | limits on the user's own processes beyond systemd's default `pids memory cpu`, such as `cpuset` and `io` (rootless podman's `--cpuset-cpus`) | low: the user limits only their own processes |
@@ -61,17 +61,17 @@ kernel modules, `/boot`, and setuid programs.
   `id -Gn`), and `sudo-less doctor` reports which features are on.
 - **Verdicts follow the features.** `prefix-check` and `prefix-wrap` ask the
   same detection:
-  - with linger, a package whose services are all user units is allowed
-    instead of refused;
+  - with linger, the prefix's services start at boot instead of at login;
   - with subid, the install view maps the extra ids.
 - **Documented as rows** of the root, once column in
   [`problems.md`](problems.md), each naming the cells it unlocks.
 
 ## Order
 
-1. **linger**: it moves real packages out of **never**, runs nothing as
-   root, and is easy to test. Measure first: in the survey, how many
-   packages ship only user units, and how many ship system units.
+1. **linger**: it keeps the prefix's services running without a login,
+   runs nothing as root, and is easy to test. The services themselves no
+   longer need it: `prefix-units` runs them while the user is logged in
+   ([`services.md`](services.md)).
 2. **subid**: the proper fix for ownership changes in maintainer scripts,
    if the survey shows they are common. The podman fallback is a separate,
    larger design.
@@ -118,7 +118,7 @@ user unit also run fine started by hand.
 
 | a package ships | packages | share | here |
 |---|---|---|---|
-| a system service (a unit in `/usr/lib/systemd/system` or an init script) | 1485 | 2.1 % | **never** |
+| a system service (a unit in `/usr/lib/systemd/system` or an init script) | 1485 | 2.1 % | non-root, translated into a user unit ([`services.md`](services.md)), unless it runs as a system user or has only an init script |
 | a tmpfiles.d entry (`/run`, `/var/log`, modes at boot) | 354 | 0.5 % | mostly with a service |
 | a udev rule | 296 | 0.4 % | **devices** |
 | a system user (`sysusers.d`) | 255 | 0.4 % | **never** |
@@ -138,11 +138,14 @@ package's own programs, which the install view and shims handle without
 any grant; a few create a service or a system user (**never**), and a
 `chown` to a system group is what **subid** is for.
 
-So what packages ask for is overwhelmingly one thing, a system service,
-and that stays **never**. The grants sudo-less can give reach a small,
-countable part: user units for **linger**, udev rules for **devices**, and
-ownership changes for **subid**. That is why linger comes first in the
-[order](#order).
+So what packages ask for is overwhelmingly one thing, a system service.
+Most of those need no grant at all: `prefix-units` translates them into
+user units ([`services.md`](services.md)); what stays **never** is a
+service that runs as a system user (at least 196 packages ship a
+`sysusers.d` file, more create one in postinst) or from an init script
+alone (25). The grants reach a small, countable part: **linger** to run
+services without a login, udev rules for **devices**, and ownership
+changes for **subid**.
 
 ## Prior art
 

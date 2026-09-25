@@ -95,7 +95,7 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
 | stage 1 sync | manual: `lock-seeded.sh --reseed` |
 | stage 2 classify | `prefix-check` is hooked (`DPkg::Pre-Install-Pkgs`): it refuses a package that creates a system user or group, or installs kernel modules or into `/boot`, before dpkg runs; `check-package.sh` is not merged into it yet |
 | stage 3 install | dpkg runs in the install view, with an empty `/run` so maintainer scripts cannot reach the host's services; no shims needed so far (the view made `py3compile`'s unnecessary) |
-| stage 4 integrate | launchers (`01update-desktop-database`); `prefix-wrap` gives programs that need the view a script that runs them in the shared run view, and the rest run directly ([`view.md`](view.md#how-programs-get-there)); `prefix-units` runs the packages' systemd units as user units ([`view.md`](view.md#the-service-view)) |
+| stage 4 integrate | launchers (`01update-desktop-database`); `prefix-wrap` gives programs that need the view a script that runs them in the shared run view, and the rest run directly ([`view.md`](view.md#how-programs-get-there)); `prefix-units` runs the packages' systemd units as user units ([`services.md`](services.md)) |
 | ecosystems | documented in [`ecosystems.md`](ecosystems.md); no per-language code |
 | state, `explain`, `doctor` | not yet |
 

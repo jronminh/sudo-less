@@ -26,7 +26,7 @@ for people working on sudo-less. The numbers are from
 | | non-root | root, once | never |
 |---|---|---|---|
 | **install** | dpkg and its database in the prefix; the host's packages counted as installed; maintainer scripts in the install view; refusing what cannot work before dpkg runs | unprivileged user namespaces and overlayfs; version skew (upgrade the host) | system users and groups; kernel modules and `/boot` |
-| **run** | `PATH`; the run view for programs that look for their files at `/usr`, `/etc`, `/opt`; desktop launchers | unprivileged user namespaces (the same step); device groups | services and daemons; setuid and file capabilities; `/run`, privileged ports |
+| **run** | `PATH`; the run view for programs that look for their files at `/usr`, `/etc`, `/opt`; desktop launchers | unprivileged user namespaces (the same step); device groups | services that run as a system user or from an init script; setuid and file capabilities; `/run`, privileged ports |
 
 More admin steps, each unlocking some cells, are planned in
 [`admin-features.md`](admin-features.md).
@@ -66,7 +66,7 @@ More admin steps, each unlocking some cells, are planned in
 | the prefix's programs are not on `PATH` | `$PREFIX/bin` and `$PREFIX/usr/bin` on `PATH`, for shells and the desktop session | `scripts/setup/install-shell-path.sh`, `install-session-env.sh` |
 | a program looks for its files at `/usr/...`, `/etc/...`, `/opt/...` (compiled-in paths, an interpreter's module path, a library only in the prefix, an alternatives link, a shebang naming an interpreter only in the prefix) | `prefix-wrap` gives it a script in `$PREFIX/bin` that runs it in the shared run view; every other program runs directly | [`view.md`](view.md#how-programs-get-there) |
 | a disk mounted after the run view started is not in it | the run view receives the host's mounts (`--propagation slave`) | [`view.md`](view.md#host-mounts) |
-| a package's service (a systemd unit, system or user) is never started | `prefix-units` translates it into a user unit run by the user's own systemd, in a service view with the prefix's `/var`, and starts it if the package enabled it | [`view.md`](view.md#the-service-view), `apt-dpkg/config/apt.conf.d/04units.in` |
+| a package's service (a systemd unit, system or user) is never started | `prefix-units` translates it into a user unit run by the user's own systemd, in a service view with the prefix's `/var`, and starts it if the package enabled it | [`services.md`](services.md), `apt-dpkg/config/apt.conf.d/04units.in` |
 | a desktop app has no launcher or icon | `XDG_DATA_DIRS` for the session, and the desktop database refreshed after each dpkg run | `install-session-env.sh`, `apt-dpkg/config/apt.conf.d/01update-desktop-database.in` |
 
 ### Root, once

@@ -145,52 +145,17 @@ that starts another wrapped program stays in the same view.
 
 ### The service view
 
-A package's systemd units are written for the system manager: the service
-runs as `User=redis`, after `network.target`, wanted by `multi-user.target`,
-and reads `/etc/redis/redis.conf` and writes `/var/lib/redis`. After every
-dpkg run `prefix-units` (`tools/prefix-units.sh`, hook
-`apt-dpkg/config/apt.conf.d/04units.in`) translates each unit of the
-packages that changed into a user unit in `~/.local/share/systemd/user`,
-where the user's own systemd (`systemd --user`) finds it:
-
-- `User=`, `Group=`, `DynamicUser=` and capabilities are dropped: the
-  service runs as the user;
-- an `Exec` line whose program has a `prefix-wrap` script, or that names a
-  file in the prefix, runs as `prefix-view --service CMD`: a fresh view
-  with the prefix on `/usr`, `/etc`, `/opt` and `/var`, so the daemon reads
-  its config and keeps its state and logs in `/var` as on Debian, and it all
-  lands in `$PREFIX/var`. `/run` stays the host's, so it still reaches the
-  user manager (`Type=notify`) and `/run/user`;
-- sandboxing that builds its own mount namespace (`ProtectSystem=`,
-  `ProtectHome=`, `PrivateTmp=`, `ReadWritePaths=`, ...) is dropped for a
-  program from the prefix: it names host paths and hides `$HOME`;
-- `/run/X` becomes `%t/X` (`$XDG_RUNTIME_DIR`); paths systemd reads itself
-  (`EnvironmentFile=`, `PIDFile=`, `Condition*=`) get their prefix copy;
-- targets only the system manager has are dropped from the dependencies,
-  and `WantedBy=multi-user.target` becomes `default.target`;
-- a package that ships a user unit of the same name (mpd, syncthing) gets
-  that one instead.
-
-A unit the package enabled (its postinst's `deb-systemd-helper enable`
-leaves symlinks in `$PREFIX/etc/systemd`) is enabled and started with
-`systemctl --user enable --now`, as Debian starts a service on install; a
-changed unit is restarted if running; a removed package's units are
-stopped, disabled and deleted. Services run while the user is logged in;
-running them without a session is linger, an admin grant
-([`admin-features.md`](admin-features.md)). `SUDO_LESS_UNITS=nostart`
-enables without starting, `SUDO_LESS_UNITS=off` skips it all.
-
-Tried on this host (2026-09-25): mini-httpd's system unit ran as a user
-service in the service view, serving `/var/www/html` and logging to
-`/var/log/mini_httpd.log` from the prefix, once its port was moved from 80
-to 8080; syncthing's own user unit ran as it is; removing both stopped them
-and deleted their units. tailscale's `tailscaled.service` ran too, with
-state in the prefix's `/var/lib/tailscale` and its socket at
-`$XDG_RUNTIME_DIR/tailscale/tailscaled.sock` (the CLI needs `--socket=`
-that path), once `FLAGS="--tun=userspace-networking"` was set in
-`/etc/default/tailscaled`: creating a TUN device needs CAP_NET_ADMIN, so
-without it tailscaled cannot start its engine. Packages whose postinst creates the system user
-they run as (redis, memcached, caddy) are still refused by `prefix-check`.
+A package's daemon reads `/etc/redis/redis.conf` and writes
+`/var/lib/redis`. When `prefix-units` translates its systemd unit into a
+user unit ([`services.md`](services.md)), an `Exec` line whose program has
+a `prefix-wrap` script, names a file in the prefix, or names state in
+`/var` runs as `prefix-view --service CMD`: a fresh view with the prefix on
+`/usr`, `/etc`, `/opt` and `/var`, so the daemon reads its config and keeps
+its state and logs where Debian puts them, and it all lands in
+`$PREFIX/var`; the run view leaves `/var` the host's. It is fresh for each
+start, like the install view. `/run`
+stays the host's, so the daemon still reaches the user manager
+(`Type=notify`) and `$XDG_RUNTIME_DIR`, where its `/run` paths were moved.
 
 ### Host mounts
 

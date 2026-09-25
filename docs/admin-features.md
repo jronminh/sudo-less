@@ -108,6 +108,42 @@ test host, with Phosh, that is 87 of 276 actions from 24 packages, such as
 udisks2's `filesystem-mount`. sudo-less does not rely on them: they depend
 on a desktop being installed, and they do not apply over SSH.
 
+## What packages ask for
+
+The other side: how many packages in the archive ship each kind of file
+that needs a privilege, counted by the same script from the Contents index
+(forky `main`, amd64 and `all`, 70397 packages, 2026-09-25). A file is what
+a package carries, not proof that it needs it to run: many packages with a
+user unit also run fine started by hand.
+
+| a package ships | packages | share | here |
+|---|---|---|---|
+| a system service (a unit in `/usr/lib/systemd/system` or an init script) | 1485 | 2.1 % | **never** |
+| a tmpfiles.d entry (`/run`, `/var/log`, modes at boot) | 354 | 0.5 % | mostly with a service |
+| a udev rule | 296 | 0.4 % | **devices** |
+| a system user (`sysusers.d`) | 255 | 0.4 % | **never** |
+| a user service (a unit in `/usr/lib/systemd/user`) | 239 | 0.3 % | **linger** |
+| a polkit action, a D-Bus system policy | 166, 148 | 0.2 % each | **never**: a root daemon's |
+| a PAM configuration | 88 | 0.1 % | **never** |
+| a cron.d job | 81 | 0.1 % | **never** |
+| a kernel module, dkms source, modprobe.d, sysctl.d | 15, 41, 8, 8 | < 0.1 % | **never** |
+| any of these, user units and tmpfiles.d aside | 2069 | 2.9 % | |
+| for scale: a program in `/usr/bin` | 13906 | 19.8 % | |
+| for scale: a desktop entry | 2742 | 3.9 % | |
+
+Maintainer scripts are not in the Contents index. The
+[survey](survey-2026-09.md) measured them instead: 13 % of installs were
+blocked by one, mostly writes to `/etc` or `/var/log` and calls to the
+package's own programs, which the install view and shims handle without
+any grant; a few create a service or a system user (**never**), and a
+`chown` to a system group is what **subid** is for.
+
+So what packages ask for is overwhelmingly one thing, a system service,
+and that stays **never**. The grants sudo-less can give reach a small,
+countable part: user units for **linger**, udev rules for **devices**, and
+ownership changes for **subid**. That is why linger comes first in the
+[order](#order).
+
 ## Prior art
 
 Each grant above already exists somewhere. What sudo-less adds is the set

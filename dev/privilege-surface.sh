@@ -2,7 +2,8 @@
 # privilege-surface.sh — what a fresh Debian install gives an unprivileged
 # user: setuid/setgid files, polkit, root D-Bus services, udev rules and
 # sysctls, and which packages bring them. docs/admin-features.md
-# ("Debian's privilege surface, measured") is its result.
+# ("Debian's privilege surface, measured" and "What packages ask for") is
+# its result.
 #
 #   OUT=~/surface dev/privilege-surface.sh [SUITE [ARCH]]
 #
@@ -16,6 +17,10 @@
 # OUT/debs), from their tmpfiles.d `z` lines, applied by systemd-tmpfiles in
 # postinst (ssh-agent), and from this host's dpkg-statoverride, where other
 # postinst scripts set them (dbus-daemon-launch-helper).
+#
+# Last, the whole archive: how many packages ship each kind of file that
+# needs a privilege (from the Contents index alone, so what a package
+# carries, not what it needs to run; maintainer scripts are not covered).
 #
 # Needs only curl, xz, gzip, python3 and dpkg-deb; no root.
 set -euo pipefail
@@ -115,3 +120,38 @@ echo "== this host against the fresh set"
   | awk '$1 == "ii" {print $2}' | sort > installed.txt
 cut -f1 fresh.txt | comm -23 - installed.txt > missing-here.txt
 echo "  $(wc -l < missing-here.txt) fresh-install packages are not installed here (missing-here.txt)"
+
+echo "== the whole archive: packages per kind of file"
+python3 - <<'EOF'
+import collections
+total = sum(1 for l in open('Packages') if l.startswith('Package: '))
+kinds = [('system service (unit or init script)', ('usr/lib/systemd/system/', 'etc/init.d/')),
+         ('system user (sysusers.d)', ('usr/lib/sysusers.d/',)),
+         ('tmpfiles.d', ('usr/lib/tmpfiles.d/',)),
+         ('udev rule', ('usr/lib/udev/rules.d/',)),
+         ('user service (user unit)', ('usr/lib/systemd/user/',)),
+         ('D-Bus system policy', ('usr/share/dbus-1/system.d/',)),
+         ('polkit action', ('usr/share/polkit-1/actions/',)),
+         ('PAM', ('etc/pam.d/', 'usr/lib/pam.d/')),
+         ('cron.d', ('etc/cron.d/',)),
+         ('dkms module source', ('usr/src/',)),
+         ('kernel module', ('usr/lib/modules/',)),
+         ('modprobe.d', ('usr/lib/modprobe.d/',)),
+         ('sysctl.d', ('usr/lib/sysctl.d/',)),
+         ('any of the above but user units and tmpfiles.d', None),
+         ('for scale: a program in /usr/bin', ('usr/bin/',)),
+         ('for scale: a desktop entry', ('usr/share/applications/',))]
+anyof = tuple(q for k, ps in kinds if ps and k not in ('tmpfiles.d', 'user service (user unit)')
+              and not k.startswith('for scale') for q in ps)
+h = collections.defaultdict(set)
+for line in open('Contents'):
+    path, _, pk = line.rstrip().rpartition(' ')
+    path = path.strip()
+    names = {x.split('/')[-1] for x in pk.split(',')}
+    for k, ps in kinds:
+        if path.startswith(ps or anyof) and (k != 'dkms module source' or path.endswith('/dkms.conf')):
+            h[k] |= names
+print(f'  {total} packages')
+for k, _ in kinds:
+    print(f'  {len(h[k]):6d} {100 * len(h[k]) / total:5.1f}%  {k}')
+EOF

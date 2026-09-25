@@ -12,6 +12,8 @@ need admin rights, and you can undo everything by deleting one folder.
 
 Use it when you can't — or would rather not — install software system-wide.
 
+![sudo-less: apt-get install without sudo, into ~/.local](docs/demo.gif)
+
 ## What it is, and what it is not
 
 **sudo-less is Debian's own apt, installing into your `~/.local`, on top

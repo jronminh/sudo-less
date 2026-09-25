@@ -12,6 +12,45 @@ need admin rights, and you can undo everything by deleting one folder.
 
 Use it when you can't — or would rather not — install software system-wide.
 
+## What it is, and what it is not
+
+**sudo-less is Debian's own apt, installing into your `~/.local`, on top
+of the system you already run, with no root at any point.**
+
+- **Debian's own packages:** the same archive, versions and ABI as your
+  system; not a separate world of packages.
+- **Shared with the host:** what the system already has (libc, Qt,
+  Python, ...) counts as installed. Only what you ask for is fetched, and
+  it runs on the system's own libraries.
+- **No root:** not to install, not to run. The admin's only step is
+  enabling unprivileged user namespaces, which Debian does by default.
+
+How it compares:
+
+| | packages from | relation to the host | root |
+|---|---|---|---|
+| **sudo-less** | the Debian archive | shares it: installs only what the host lacks, into `~/.local` | no |
+| `sudo apt` | the Debian archive | installs into the system, for everyone | yes |
+| Homebrew, Nix, Guix, conda | their own repositories | a second world of packages and libraries beside the host's | no (Nix often once) |
+| Flatpak `--user`, AppImage | bundles with their own runtimes | isolated from the host | no |
+| distrobox, toolbox, podman, proot | a whole distribution | a second system in a container | subordinate ids (root once), proot none |
+
+So it is for this: you run Debian, you need more of **Debian's**
+packages, you have no `sudo`, and you want neither a second package world
+nor a second system.
+
+What it is not:
+
+- **Not an isolation tool.** Programs you install run as you, with your
+  files, as on any system. What sudo-less sandboxes is a package while it
+  installs, and its services ([`docs/security.md`](docs/security.md)).
+- **Not a new distribution**, and not for other distributions: it installs
+  Debian packages on Debian.
+- **Not a container.** The views and sandboxes below are the means, not
+  the point: packages expect their files at `/usr`, `/etc`, `/var`; a
+  service has no system user to keep it from your files; services need a
+  manager.
+
 **Built only on what Debian already has.** The install and run path needs
 no container, no proot, no fakeroot, no bubblewrap, no daemon of our own,
 no helper binary. sudo-less stands on three mechanisms every standard
@@ -158,10 +197,10 @@ What can and cannot work, and why: [`docs/problems.md`](docs/problems.md).
 - **Keeping the system clean** — install into `~/.local` even when you *do* have
   `sudo`, and leave `/usr` alone.
 
-**Not** the right tool for: plain CLI tools where [Homebrew](https://brew.sh) is
-more mature, scientific stacks (conda/spack), or desktop app isolation
-(Flatpak/distrobox). And if you have `sudo` and don't care about a pristine
-system, just use `apt`.
+**Not** the right tool for: software Debian does not package (Homebrew,
+Nix, conda, Flathub have more), scientific stacks pinned apart from the
+system (conda, spack), or desktop apps you want isolated (Flatpak). And if
+you have `sudo` and don't care about a pristine system, just use `apt`.
 
 ## How it works
 

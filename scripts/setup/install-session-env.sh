@@ -9,8 +9,10 @@
 # prefix is baked in. Re-login (restart the session) to apply.
 #
 # Without this, `.desktop` files installed to $PREFIX/usr/share/applications
-# are never scanned: Phosh discovers launchers via $XDG_DATA_DIRS, which a
-# shell rc cannot change for the session.
+# are never scanned: Phosh discovers launchers via $XDG_DATA_DIRS. This covers
+# systemd --user services. A session that starts from a login shell (Phosh via
+# gnome-session) then pushes the shell's XDG_DATA_DIRS into systemd --user and
+# overrides this value, so install-shell-path.sh sets it in ~/.profile as well.
 set -euo pipefail
 source "$(dirname "$0")/../common.sh"
 

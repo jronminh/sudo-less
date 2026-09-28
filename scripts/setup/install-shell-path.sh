@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Add the userspace apt/dpkg prefix dirs to the shell PATH, idempotently, so
-# packages installed into $PREFIX/usr/bin are runnable in new shells.
+# packages installed into $PREFIX/usr/bin are runnable in new shells. Also puts
+# $PREFIX/usr/share on XDG_DATA_DIRS: a session started from a login shell
+# (Phosh, GNOME) takes it from here, so prefix apps show up in the launcher.
 #
 #   ./scripts/setup/install-shell-path.sh
 #
@@ -23,6 +25,13 @@ if [ -d "$PREFIX/bin" ] || [ -d "$PREFIX/usr/bin" ]; then
     esac
 fi
 export PATH
+# desktop launchers and icons: Phosh/GNOME take XDG_DATA_DIRS from the login
+# shell and push it into systemd --user, overriding environment.d
+case ":\${XDG_DATA_DIRS:=/usr/local/share:/usr/share}:" in
+    *":$PREFIX/usr/share:"*) ;;
+    *) XDG_DATA_DIRS="$PREFIX/usr/share:$PREFIX/share:\$XDG_DATA_DIRS" ;;
+esac
+export XDG_DATA_DIRS
 # point apt at the prefix's own config (keeps a built prefix relocatable)
 if [ -f "$PREFIX/etc/apt/apt.conf.d/00local-prefix" ]; then
     APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"

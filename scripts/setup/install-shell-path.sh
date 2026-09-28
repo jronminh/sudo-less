@@ -48,8 +48,18 @@ updated=0
 for rc in "$HOME/.bashrc" "$HOME/.profile"; do
   [ -e "$rc" ] || continue
   if grep -qF "$MARK" "$rc"; then
-    sed -i "\|$MARK|,\|$END|d" "$rc"   # drop the old block, then re-add
-    printf '\n%s\n' "$BLOCK" >> "$rc"
+    # Replace the block in place. Earlier versions deleted it and appended a
+    # new one after a blank line, so every refresh left one more blank line
+    # behind; squeeze the blank lines in front of the block back to one.
+    BLOCK="$BLOCK" MARK="$MARK" END="$END" awk '
+      skip { if ($0 == ENVIRON["END"]) skip = 0; next }
+      /^$/ { blanks++; next }
+      $0 == ENVIRON["MARK"] { if (blanks) print ""; blanks = 0
+                              print ENVIRON["BLOCK"]; skip = 1; next }
+      { for (; blanks > 0; blanks--) print ""; print }
+      END { for (; blanks > 0; blanks--) print "" }' "$rc" > "$rc.sudo-less.tmp"
+    cat "$rc.sudo-less.tmp" > "$rc"    # keep the file's inode and mode
+    rm -f "$rc.sudo-less.tmp"
     log "refreshed $rc"
   else
     printf '\n%s\n' "$BLOCK" >> "$rc"

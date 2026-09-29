@@ -149,7 +149,7 @@ plan)
   echo "from  $FROM"
   echo "to    $TO$([ ! -x "$TO/.sl/bin/sl-status" ] || echo ' (already set up)')"
   echo
-  echo "install: copy apt and dpkg from $FROM, set up $TO, carry the apt sources, and install again:"
+  echo "install: copy apt and dpkg from $FROM, set up $TO (the host's suite), and install again:"
   wanted | tr '\n' ' ' | fold -s -w 76 | sed 's/^/  /'; echo
   echo
   echo "carry: config files you changed:"
@@ -186,11 +186,15 @@ install)
   log "copied apt and dpkg from $FROM"
 
   PREFIX=$TO bash "$REPO/scripts/setup/install-config.sh" ${NO_SHELL:+--no-shell}
-  # Your apt sources, pins and keys, and dpkg's foreign architectures.
-  for d in sources.list sources.list.d preferences.d trusted.gpg.d; do
-    [ -e "$FROM/etc/apt/$d" ] && cp -a "$FROM/etc/apt/$d" "$TO/etc/apt/"
-  done
+  # dpkg's foreign architectures. Not the apt sources: the new prefix
+  # follows the host's suite (apt-dpkg/install.sh), and old sources of a
+  # newer suite (the sid of earlier versions) would bring packages the
+  # host's libraries are too old for. They are listed, to add back by hand.
   [ ! -f "$FROM/var/lib/dpkg/arch" ] || cp -a "$FROM/var/lib/dpkg/arch" "$TO/var/lib/dpkg/"
+  for f in "$FROM/etc/apt/sources.list" "$FROM"/etc/apt/sources.list.d/*; do
+    [ -f "$f" ] || continue
+    grep -v '^[[:space:]]*\(#\|$\)' "$f" | sed "s|^|  old source (${f#"$FROM"/}): |"
+  done
 
   # The .debs the old prefix downloaded: apt takes those of the same
   # version from its cache instead of downloading them again (hard links

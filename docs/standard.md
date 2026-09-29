@@ -58,6 +58,13 @@ host has (24 % of the survey's sample on sid). sudo-less never upgrades
 system packages, so this is reported as "needs the admin to upgrade X", not
 as apt's "held broken packages". On Debian stable it hardly happens.
 
+Much of it came from the suite: the prefix took packages from sid while
+the host followed testing. The prefix now follows the host's own suite
+(`apt-dpkg/install.sh` reads it from the host's apt sources), so a
+package is built against the libraries the host has, up to the days the
+host lags behind its suite (prismlauncher: from sid it needed Qt 6.11 on
+a forky host with 6.10; from forky it installed).
+
 ## Mechanism
 
 Per program, one of `direct` (it runs from `$PREFIX/usr/bin`) or `view` (a

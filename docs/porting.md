@@ -73,7 +73,7 @@ superset for the *current* suite, which is fine.
 | source cache dir | `<repo>/src` | `SRC=/path` |
 | architecture | auto-detected (`dpkg --print-architecture`, else `uname -m`) | `DEB_ARCH=`, `DEB_CPU=` |
 | dpkg tuple data | `/usr/share/dpkg` | `-DDPKG_DATADIR` in `build-apt.sh` |
-| apt suite/mirror | `sid`, `deb.debian.org` | `apt-dpkg/config/sources.list` |
+| apt suite/mirror | the host's suite (`forky` on a testing host), `deb.debian.org`, main and contrib | `apt-dpkg/config/sources.list.in` (written once; edit `$PREFIX/etc/apt/sources.list` after) |
 
 The prefix config is generated from `apt-dpkg/config/apt.conf.d/00local-prefix.in` by
 `install-config.sh`, substituting `@PREFIX@`, so the prefix is not hardcoded.

@@ -48,11 +48,14 @@ mine() {
     <(from_apt apt-mark showmanual 2>/dev/null | sed 's/:'"$DEB_ARCH"'$//' | sort -u)
 }
 
-# Config files you changed: "PKG PATH" for each conffile of a package of
-# yours whose file differs from what the package shipped.
+# The packages to install again: PKGS if given, else all of yours.
+wanted() { if [ -n "${PKGS:-}" ]; then printf '%s\n' $PKGS; else mine; fi; }
+
+# Config files you changed: "PKG PATH" for each conffile of a package to
+# install again whose file differs from what the package shipped.
 changed_conffiles() ( set +e +o pipefail
   local pkg path sum rest
-  for pkg in $(mine); do
+  for pkg in $(wanted); do
     from_q -W -f '${Conffiles}\n' "$pkg" 2>/dev/null |
       while read -r path sum rest; do
         [ -n "$path" ] && [ -f "$FROM$path" ] || continue
@@ -111,7 +114,8 @@ old_files() ( set +e +o pipefail
     [ -f "$f" ] && [ ! -L "$f" ] || continue
     case ${f##*/} in
       sl-*|apt|apt-*|dpkg|dpkg-*|update-alternatives|start-stop-daemon) echo "$f" ;;
-      *) ! grep -qs 'sudo-less view wrapper' "$f" || echo "$f" ;;
+      # a launcher, or the py3compile shim of an earlier version
+      *) ! grep -qs -e 'sudo-less view wrapper' -e '^# py3compile shim' "$f" || echo "$f" ;;
     esac
   done
   # opt: the files the old prefix's packages put there (not whole folders:
@@ -146,7 +150,7 @@ plan)
   echo "to    $TO$([ ! -x "$TO/.sl/bin/sl-status" ] || echo ' (already set up)')"
   echo
   echo "install: copy apt and dpkg from $FROM, set up $TO, carry the apt sources, and install again:"
-  mine | tr '\n' ' ' | fold -s -w 76 | sed 's/^/  /'; echo
+  wanted | tr '\n' ' ' | fold -s -w 76 | sed 's/^/  /'; echo
   echo
   echo "carry: config files you changed:"
   changed_conffiles | sed 's/^/  /'
@@ -198,7 +202,7 @@ install)
   done
 
   "$TO/.sl/bin/sl-update"
-  pkgs=${PKGS:-$(mine | tr '\n' ' ')}
+  pkgs=$(wanted | tr '\n' ' ')
   log "installing: $pkgs"
   # Services are enabled, and started by `carry`, once their state is here.
   export SUDO_LESS_UNITS=nostart
@@ -209,6 +213,8 @@ install)
     for p in $pkgs; do "$TO/.sl/bin/sl-install" -y "$p" || failed="$failed $p"; done
     [ -z "$failed" ] || log "not installed:$failed (sl-status, and: sl-install PKG to see why)"
   fi
+  # The old .debs linked in above, and what was downloaded: not kept.
+  "$TO/.sl/bin/sl-apt" clean
   log "next: tools/migrate.sh carry"
   log "until clean-old, ~/.local/bin (first on PATH) still runs the old install's sl-* and programs"
   ;;
@@ -224,6 +230,8 @@ carry)
     systemctl --user stop $units || :
   fi
   changed_conffiles | while read -r pkg path; do
+    # only for what the new prefix has (install may have left one out)
+    "$TD/dpkg-query" -W -f '${Status}' "$pkg" 2>/dev/null | grep -q ' installed$' || continue
     ! cmp -s "$FROM$path" "$TO$path" || continue    # carried already
     [ ! -e "$TO$path" ] || cp -a "$TO$path" "$TO$path.dpkg-dist"
     mkdir -p "$(dirname "$TO$path")"
@@ -260,6 +268,15 @@ clean-old)
   for f in "$FROM/.sl/lib/prefix-view" "$FROM/lib/sudo-less/prefix-view"; do
     [ ! -x "$f" ] || PREFIX=$FROM "$f" --stop 2>/dev/null || :
   done
+  # The old prefix's services that are not the new one's: stop them before
+  # their units go.
+  if systemctl --user show-environment >/dev/null 2>&1; then
+    printf '%s\n' "$list" | while IFS= read -r f; do
+      case $f in *.service|*.socket|*.timer|*.path) ;; *) continue ;; esac
+      [ -f "$f" ] && [ ! -L "$f" ] && grep -qF '# sudo-less user unit' "$f" 2>/dev/null || continue
+      systemctl --user disable --now "${f##*/}" 2>/dev/null && log "stopped ${f##*/}" || :
+    done
+  fi
   printf '%s\n' "$list" | while IFS= read -r f; do
     [ -n "$f" ] || continue
     [ ! -d "$f" ] || [ -L "$f" ] || chmod -R u+w "$f" 2>/dev/null || :

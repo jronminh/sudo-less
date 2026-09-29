@@ -15,6 +15,10 @@
 # to. The apt lists are read from BASE and the .deb files kept in
 # OUT/archives, shared between packages.
 #
+# It leaves only its results: the working copy goes when it stops (even
+# interrupted), and OUT/archives (gigabytes) once the whole list is done,
+# unless KEEP_ARCHIVES=1. An interrupted run keeps them, and resumes.
+#
 # OUT/results.tsv gets one line per package:
 #   section package install detail run programs
 # install: ok, skew (apt cannot satisfy the dependencies with the host's
@@ -58,7 +62,7 @@ fresh_prefix() {
   tar -C "$BASE" --exclude=./var/lib/apt/lists --exclude=./var/cache/apt \
       --exclude=./.sl/state/view/work -cf - . | tar -C "$W/pfx" -xf -
   mkdir -p "$W/pfx/var/lib/apt/lists" "$W/pfx/var/cache/apt"
-  grep -rlF -- "$BASE" "$W/pfx/etc" "$W/pfx/share/sudo-less" 2>/dev/null |
+  grep -rlIF -- "$BASE" "$W/pfx/etc" "$W/pfx/.sl" 2>/dev/null |
     xargs -r sed -i "s|$BASE|$W/pfx|g"
 }
 
@@ -203,9 +207,12 @@ if [ "$LIST" = --reclassify ]; then
   exit
 fi
 
+trap clean_work EXIT
 while IFS=$'\t' read -r section pkg _; do
   case $section in section|'') continue ;; esac
   if cut -f2 "$RES" | grep -qxF -- "$pkg"; then continue; fi   # resumable
   survey_one "$section" "$pkg"
 done < "$LIST"
 clean_work
+[ "${KEEP_ARCHIVES:-}" = 1 ] || rm -rf "$OUT/archives"
+echo "results: $RES, logs: $OUT/logs ($(du -sh "$OUT" | cut -f1) in $OUT)"

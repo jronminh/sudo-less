@@ -108,7 +108,8 @@ cat <<EOF
 
 $(log "done.")
 Next, in a new shell:
-    apt-get update
-    apt-get install -y ripgrep htop jq
-    dpkg -l
+    sl-update
+    sl-install -y ripgrep htop jq
+    sl-list
+    sl-help           # all the sl-* commands
 EOF

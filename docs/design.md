@@ -55,7 +55,7 @@ adding a file, not editing a script.
 What the user sees:
 
 ```sh
-apt-get install PKG      # installs, or refuses with the reason
+sl-install PKG           # installs, or refuses with the reason
 PKG                      # runs, whatever mechanism it needs
 sudo-less explain PKG    # why it is in or out of scope, and how it runs
 sudo-less doctor         # user namespaces, signature verification, wedged packages

@@ -96,10 +96,13 @@ curl -fsSL https://raw.githubusercontent.com/jronminh/sudo-less/main/bootstrap.s
 Then, in a new shell:
 
 ```sh
-apt-get update
-apt-get install -y ripgrep htop jq     # installs into ~/.local
-dpkg -l                                 # your own package list
+sl-update
+sl-install -y ripgrep htop jq     # installs into ~/.local
+sl-list                           # the packages you installed
 ```
+
+The `sl-*` commands are sudo-less's; `sl-help` lists them. The `sl-` names
+keep them apart from the system's `apt` and `dpkg`, which manage the host.
 
 `ripgrep`, `htop` and `jq` are now on your `PATH` — that's the whole idea. The
 download is checked against a published hash; see
@@ -114,7 +117,8 @@ home, sudo-less uses `~/.local`, which other programs share (Flatpak's
 **do not delete `~/.local` as a whole.** What is sudo-less's:
 
 - `~/.local/usr`, `etc`, `var`, `opt`, `lib/sudo-less`, `.sudo-less`, and
-  apt, dpkg and the view scripts in `~/.local/bin` and `sbin`;
+  apt, dpkg, the `sl-*` commands and the view scripts in `~/.local/bin`
+  and `sbin`;
 - the user units it made (`~/.local/share/systemd/user/*.service` marked
   `# sudo-less user unit`) and their links in
   `~/.config/systemd/user/*.wants/`;

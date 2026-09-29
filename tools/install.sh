@@ -6,7 +6,8 @@
 #
 # The one list of what sudo-less puts in the prefix to run: the scripts of
 # tools/ (in $PREFIX/lib/sudo-less), the dpkg wrapper in front of each of
-# dpkg's programs, and the apt hooks that call them. apt-dpkg/install.sh
+# dpkg's programs, the sl-* commands (tools/sl.sh), and the apt hooks that
+# call them. apt-dpkg/install.sh
 # and scripts/bootstrap/build-dpkg.sh call it; after changing a tool, run
 # it. It touches nothing else: not the dpkg database, the apt sources, or
 # PATH (apt-dpkg/install.sh does those).
@@ -24,6 +25,8 @@ TOOLS='prefix-view prefix-sandbox prefix-integrate prefix-wrap prefix-units pref
 # dpkg's programs that run in the install view: the real one is in $L/dpkg
 # (build-dpkg.sh moves it there), and $PREFIX/bin/NAME is the wrapper.
 DPKG_TOOLS='dpkg dpkg-query dpkg-divert dpkg-statoverride dpkg-trigger update-alternatives'
+# The sl-* commands: tools/sl.sh, as $PREFIX/bin/sl-NAME.
+SL='install remove purge autoremove update upgrade search show list shell apt dpkg help'
 # apt-dpkg/config/apt.conf.d/NAME.in, with @PREFIX@ filled in.
 HOOKS='02integrate 03check'
 # What earlier versions installed and nothing uses any more.
@@ -52,6 +55,7 @@ for t in $DPKG_TOOLS; do
   [ -x "$L/dpkg/$t" ] || continue
   put "$REPO/apt-dpkg/dpkg-wrapper.sh" "$PREFIX/bin/$t" 0755
 done
+for c in $SL; do put "$HERE/sl.sh" "$PREFIX/bin/sl-$c" 0755; done
 for h in $HOOKS; do
   sed "s|@PREFIX@|$PREFIX|g" "$REPO/apt-dpkg/config/apt.conf.d/$h.in" > "$tmp"
   put "$tmp" "$PREFIX/etc/apt/apt.conf.d/$h" 0644

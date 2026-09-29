@@ -143,7 +143,7 @@ survey_one() {
   ) >"$log" 2>&1
   local rc=$?
   if [ $rc = 0 ] &&
-     PREFIX=$W/pfx "$W/pfx/bin/dpkg-query" -W -f '${db:Status-Abbrev}' "$pkg" 2>/dev/null |
+     PREFIX=$W/pfx "$W/pfx/lib/sudo-less/bin/dpkg-query" -W -f '${db:Status-Abbrev}' "$pkg" 2>/dev/null |
        grep -q '^ii'; then
     inst=ok
   else
@@ -176,7 +176,7 @@ survey_one() {
       )
       progs+="${progs:+,}$p:$how:$r"
       case $r in ok) ok=$((ok + 1)) ;; fail|miss) bad=$((bad + 1)) ;; *) unt=$((unt + 1)) ;; esac
-    done < <(PREFIX=$W/pfx "$W/pfx/bin/dpkg-query" -L "$pkg" 2>/dev/null |
+    done < <(PREFIX=$W/pfx "$W/pfx/lib/sudo-less/bin/dpkg-query" -L "$pkg" 2>/dev/null |
                grep -E '^/(usr/)?(s?bin|games)/[^/]+$')
     if [ $((ok + bad + unt)) -eq 0 ]; then run=none
     elif [ $bad -eq 0 ] && [ $ok -gt 0 ]; then run=ok

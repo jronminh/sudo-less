@@ -45,9 +45,10 @@ while :; do
 done
 [ $# -gt 0 ] || { echo "usage: $0 [--meta] [--runtime] PKG..." >&2; exit 2; }
 
-APT="$PREFIX/bin/apt-get"
-APT_CACHE="$PREFIX/bin/apt-cache"
-DPKG_DEB="$(command -v dpkg-deb || echo "$PREFIX/bin/dpkg-deb")"
+export APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
+APT="$PREFIX/lib/sudo-less/bin/apt-get"
+APT_CACHE="$PREFIX/lib/sudo-less/bin/apt-cache"
+DPKG_DEB="$(command -v dpkg-deb || echo "$PREFIX/lib/sudo-less/bin/dpkg-deb")"
 ARCHIVES="$PREFIX/var/cache/apt/archives"
 
 # --- signals -----------------------------------------------------------------

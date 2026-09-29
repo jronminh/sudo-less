@@ -97,7 +97,7 @@ need() {
 
 # The directories the files of a .deb go in.
 deb_dirs() {
-  local deb=$PREFIX/bin/dpkg-deb
+  local deb=$PREFIX/lib/sudo-less/bin/dpkg-deb
   [ -x "$deb" ] || deb=dpkg-deb
   "$deb" --fsys-tarfile "$1" | tar -t | sed -n 's|^\./|/|; s|/[^/]*/*$||p'
 }

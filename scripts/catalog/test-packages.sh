@@ -12,8 +12,9 @@ source "$(dirname "$0")/../common.sh"
 set +e  # common.sh enables errexit; keep going so per-package status is reported
 
 export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
-APT="$PREFIX/bin/apt-get"
-DPKGQ="$PREFIX/bin/dpkg-query"
+export APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
+APT="$PREFIX/lib/sudo-less/bin/apt-get"
+DPKGQ="$PREFIX/lib/sudo-less/bin/dpkg-query"
 
 DEFAULT=(
   bat fd-find ripgrep fzf htop ncdu tree jq duf procs bottom hyperfine
@@ -26,7 +27,7 @@ PKGS=("$@"); [ "${#PKGS[@]}" -gt 0 ] || PKGS=("${DEFAULT[@]}")
 # transaction aborts with "Unable to locate package")
 AVAIL=()
 for p in "${PKGS[@]}"; do
-  if "$PREFIX/bin/apt-cache" show "$p" >/dev/null 2>&1; then
+  if "$PREFIX/lib/sudo-less/bin/apt-cache" show "$p" >/dev/null 2>&1; then
     AVAIL+=("$p")
   else
     log "skip (not in repo): $p"

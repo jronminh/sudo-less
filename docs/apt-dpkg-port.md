@@ -8,7 +8,7 @@ Status: **working.** `apt-get update`, `apt-cache`, `apt-get download` and
 `apt-get install` (unpack + configure) all function; installed binaries run.
 
 ```
-$ ~/.local/bin/apt-get install -y hello
+$ sl-install -y hello
 ...
 Unpacking hello (2.12.3-1) ...
 Setting up hello (2.12.3-1) ...
@@ -199,11 +199,13 @@ installed packages directly. To do it by hand:
 ```sh
 export PATH="$HOME/.local/sbin:$HOME/.local/bin:$HOME/.local/usr/bin:$PATH"
 apt-get update
-apt-get install -y <package>     # installs into ~/.local/usr, ~/.local/lib, ...
-dpkg -l                          # our database, not the system's
+sl-install -y <package>          # installs into ~/.local/usr, ~/.local/lib, ...
+sl-dpkg -l                       # our database, not the system's
 ```
 
-apt calls `$PREFIX/bin/dpkg`, a wrapper that runs dpkg in the prefix view
+apt and dpkg are in `$PREFIX/lib/sudo-less/bin`, off `PATH`; the `sl-*`
+commands (`tools/sl.sh`) run them with `APT_CONFIG` set.
+apt calls `$PREFIX/lib/sudo-less/bin/dpkg`, a wrapper that runs dpkg in the prefix view
 ([`view.md`](view.md)), via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
 
 ## Caveats
@@ -217,8 +219,15 @@ apt calls `$PREFIX/bin/dpkg`, a wrapper that runs dpkg in the prefix view
   `ldconfig`) still fail, and a failing one can wedge the prefix. Good for
   leaf tools; not for system-level packages (do **not** install `libc6` this
   way). See [our own changes](#beyond-termuxs-patches-our-own-changes).
-- **PATH shadowing:** with `~/.local/bin` early in `PATH`, the bare `apt`/`dpkg`
-  for user `master` become these userspace builds. Use full paths if unsure.
+- **No PATH shadowing:** the builds install into `$PREFIX/bin`, and
+  `tools/install.sh` moves every `apt*`, `dpkg*`, `update-alternatives` and
+  `start-stop-daemon` to `$PREFIX/lib/sudo-less/bin`, so the bare names stay
+  the system's. apt still finds its libraries there (its RUNPATH has
+  `$ORIGIN/../..`, which is `$PREFIX/lib`), and `lib/sudo-less/share` links
+  to `$PREFIX/share` for `dpkg-maintscript-helper`'s `../share/dpkg`.
+  Maintainer scripts get the prefix's dpkg first from `DPkg::Path`, or, when
+  dpkg is run by hand, from the wrapper, which puts its own directory first
+  on `PATH`.
 - Signature verification runs the host's `sqv` (apt 3.x); a host without
   it cannot `apt-get update`.
 - Architecture is auto-detected at build time (`scripts/common.sh`) and the

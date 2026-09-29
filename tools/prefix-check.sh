@@ -21,7 +21,7 @@ set -eu
 
 [ "${SUDO_LESS_CHECK:-}" != off ] || exit 0
 : "${PREFIX:=$HOME/.local}"
-DEB=$PREFIX/bin/dpkg-deb
+DEB=$PREFIX/lib/sudo-less/bin/dpkg-deb
 [ -x "$DEB" ] || DEB=dpkg-deb
 
 # kind<TAB>where<TAB>extended regex<TAB>reason. where: script (the maintainer

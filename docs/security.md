@@ -49,7 +49,7 @@ on top (`tools/prefix-view.sh`, `tools/prefix-sandbox.sh`):
 - **Your home hidden** (`ProtectHome=yes`), but for the prefix's `/usr`,
   `/etc`, `/var`, `/opt` (writable) and sudo-less's own tools
   (`$PREFIX/bin`, `sbin`, `lib/sudo-less`, read-only). A `.deb` from outside
-  the prefix (`dpkg -i ~/Downloads/foo.deb`) is bound in, read-only; the
+  the prefix (`sl-dpkg -i ~/Downloads/foo.deb`) is bound in, read-only; the
   dpkg wrapper makes relative paths absolute, since the view starts in `/`.
 - **A private `/tmp`**, and `/media` and `/mnt` out of reach.
 

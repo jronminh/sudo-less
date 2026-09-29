@@ -30,7 +30,7 @@ of the system you already run, with no root at any point.**
   it runs on the system's own libraries.
 - **No root:** not to install, not to run. The admin's only step is
   enabling unprivileged user namespaces, which Debian does by default.
-- **Seamless:** the same `apt-get install`, then the program runs by its
+- **Seamless:** `sl-install`, which is `apt install`, then the program runs by its
   name, like everything else on your system. When a package needs to find
   its files at `/usr` or `/etc`, a small script under its name steps into
   the view for it (~0.03 s); launchers, services and their restarts on
@@ -116,9 +116,9 @@ home, sudo-less uses `~/.local`, which other programs share (Flatpak's
 `--user` apps, `pip install --user`, their data in `~/.local/share`):
 **do not delete `~/.local` as a whole.** What is sudo-less's:
 
-- `~/.local/usr`, `etc`, `var`, `opt`, `lib/sudo-less`, `.sudo-less`, and
-  apt, dpkg, the `sl-*` commands and the view scripts in `~/.local/bin`
-  and `sbin`;
+- `~/.local/usr`, `etc`, `var`, `opt`, `lib/sudo-less` (apt and dpkg are
+  in `lib/sudo-less/bin`), `.sudo-less`, and the `sl-*` commands and the
+  view scripts in `~/.local/bin` and `sbin`;
 - the user units it made (`~/.local/share/systemd/user/*.service` marked
   `# sudo-less user unit`) and their links in
   `~/.config/systemd/user/*.wants/`;
@@ -147,7 +147,7 @@ Measured by:
 
 Where it stands: criterion 1 is verified on a fresh account with the release
 build. Criterion 2 is measured by [the survey](#evidence-the-survey) below.
-Criterion 3 is the [problem map](docs/problems.md), and `apt-get install`
+Criterion 3 is the [problem map](docs/problems.md), and `sl-install`
 enforces it.
 
 ## Evidence: the survey
@@ -214,7 +214,7 @@ It depends first on the package's Debian **section**
   measures how many work
   ([#36](https://github.com/jronminh/sudo-less/issues/36)).
 
-`apt-get install` refuses a package that needs root (one that creates a
+`sl-install` refuses a package that needs root (one that creates a
 system user, or installs kernel modules), before anything is installed,
 and says why. To check a package by hand first:
 
@@ -249,8 +249,12 @@ that needs the view, and a user unit for each service. Your copy keeps its own p
 the system's, and treats everything already on the system as already installed —
 so it only fetches what you actually ask for. Neither program is a fork.
 
-The system's own `apt` is untouched: use `sudo apt` to update the OS, and the
-plain `apt`/`apt-get` in your shell to manage your own tools.
+The system's own `apt` and `dpkg` are untouched, and they keep their names:
+`apt` and `dpkg` in your shell are always the system's (`sudo apt` updates
+the OS). Your copies live off `PATH`, in `~/.local/lib/sudo-less/bin`, and
+the `sl-*` commands run them: `sl-install`, `sl-remove`, `sl-list`,
+`sl-help` for the rest, and `sl-apt` / `sl-dpkg` for anything else. Each
+points apt at the prefix's config for its own run only.
 
 Full detail: [`docs/apt-dpkg-port.md`](docs/apt-dpkg-port.md).
 

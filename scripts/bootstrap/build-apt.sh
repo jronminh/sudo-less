@@ -34,7 +34,7 @@ mapfile -t files < <(grep -rl '@TERMUX_PREFIX@' \
 sed -i "s|@TERMUX_PREFIX@/bin/|/usr/bin/|g" "${files[@]}"
 sed -i "s|@TERMUX_PREFIX@/tmp|/tmp|g" "${files[@]}"
 # DPkg::Path must keep the system PATH (plus our bin) for maintainer scripts
-sed -i "s|\"@TERMUX_PREFIX@/bin\"|\"$PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"|" apt-pkg/init.cc
+sed -i "s|\"@TERMUX_PREFIX@/bin\"|\"$PREFIX/lib/sudo-less/bin:$PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"|" apt-pkg/init.cc
 sed -i "s|@TERMUX_PREFIX@|$PREFIX|g" "${files[@]}"
 if grep -rn '@TERMUX_PREFIX@' "${files[@]}"; then die "unsubstituted @TERMUX_PREFIX@ remains"; fi
 

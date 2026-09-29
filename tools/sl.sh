@@ -25,8 +25,9 @@ set -eu
 self=$(readlink -f "$0")
 P=${self%/bin/*}
 export APT_CONFIG=$P/etc/apt/apt.conf.d/00local-prefix
-apt=$P/bin/apt
-dpkg=$P/bin/dpkg
+B=$P/lib/sudo-less/bin    # the prefix's apt and dpkg, off PATH
+apt=$B/apt
+dpkg=$B/dpkg
 
 usage() { sed -n '6,19p' "$self" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
@@ -37,7 +38,7 @@ case $n in
   sl-list)
     # Seeded packages (the system's, lock-seeded.sh) are on hold: yours are
     # the ones selected for install.
-    "$P/bin/dpkg-query" -W -f '${Status}\t${Package}\t${Version}\n' "$@" |
+    "$B/dpkg-query" -W -f '${Status}\t${Package}\t${Version}\n' "$@" |
       awk -F '\t' '$1 == "install ok installed" { printf "%-32s %s\n", $2, $3 }' ;;
   sl-shell)
     [ $# -gt 0 ] || set -- "${SHELL:-/bin/bash}"

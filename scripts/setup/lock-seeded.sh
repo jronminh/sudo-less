@@ -14,7 +14,7 @@
 set -euo pipefail
 source "$(dirname "$0")/../common.sh"
 
-DPKG="$PREFIX/bin/dpkg"
+DPKG="$PREFIX/lib/sudo-less/bin/dpkg"
 ADMINDIR="$PREFIX/var/lib/dpkg"
 SYS_STATUS="/var/lib/dpkg/status"
 [ -f "$ADMINDIR/status" ] || die "no dpkg database at $ADMINDIR (run scripts/setup/install-config.sh)"

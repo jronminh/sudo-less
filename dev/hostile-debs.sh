@@ -9,7 +9,7 @@
 # (binutils) for the package with a crafted data.tar.
 set -u
 : "${PREFIX:=$HOME/.local}"
-DPKG=$PREFIX/bin/dpkg
+DPKG=$PREFIX/lib/sudo-less/bin/dpkg
 W=$(mktemp -d "${TMPDIR:-/tmp}/hostile-debs.XXXXXX")
 trap 'rm -rf "$W"' EXIT
 fail=0

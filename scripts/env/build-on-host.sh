@@ -40,4 +40,4 @@ PREFIX="$PREFIX" "$REPO/scripts/setup/install-config.sh"
 
 log "done."
 log "  export PATH=\"$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:\$PATH\""
-log "  $PREFIX/bin/apt-get update && $PREFIX/bin/apt-get install -y <pkg>"
+log "  sl-update && sl-install -y <pkg>"

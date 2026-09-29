@@ -90,9 +90,10 @@ jobs:
             printf "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian trixie main\n" \
               > "$PREFIX/etc/apt/sources.list"
             export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
-            export APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
-            apt-get update
-            apt-get install -y tree
+            # apt and dpkg are off PATH: `apt-get` is the system's
+            [ "$(command -v apt-get)" = /usr/bin/apt-get ]
+            sl-update
+            sl-install -y tree
             "$PREFIX/usr/bin/tree" --version
           '
 

@@ -18,8 +18,9 @@
 #     --prefix; the dpkg-maintscript-helper finds its data next to itself
 #     wherever the prefix is (apt-dpkg/patches/dpkg/0100-maintscript-helper-datadir.patch).
 #   * The programs that touch the database or the installed tree move to
-#     $PREFIX/lib/sudo-less/dpkg; $PREFIX/bin gets a wrapper for each that
-#     enters the install view (apt-dpkg/dpkg-wrapper.sh).
+#     $PREFIX/lib/sudo-less/dpkg; $PREFIX/lib/sudo-less/bin gets a wrapper
+#     for each that enters the install view (apt-dpkg/dpkg-wrapper.sh), and
+#     the rest of dpkg's programs, off PATH (tools/install.sh).
 source "$(dirname "$0")/../common.sh"
 
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"
@@ -73,6 +74,6 @@ for t in $VIEW_TOOLS; do
   done
   [ -x "$L/dpkg/$t" ] || die "dpkg did not install $t"
 done
-# The wrappers in $PREFIX/bin, and the tools they use.
+# The wrappers in $L/bin, and the tools they use.
 PREFIX=$PREFIX bash "$REPO/tools/install.sh"
-log "dpkg installed: $PREFIX/bin/dpkg ($("$PREFIX/bin/dpkg" --version | head -1))"
+log "dpkg installed: $L/bin/dpkg ($("$L/bin/dpkg" --version | head -1))"

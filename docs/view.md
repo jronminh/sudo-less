@@ -69,7 +69,7 @@ a whole distribution without root, use rootless podman or distrobox.
 
 ## How dpkg gets there
 
-`$PREFIX/bin/dpkg` (and `dpkg-query`, `dpkg-divert`, `dpkg-statoverride`,
+`$PREFIX/lib/sudo-less/bin/dpkg` (and `dpkg-query`, `dpkg-divert`, `dpkg-statoverride`,
 `dpkg-trigger`, `update-alternatives`) is a wrapper
 (`apt-dpkg/dpkg-wrapper.sh`) that runs the real program from
 `$PREFIX/lib/sudo-less/dpkg` inside the install view. Inside the install

@@ -1,8 +1,10 @@
 #!/bin/sh
-# Installed by build-dpkg.sh as $PREFIX/bin/dpkg, dpkg-query, dpkg-divert,
-# dpkg-statoverride, dpkg-trigger and update-alternatives: runs the real one
-# (in $PREFIX/lib/sudo-less/dpkg) inside the prefix view, where it has root
-# "/" and admin dir /var/lib/dpkg, like Debian's (docs/view.md).
+# Installed by tools/install.sh as $PREFIX/lib/sudo-less/bin/dpkg,
+# dpkg-query, dpkg-divert, dpkg-statoverride, dpkg-trigger and
+# update-alternatives (off PATH: `dpkg` is the system's, sl-dpkg is this):
+# runs the real one (in $PREFIX/lib/sudo-less/dpkg) inside the prefix view,
+# where it has root "/" and admin dir /var/lib/dpkg, like Debian's
+# (docs/view.md).
 #
 # dpkg --install, --remove, ... are followed by prefix-integrate (below).
 #
@@ -11,8 +13,11 @@
 # prefix's admin dir instead. In the run view anything else is refused:
 # the install view cannot be built inside it.
 self=$(readlink -f "$0")
-P=${self%/bin/*}
+P=${self%/lib/sudo-less/bin/*}
 n=${0##*/}
+# Maintainer scripts call dpkg, dpkg-query and update-alternatives by name:
+# they must get these wrappers, not the system's.
+case :$PATH: in *":${self%/*}:"*) ;; *) PATH=${self%/*}:$PATH; export PATH ;; esac
 real=$P/lib/sudo-less/dpkg/$n
 
 # In a private view already (the install view, or a service's): run it.

@@ -6,7 +6,10 @@
 #
 #   ./scripts/setup/install-shell-path.sh
 #
-# Without this, `apt-get install foo` puts the binary in $PREFIX/usr/bin but a
+# No APT_CONFIG here: it would point the system's apt at the prefix too. The
+# sl-* commands set it for their own run (tools/sl.sh).
+#
+# Without this, `sl-install foo` puts the binary in $PREFIX/usr/bin but a
 # fresh terminal can't find it. The block is guarded and marked, so re-running
 # is a no-op. Called automatically by install-config.sh (skip with --no-shell).
 set -euo pipefail
@@ -32,11 +35,6 @@ case ":\${XDG_DATA_DIRS:=/usr/local/share:/usr/share}:" in
     *) XDG_DATA_DIRS="$PREFIX/usr/share:$PREFIX/share:\$XDG_DATA_DIRS" ;;
 esac
 export XDG_DATA_DIRS
-# point apt at the prefix's own config (keeps a built prefix relocatable)
-if [ -f "$PREFIX/etc/apt/apt.conf.d/00local-prefix" ]; then
-    APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
-    export APT_CONFIG
-fi
 $END
 EOF
 

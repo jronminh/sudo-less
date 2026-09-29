@@ -15,7 +15,7 @@ Dir::Bin::methods "@PREFIX@/lib/apt/methods";
 // A wrapper that runs dpkg in the prefix view (apt-dpkg/dpkg-wrapper.sh); apt
 // itself stays outside it and passes --admindir @PREFIX@/var/lib/dpkg, which
 // inside the view is the same directory as /var/lib/dpkg.
-Dir::Bin::dpkg "@PREFIX@/bin/dpkg";
+Dir::Bin::dpkg "@PREFIX@/lib/sudo-less/bin/dpkg";
 // apt-key's own path, and the solver/planner search dirs, are compiled-in
 // defaults (CMAKE_INSTALL_FULL_BINDIR / LIBEXEC_DIR at *build* time) that
 // nothing else here overrides — found by actually testing a relocated
@@ -23,10 +23,12 @@ Dir::Bin::dpkg "@PREFIX@/bin/dpkg";
 // failed with "Couldn't execute /home/master/.local/bin/apt-key" on a
 // prefix extracted to /home/tester/.local. Without this, only Dir::Bin::dpkg
 // and Dir::Bin::methods above were actually relocatable.
-Dir::Bin::apt-key "@PREFIX@/bin/apt-key";
+Dir::Bin::apt-key "@PREFIX@/lib/sudo-less/bin/apt-key";
 #clear Dir::Bin::solvers;
 Dir::Bin::solvers:: "@PREFIX@/lib/apt/solvers";
 #clear Dir::Bin::planners;
 Dir::Bin::planners:: "@PREFIX@/lib/apt/planners";
 
-DPkg::Path "@PREFIX@/sbin:@PREFIX@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+// Maintainer scripts find the prefix's dpkg, dpkg-query and
+// update-alternatives first: they are off the user's PATH (tools/install.sh).
+DPkg::Path "@PREFIX@/lib/sudo-less/bin:@PREFIX@/sbin:@PREFIX@/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";

@@ -188,6 +188,15 @@ install)
   done
   [ ! -f "$FROM/var/lib/dpkg/arch" ] || cp -a "$FROM/var/lib/dpkg/arch" "$TO/var/lib/dpkg/"
 
+  # The .debs the old prefix downloaded: apt takes those of the same
+  # version from its cache instead of downloading them again (hard links
+  # when both prefixes are on one file system, so no space either).
+  mkdir -p "$TO/var/cache/apt/archives"
+  for f in "$FROM"/var/cache/apt/archives/*.deb; do
+    [ -f "$f" ] || continue
+    ln -f "$f" "$TO/var/cache/apt/archives/" 2>/dev/null || cp -a "$f" "$TO/var/cache/apt/archives/"
+  done
+
   "$TO/.sl/bin/sl-update"
   pkgs=${PKGS:-$(mine | tr '\n' ' ')}
   log "installing: $pkgs"

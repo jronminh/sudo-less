@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build upstream dpkg with sudo-less's patches (apt-dpkg/patches/dpkg/series, a fork of
-# Termux's), for a user-writable prefix ($PREFIX, default ~/.local).
+# Termux's), for a user-writable prefix ($PREFIX, default ~/.sudo-less).
 #
 # Run inside a Debian sid build environment with:
 #   build-essential autoconf automake autopoint libtool pkg-config gettext po4a

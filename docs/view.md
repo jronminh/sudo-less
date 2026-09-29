@@ -43,7 +43,7 @@ in it are yours, run as you, just as outside the view.
 
 Debian builds every package for the root prefix `/`, so a path such as
 `/etc/foo/foo.conf` or `/usr/share/foo/templates` is a constant string in
-the binary. Unpacked into the prefix, the files sit at `~/.local/etc/...`,
+the binary. Unpacked into the prefix, the files sit at `~/.sudo-less/etc/...`,
 but the program still opens `/etc/...`. There are two ways out: rebuild
 every package for the prefix (Termux, NixOS), or make the prefix look like
 `/` at run time (Flatpak, `proot`). sudo-less rebuilds only apt and dpkg,

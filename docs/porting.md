@@ -1,7 +1,7 @@
 # Reproducing this on your own system
 
 Goal: end up with a working `apt`/`dpkg` that installs `.deb`s into a prefix
-you own (`~/.local` by default), with a real dependency resolver and database.
+you own (`~/.sudo-less` by default), with a real dependency resolver and database.
 
 ## Pick your path by what you have
 
@@ -20,7 +20,7 @@ git clone <this repo> ~/sudo-less && cd ~/sudo-less
 ```
 
 That installs the build packages with `apt`, fetches the sources, builds apt
-and dpkg, installs them into `~/.local`, and writes the runtime config.
+and dpkg, installs them into `~/.sudo-less`, and writes the runtime config.
 
 ### Advanced: building without root
 
@@ -38,7 +38,7 @@ for example:
   root, so write the rootfs as a tarball to stdout and unpack it yourself,
   since the mapped root cannot write into your `0700` home;
 - **sudo-less itself**, in principle: install the build packages into
-  `~/.local` with the userspace apt, point `PKG_CONFIG_PATH` and the compiler
+  `~/.sudo-less` with the userspace apt, point `PKG_CONFIG_PATH` and the compiler
   at the prefix, and build on the host. Untested.
 
 ## Prerequisites in detail

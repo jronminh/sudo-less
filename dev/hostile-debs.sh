@@ -8,7 +8,7 @@
 # Needs the userspace dpkg installed (PREFIX, default ~/.local) and ar
 # (binutils) for the package with a crafted data.tar.
 set -u
-: "${PREFIX:=$HOME/.local}"
+: "${PREFIX:=$HOME/.sudo-less}"
 DPKG=$PREFIX/lib/sudo-less/bin/dpkg
 W=$(mktemp -d "${TMPDIR:-/tmp}/hostile-debs.XXXXXX")
 trap 'rm -rf "$W"' EXIT

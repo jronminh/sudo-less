@@ -6,7 +6,7 @@ which parts exist today. The other documents go deeper into one part each.
 ## Goal
 
 A user created on a **standard Debian install, with no `sudo`**, installs and
-uses `.deb` packages from the supported sections into `~/.local`. The admin
+uses `.deb` packages from the supported sections into `~/.sudo-less`. The admin
 does a few one-time steps and nothing per package. The user types only
 `apt-get`; everything else happens by itself.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # bootstrap.sh — the default, supported route: fetch the prebuilt patched
 # apt/dpkg for your architecture, verify it, unpack it into $PREFIX and set up
-# a userspace package manager in ~/.local. No root, no build, no namespaces.
+# a userspace package manager in ~/.sudo-less. No root, no build, no namespaces.
 #
 #   ./bootstrap.sh                 # fetch + verify + unpack + configure
 #   ./bootstrap.sh --dry-run       # print what it would do, change nothing
@@ -16,7 +16,7 @@
 # the overlay and GUI apps, are experimental.
 set -euo pipefail
 
-PREFIX="${PREFIX:-$HOME/.local}"
+PREFIX="${PREFIX:-$HOME/.sudo-less}"
 REPO_SLUG="${REPO_SLUG:-jronminh/sudo-less}"
 VERSION="${VERSION:-}"                       # empty = the latest release
 BASE_URL="${BASE_URL:-}"                     # override the whole release base
@@ -92,6 +92,14 @@ log "verifying sha256"
 if [ "$VERIFY_ONLY" = 1 ]; then
   log "verified OK ($ASSET)"
   exit 0
+fi
+
+# Before 2026-10 sudo-less lived in ~/.local, with other programs. A second
+# install next to it would mix up PATH and the services: move that one.
+OLD=$HOME/.local
+if [ "$PREFIX" != "$OLD" ] && [ -x "$OLD/lib/sudo-less/prefix-view" ]; then
+  die "sudo-less is already in $OLD (an older layout). Move it with tools/migrate.sh
+       from a clone of https://github.com/$REPO_SLUG (tools/migrate.sh plan first)."
 fi
 
 log "unpacking into $PREFIX"

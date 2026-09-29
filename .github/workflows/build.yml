@@ -82,7 +82,7 @@ jobs:
           chmod 0644 /tmp/art.tar.gz
           su smoke -s /bin/bash -c '
             set -eux
-            export PREFIX=/home/smoke/.local
+            export PREFIX=/home/smoke/.sudo-less
             rm -rf "$PREFIX"; mkdir -p "$PREFIX"
             tar -C "$PREFIX" -xzf /tmp/art.tar.gz
             PREFIX="$PREFIX" bash "$PREFIX/share/sudo-less/scripts/setup/install-config.sh" --no-shell

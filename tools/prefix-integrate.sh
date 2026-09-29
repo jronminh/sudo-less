@@ -23,7 +23,12 @@
 # a dpkg run apt did not make (apt-dpkg/dpkg-wrapper.sh).
 set -eu
 
-: "${PREFIX:=$HOME/.local}"
+# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# else $PREFIX, else ~/.sudo-less.
+case $(readlink -f -- "${BASH_SOURCE[0]}") in
+  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+esac
+: "${PREFIX:=$HOME/.sudo-less}"
 INFO=$PREFIX/var/lib/dpkg/info
 ALTS=$PREFIX/var/lib/dpkg/alternatives
 STATE=$PREFIX/.sudo-less

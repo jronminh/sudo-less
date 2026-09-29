@@ -8,7 +8,7 @@ It feels like apt because it is apt.
 ![root: not required](https://img.shields.io/badge/root-not%20required-brightgreen)
 
 `sudo-less` gives you a real `apt` and `dpkg` that install `.deb` packages into
-`~/.local` instead of the system. Your system files stay untouched, and you
+`~/.sudo-less` instead of the system. Your system files stay untouched, and you
 don't need admin rights.
 And nothing changes in how you work: a program you install runs by its
 name, a desktop app shows up in your launcher, a service starts on its
@@ -16,11 +16,11 @@ own. No `enter`, no `run`, no second system to step into.
 
 Use it when you can't — or would rather not — install software system-wide.
 
-![sudo-less: apt-get install without sudo, into ~/.local](docs/demo.gif)
+![sudo-less: apt-get install without sudo, into ~/.sudo-less](docs/demo.gif)
 
 ## What it is, and what it is not
 
-**sudo-less is Debian's own apt, installing into your `~/.local`, on top
+**sudo-less is Debian's own apt, installing into `~/.sudo-less`, on top
 of the system you already run, with no root at any point.**
 
 - **Debian's own packages:** the same archive, versions and ABI as your
@@ -40,7 +40,7 @@ How it compares:
 
 | | packages from | relation to the host | root | what you installed runs |
 |---|---|---|---|---|
-| **sudo-less** | the Debian archive | shares it: installs only what the host lacks, into `~/.local` | no | by its name |
+| **sudo-less** | the Debian archive | shares it: installs only what the host lacks, into `~/.sudo-less` | no | by its name |
 | `sudo apt` | the Debian archive | installs into the system, for everyone | yes | by its name |
 | Homebrew, Nix, Guix, conda | their own repositories | a second world of packages and libraries beside the host's | no (Nix often once) | by its name, from that world (conda: once activated) |
 | Flatpak `--user`, AppImage | bundles with their own runtimes | isolated from the host | no | `flatpak run org.example.App`, or the AppImage file |
@@ -70,10 +70,10 @@ Debian install ships:
 | mechanism | from | what sudo-less does with it |
 |---|---|---|
 | **user and mount namespaces** | the kernel, driven by util-linux's `unshare`, `nsenter`, `mount`, `setpriv` (Essential and required packages) | a private *view* where dpkg is "root" of a system whose `/usr`, `/etc`, `/var` are your `~/.local`; a sandbox for services |
-| **overlayfs**, unprivileged | the kernel (5.11 and later) | your prefix laid over the host's directories: the host's files show through, every write lands in `~/.local` |
+| **overlayfs**, unprivileged | the kernel (5.11 and later) | your prefix laid over the host's directories: the host's files show through, every write lands in `~/.sudo-less` |
 | **systemd's user manager** | `systemd --user`, running as you | the packages' services, translated into user units, started, restarted and removed with their package |
 
-On top of them: the real `apt` and `dpkg`, rebuilt to live in `~/.local`,
+On top of them: the real `apt` and `dpkg`, rebuilt to live in `~/.sudo-less`,
 and plain bash scripts. A package's service keeps its own systemd sandbox
 (`ProtectSystem=`, `SystemCallFilter=`, ...), rebuilt with the same
 namespaces and a seccomp filter loaded by `setpriv`, and a system service
@@ -97,7 +97,7 @@ Then, in a new shell:
 
 ```sh
 sl-update
-sl-install -y ripgrep htop jq     # installs into ~/.local
+sl-install -y ripgrep htop jq     # installs into ~/.sudo-less
 sl-list                           # the packages you installed
 sl-status                         # the prefix, and a check that all is well
 ```
@@ -113,28 +113,32 @@ build yourself.
 ### Uninstall
 
 Your system is never touched, so there is nothing to undo there. In your
-home, sudo-less uses `~/.local`, which other programs share (Flatpak's
-`--user` apps, `pip install --user`, their data in `~/.local/share`):
-**do not delete `~/.local` as a whole.** What is sudo-less's:
+home, everything of sudo-less's is in `~/.sudo-less`; outside it there are
+only links into it (the services' units, the session's environment and the
+run view's unit, under `~/.config` and `~/.local/share/systemd/user`) and
+the `# >>> sudo-less PATH >>>` block in `~/.bashrc` and `~/.profile`.
 
-- `~/.local/usr`, `etc`, `var`, `opt`, `lib/sudo-less` (apt and dpkg are
-  in `lib/sudo-less/bin`), `.sudo-less`, and the `sl-*` commands and the
-  view scripts in `~/.local/bin` and `sbin`;
-- the user units it made (`~/.local/share/systemd/user/*.service` marked
-  `# sudo-less user unit`) and their links in
-  `~/.config/systemd/user/*.wants/`;
-- `~/.config/environment.d/50-sudo-less.conf`,
-  `~/.config/systemd/user/sudo-less-run-view.service`,
-  `~/.config/sudo-less/`;
-- the `# >>> sudo-less PATH >>>` block in `~/.bashrc` and `~/.profile`.
+```sh
+sl-uninstall          # says what goes
+sl-uninstall --yes    # stops the services, removes the links, the PATH block and ~/.sudo-less
+```
 
-Stop its services first (`systemctl --user disable --now UNIT`). A command
-that removes exactly these is planned.
+Your own settings in `~/.config/sudo-less/` stay, and so does what the
+services kept in `~/.local/state` and `~/.cache`, like any program's.
+
+### From `~/.local` (before 2026-10)
+
+sudo-less used to install into `~/.local`, which it shared with other
+programs. `tools/migrate.sh` moves such an install to `~/.sudo-less`, one
+step at a time: `plan` (changes nothing), `install` (the new prefix, and
+your packages again), `carry` (config files you changed, the services'
+state, alternatives you chose), `clean-old` (lists what was sudo-less's in
+`~/.local`; `--yes` removes it).
 
 ## Goal
 
 A user created on a **standard Debian install, with no `sudo`**, installs and
-uses `.deb` packages from the supported sections into `~/.local`. The admin
+uses `.deb` packages from the supported sections into `~/.sudo-less`. The admin
 does a one-time step (`admin/`) and nothing per package.
 
 Measured by:
@@ -172,7 +176,7 @@ Latest run, 2026-09-24, on 129 packages from 43 supported sections:
 - **Excluding skew, 87 % work.** The admin removes skew by upgrading the
   host; on Debian stable it is close to zero.
 - **Most programs need no tricks.** Of the 70 programs checked, 22 run
-  directly from `~/.local/usr/bin` and 42 through the shared run view.
+  directly from `~/.sudo-less/usr/bin` and 42 through the shared run view.
 - **Better than the first design** (a Termux-style relocated dpkg, same
   129 packages): installs went from 63 % to 68 %, and programs from 14
   working and 12 failing to 26 working and 1 failing.
@@ -230,7 +234,7 @@ What can and cannot work, and why: [`docs/problems.md`](docs/problems.md).
 - A **locked-down or managed machine** where you have no admin rights but still
   need real tools and a compiler.
 - A **shared server or lab box** where touching system packages is forbidden.
-- **Keeping the system clean** — install into `~/.local` even when you *do* have
+- **Keeping the system clean** — install into `~/.sudo-less` even when you *do* have
   `sudo`, and leave `/usr` alone.
 
 **Not** the right tool for: software Debian does not package (Homebrew,
@@ -242,7 +246,7 @@ you have `sudo` and don't care about a pristine system, just use `apt`.
 
 `apt` and `dpkg` are the real Debian programs (**apt 3.3.3**, **dpkg 1.23.11**)
 plus a few patches forked from [Termux](https://github.com/termux/termux-packages)'s, rebuilt to
-install into `~/.local`. dpkg runs in a private view where `~/.local` looks like
+install into `~/.sudo-less`. dpkg runs in a private view where `~/.sudo-less` looks like
 `/usr`, `/etc` and `/var`, so packages install unchanged
 ([`docs/view.md`](docs/view.md)). After each apt run, `prefix-integrate`
 makes what was installed usable: launchers, a small script for each program
@@ -252,7 +256,7 @@ so it only fetches what you actually ask for. Neither program is a fork.
 
 The system's own `apt` and `dpkg` are untouched, and they keep their names:
 `apt` and `dpkg` in your shell are always the system's (`sudo apt` updates
-the OS). Your copies live off `PATH`, in `~/.local/lib/sudo-less/bin`, and
+the OS). Your copies live off `PATH`, in `~/.sudo-less/lib/sudo-less/bin`, and
 the `sl-*` commands run them: `sl-install`, `sl-remove`, `sl-list`,
 `sl-help` for the rest, and `sl-apt` / `sl-dpkg` for anything else. Each
 points apt at the prefix's config for its own run only.

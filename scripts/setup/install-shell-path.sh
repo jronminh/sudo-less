@@ -24,7 +24,9 @@ $MARK
 if [ -d "$PREFIX/bin" ] || [ -d "$PREFIX/usr/bin" ]; then
     case ":\$PATH:" in
         *":$PREFIX/usr/bin:"*) ;;
-        *) PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:\$PATH" ;;
+        *) PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:\$PATH"
+           # your own programs stay in front of the prefix's
+           [ ! -d "\$HOME/.local/bin" ] || PATH="\$HOME/.local/bin:\$PATH" ;;
     esac
 fi
 export PATH

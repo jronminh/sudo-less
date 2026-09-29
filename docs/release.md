@@ -2,7 +2,7 @@
 
 `bootstrap.sh` is the **supported** way to use sudo-less. It fetches a prebuilt,
 patched apt/dpkg for your architecture, checks its hash, unpacks it into
-`$PREFIX` (`~/.local`) and configures it. No root, no build, no namespaces —
+`$PREFIX` (`~/.sudo-less`) and configures it. No root, no build, no namespaces —
 nothing beyond `curl` (or `wget`), `tar` and a writable `$PREFIX`; see
 [`standard.md`](standard.md) for what it does and does not promise.
 

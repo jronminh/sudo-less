@@ -52,7 +52,12 @@
 # user namespaces (admin/enable-userspace.sh) and overlayfs (kernel >= 5.11).
 set -eu
 
-: "${PREFIX:=$HOME/.local}"
+# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# else $PREFIX, else ~/.sudo-less.
+case $(readlink -f -- "${BASH_SOURCE[0]}") in
+  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+esac
+: "${PREFIX:=$HOME/.sudo-less}"
 STATE=$PREFIX/.sudo-less/view
 RUNPID=$STATE/run.pid
 MARK=sudo-less-run-view   # the run view's holder: "$MARK infinity"

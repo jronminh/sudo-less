@@ -1,7 +1,7 @@
-# Userspace apt + dpkg in `~/.local`
+# Userspace apt + dpkg in `~/.sudo-less`
 
 A userspace port of **Termux's apt and dpkg** to a regular (rootless) Debian
-box. It installs Debian `.deb` packages into `~/.local` **without root**, with a
+box. It installs Debian `.deb` packages into `~/.sudo-less` **without root**, with a
 real dependency resolver and a real dpkg database.
 
 Status: **working.** `apt-get update`, `apt-cache`, `apt-get download` and
@@ -12,7 +12,7 @@ $ sl-install -y hello
 ...
 Unpacking hello (2.12.3-1) ...
 Setting up hello (2.12.3-1) ...
-$ ~/.local/usr/bin/hello
+$ ~/.sudo-less/usr/bin/hello
 Hello, world!
 ```
 
@@ -34,12 +34,13 @@ patches, cut down to what a prefix on Debian needs and built without
 `__ANDROID__`: [`../apt-dpkg/patches/UPSTREAM.md`](../apt-dpkg/patches/UPSTREAM.md) maps every
 Termux patch to kept, adapted or dropped.
 
-## Layout produced under `$PREFIX` (`~/.local`)
+## Layout produced under `$PREFIX` (`~/.sudo-less`)
 
 ```
-bin/      apt apt-get apt-cache apt-config dpkg dpkg-deb dpkg-query update-alternatives
-sbin/     start-stop-daemon
-lib/      libapt-pkg.so.7.0, apt/methods/*, dpkg/...
+bin/      the sl-* commands, and a launcher for each program that needs the view
+lib/sudo-less/bin/  apt apt-get apt-cache dpkg dpkg-deb dpkg-query ... (off PATH)
+lib/sudo-less/      the tools (prefix-view, ...), dpkg's real programs (dpkg/)
+lib/      libapt-pkg.so.7.0, apt/methods/*
 etc/apt/  sources.list, apt.conf.d/00local-prefix
 var/lib/apt/       apt lists/state
 var/lib/dpkg/      dpkg database (status, info, ...)
@@ -49,7 +50,7 @@ var/cache/apt/     downloaded .debs
 ## How the port works (the non-obvious bits)
 
 1. **`@TERMUX_PREFIX@` is a self-contained rootfs.** Termux's prefix contains
-   its own `bin/sh`, `bin/gzip`, etc. `~/.local` does not. So the substitution
+   its own `bin/sh`, `bin/gzip`, etc. `~/.sudo-less` does not. So the substitution
    is split:
    - `@TERMUX_PREFIX@/bin/` → `/usr/bin/` (helper programs apt shells out to)
    - `@TERMUX_PREFIX@/tmp`  → `/tmp`
@@ -70,7 +71,7 @@ var/cache/apt/     downloaded .debs
    `#ifndef __ANDROID__`; the fork makes them plain patches.
 6. **The prefix view.** dpkg runs in a mount namespace where the prefix is
    overlaid on `/usr`, `/etc`, `/var` and `/opt` ([`view.md`](view.md)), with
-   root `/`: a package's `./usr/bin/foo` lands in `~/.local/usr/bin/foo`, and
+   root `/`: a package's `./usr/bin/foo` lands in `~/.sudo-less/usr/bin/foo`, and
    maintainer scripts see a normal system. `--force-not-root` covers
    remaining permission errors. (Before the view: `--instdir=$PREFIX` and
    `--force-script-chrootless`.)
@@ -82,7 +83,7 @@ var/cache/apt/     downloaded .debs
 ## Beyond Termux's patches: our own changes
 
 Termux patched apt and dpkg for its goal: Android, one prefix, no root at all.
-Ours differs: packages from the *host's own* Debian into `~/.local`, next to a
+Ours differs: packages from the *host's own* Debian into `~/.sudo-less`, next to a
 system that stays in charge. The rule for our apt and dpkg:
 
 > **Patch only as far as native needs: apt and dpkg working without root in
@@ -199,7 +200,7 @@ installed packages directly. To do it by hand:
 ```sh
 export PATH="$HOME/.local/sbin:$HOME/.local/bin:$HOME/.local/usr/bin:$PATH"
 apt-get update
-sl-install -y <package>          # installs into ~/.local/usr, ~/.local/lib, ...
+sl-install -y <package>          # installs into ~/.sudo-less/usr, ~/.sudo-less/lib, ...
 sl-dpkg -l                       # our database, not the system's
 ```
 
@@ -212,7 +213,7 @@ apt calls `$PREFIX/lib/sudo-less/bin/dpkg`, a wrapper that runs dpkg in the pref
 
 - **The seeded db is locked by default.** `install-config.sh` runs
   `scripts/setup/lock-seeded.sh lock`, marking seeded (system) packages as dpkg
-  `hold` so apt cannot accidentally upgrade/remove them into/from `~/.local`;
+  `hold` so apt cannot accidentally upgrade/remove them into/from `~/.sudo-less`;
   packages you install yourself stay upgradable. `lock-seeded.sh unlock`
   releases them (only if you know why).
 - **Maintainer scripts that need root** (`debconf`, `adduser`, `systemctl`,

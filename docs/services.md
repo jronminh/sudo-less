@@ -43,7 +43,9 @@ sudo-less.
 ## Translation
 
 `prefix-units` turns each unit of a changed package, system or user, into
-a user unit in `~/.local/share/systemd/user`, tagged
+a user unit in the prefix (`$PREFIX/var/lib/sudo-less/user-units`), with a
+link to it in `~/.local/share/systemd/user`, where the user manager looks,
+tagged
 `# sudo-less user unit (prefix-units); regenerated, do not edit`:
 
 | part of the unit | becomes |

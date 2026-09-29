@@ -11,7 +11,7 @@
 # when a new kernel adds syscalls, and commit the result.
 set -eu
 REPO=$(cd "$(dirname "$0")/.." && pwd)
-R=$(command -v scmp_sys_resolver || echo "${PREFIX:-$HOME/.local}/usr/bin/scmp_sys_resolver")
+R=$(command -v scmp_sys_resolver || echo "${PREFIX:-$HOME/.sudo-less}/usr/bin/scmp_sys_resolver")
 [ -x "$R" ] || { echo "scmp_sys_resolver not found (apt install seccomp)" >&2; exit 1; }
 
 names=$(

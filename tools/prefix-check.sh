@@ -20,7 +20,12 @@
 set -eu
 
 [ "${SUDO_LESS_CHECK:-}" != off ] || exit 0
-: "${PREFIX:=$HOME/.local}"
+# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# else $PREFIX, else ~/.sudo-less.
+case $(readlink -f -- "${BASH_SOURCE[0]}") in
+  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+esac
+: "${PREFIX:=$HOME/.sudo-less}"
 DEB=$PREFIX/lib/sudo-less/bin/dpkg-deb
 [ -x "$DEB" ] || DEB=dpkg-deb
 

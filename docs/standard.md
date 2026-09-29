@@ -24,7 +24,7 @@ Two questions, asked of every package:
 
 | scope | meaning | the user sees |
 |---|---|---|
-| `user` | installs and runs from `~/.local` | `sl-install PKG`, then `PKG` |
+| `user` | installs and runs from `~/.sudo-less` | `sl-install PKG`, then `PKG` |
 | `admin` | belongs to the system: needs root to install or to work | a refusal naming what the admin must do |
 | `never` | no way fits the rules (a system user, a setuid program, a kernel module: needs root at install or run time) | a refusal with the reason |
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build upstream apt (Debian 3.3.3) with sudo-less's patches (a fork of Termux's), retargeted to a
-# user-writable prefix ($PREFIX, default ~/.local).
+# user-writable prefix ($PREFIX, default ~/.sudo-less).
 #
 # Run inside a Debian sid build environment with:
 #   build-essential cmake triehash gettext libssl-dev sqv

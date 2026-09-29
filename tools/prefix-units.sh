@@ -12,8 +12,10 @@
 # /usr/lib/systemd/system/*.service runs as User=redis, after
 # network.target, wanted by multi-user.target. In the prefix they land in
 # $PREFIX/usr/lib/systemd/..., where no manager looks. This translates each
-# unit (system or user) into a user unit in $UNITS, a directory the user
-# manager reads (systemd.unit(5), "User Unit Search Path"):
+# unit (system or user) into a user unit in $UNITS, in the prefix, with a
+# link to it in $LINKS, a directory the user manager reads (systemd.unit(5),
+# "User Unit Search Path"), so nothing of sudo-less's but the link is
+# outside the prefix:
 #
 #   identity   User=, Group=, DynamicUser=, capabilities: dropped, the
 #              service runs as you
@@ -76,12 +78,18 @@
 set -eu
 
 [ "${SUDO_LESS_UNITS:-}" != off ] || exit 0
-: "${PREFIX:=$HOME/.local}"
+# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# else $PREFIX, else ~/.sudo-less.
+case $(readlink -f -- "${BASH_SOURCE[0]}") in
+  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+esac
+: "${PREFIX:=$HOME/.sudo-less}"
 INFO=$PREFIX/var/lib/dpkg/info
 DB=$PREFIX/var/lib/sudo-less/units      # per package: the units it got
 ENABLED=$PREFIX/var/lib/sudo-less/units-enabled   # a file per unit enabled here
 VIEW=$PREFIX/lib/sudo-less/prefix-view
-UNITS=${XDG_DATA_HOME:-$HOME/.local/share}/systemd/user
+UNITS=$PREFIX/var/lib/sudo-less/user-units         # the translated units
+LINKS=${XDG_DATA_HOME:-$HOME/.local/share}/systemd/user   # a link to each
 TAG='# sudo-less user unit (prefix-units); regenerated, do not edit'
 SBXMARK='# sudo-less sandbox: '   # a directive for prefix-sandbox (--sandbox-from)
 
@@ -503,7 +511,7 @@ if [ "${1:-}" = --check ]; then
 fi
 
 if [ "${1:-}" = --all ]; then set -- "$INFO"/*.list; fi
-mkdir -p "$DB" "$ENABLED" "$UNITS"
+mkdir -p "$DB" "$ENABLED" "$UNITS" "$LINKS"
 # The user manager, if there is one to tell (not in a container or over su).
 USERMGR=
 if [ -n "${XDG_RUNTIME_DIR:-}" ] && systemctl --user show-environment >/dev/null 2>&1; then
@@ -513,21 +521,33 @@ sc() { [ -z "$USERMGR" ] || systemctl --user "$@" 2>&1 | sed 's/^/prefix-units: 
 reload=
 start=() restart=()
 
-write_unit() {  # write_unit NAME: stdin to $UNITS/NAME
+# $LINKS/NAME is ours if it is the link to $UNITS/NAME, or a unit an
+# earlier version wrote there (it has the tag).
+ours() {
+  [ "$(readlink "$LINKS/$1" 2>/dev/null)" = "$UNITS/$1" ] ||
+    { [ -f "$LINKS/$1" ] && [ ! -L "$LINKS/$1" ] && grep -qxF "$TAG" "$LINKS/$1" 2>/dev/null; }
+}
+
+write_unit() {  # write_unit NAME: stdin to $UNITS/NAME, linked from $LINKS
   local tmp=$UNITS/.$1.new.$$
-  if [ -e "$UNITS/$1" ] && ! grep -qxF "$TAG" "$UNITS/$1" 2>/dev/null; then
-    echo "prefix-units: $UNITS/$1 is not ours, left alone" >&2; cat >/dev/null; return 1
+  if { [ -e "$LINKS/$1" ] || [ -L "$LINKS/$1" ]; } && ! ours "$1"; then
+    echo "prefix-units: $LINKS/$1 is not ours, left alone" >&2; cat >/dev/null; return 1
   fi
   cat > "$tmp"
-  if cmp -s "$tmp" "$UNITS/$1"; then rm -f "$tmp"; return 0; fi
-  [ ! -e "$UNITS/$1" ] || restart+=("$1")
-  mv -f "$tmp" "$UNITS/$1"; reload=1
+  if cmp -s "$tmp" "$UNITS/$1"; then rm -f "$tmp"
+  else
+    [ ! -e "$UNITS/$1" ] || restart+=("$1")
+    mv -f "$tmp" "$UNITS/$1"; reload=1
+  fi
+  if [ "$(readlink "$LINKS/$1" 2>/dev/null)" != "$UNITS/$1" ]; then
+    ln -sfn "$UNITS/$1" "$LINKS/$1"; reload=1
+  fi
 }
 
 remove_unit() {
-  [ -f "$UNITS/$1" ] && grep -qxF "$TAG" "$UNITS/$1" 2>/dev/null || return 0
+  ours "$1" || return 0
   sc disable --now "$1"
-  rm -f "$UNITS/$1" "$ENABLED/$1"; reload=1
+  rm -f "$LINKS/$1" "$UNITS/$1" "$ENABLED/$1"; reload=1
 }
 
 # Packages that are gone: stop and remove their units.

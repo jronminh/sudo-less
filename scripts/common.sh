@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PREFIX="${PREFIX:-$HOME/.local}"
+PREFIX="${PREFIX:-$HOME/.sudo-less}"
 SRC="${SRC:-$REPO/src}"
 
 APT_VER="${APT_VER:-3.3.3}"

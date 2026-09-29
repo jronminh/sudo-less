@@ -58,7 +58,7 @@ What the user sees:
 sl-install PKG           # installs, or refuses with the reason
 PKG                      # runs, whatever mechanism it needs
 sudo-less explain PKG    # why it is in or out of scope, and how it runs
-sudo-less doctor         # user namespaces, signature verification, wedged packages
+sl-status                # the prefix; user namespaces, the run view, signature verification, wedged packages
 ```
 
 The evidence behind these choices, and the baseline they are measured

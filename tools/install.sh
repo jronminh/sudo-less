@@ -29,7 +29,7 @@ TOOLS='prefix-view prefix-sandbox prefix-integrate prefix-wrap prefix-units pref
 # (build-dpkg.sh moves it there), and $L/bin/NAME is the wrapper.
 DPKG_TOOLS='dpkg dpkg-query dpkg-divert dpkg-statoverride dpkg-trigger update-alternatives'
 # The sl-* commands: tools/sl.sh, as $PREFIX/bin/sl-NAME.
-SL='install remove purge autoremove update upgrade search show list shell apt dpkg help'
+SL='install remove purge autoremove update upgrade search show list status shell apt dpkg help'
 # apt-dpkg/config/apt.conf.d/NAME.in, with @PREFIX@ filled in.
 HOOKS='02integrate 03check'
 # What earlier versions installed and nothing uses any more.

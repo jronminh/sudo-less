@@ -99,6 +99,7 @@ Then, in a new shell:
 sl-update
 sl-install -y ripgrep htop jq     # installs into ~/.local
 sl-list                           # the packages you installed
+sl-status                         # the prefix, and a check that all is well
 ```
 
 The `sl-*` commands are sudo-less's; `sl-help` lists them. The `sl-` names

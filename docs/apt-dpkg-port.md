@@ -36,15 +36,23 @@ Termux patch to kept, adapted or dropped.
 
 ## Layout produced under `$PREFIX` (`~/.sudo-less`)
 
+The root is the tree the view lays over the host; sudo-less's own files are
+all in `.sl`, which no view lays anywhere and a package's install scripts
+cannot write (`tools/install.sh` has the whole list):
+
 ```
-bin/      the sl-* commands, and a launcher for each program that needs the view
-lib/sudo-less/bin/  apt apt-get apt-cache dpkg dpkg-deb dpkg-query ... (off PATH)
-lib/sudo-less/      the tools (prefix-view, ...), dpkg's real programs (dpkg/)
-lib/      libapt-pkg.so.7.0, apt/methods/*
-etc/apt/  sources.list, apt.conf.d/00local-prefix
-var/lib/apt/       apt lists/state
-var/lib/dpkg/      dpkg database (status, info, ...)
-var/cache/apt/     downloaded .debs
+usr/ etc/ var/ opt/  what packages install, over /usr, /etc, /var, /opt
+  etc/apt/           sources.list, apt.conf.d/00local-prefix
+  var/lib/apt/       apt lists/state
+  var/lib/dpkg/      dpkg database (status, info, ...)
+  var/cache/apt/     downloaded .debs
+.sl/bin/ .sl/sbin/   the sl-* commands, and a launcher for each program that
+                     needs the view (on PATH)
+.sl/lib/             the tools (prefix-view, prefix-units, ...)
+.sl/apt/             bin/ (apt, apt-get, ... off PATH), lib/ (libapt, methods)
+.sl/dpkg/            bin/ (dpkg, dpkg-deb, ... off PATH), real/, share/dpkg
+.sl/config/          your settings (~/.config/sudo-less links here)
+.sl/state/           units, session, view, db
 ```
 
 ## How the port works (the non-obvious bits)
@@ -55,12 +63,14 @@ var/cache/apt/     downloaded .debs
    - `@TERMUX_PREFIX@/bin/` → `/usr/bin/` (helper programs apt shells out to)
    - `@TERMUX_PREFIX@/tmp`  → `/tmp`
    - remaining `@TERMUX_PREFIX@` (apt's own `etc/apt`) → `$PREFIX`
-   - `DPkg::Path` → `$PREFIX/bin` + the system PATH
+   - `DPkg::Path` → `$PREFIX/.sl/dpkg/bin` + the system PATH
 2. **Isolated database.** `CMAKE_INSTALL_FULL_LOCALSTATEDIR=$PREFIX/var` makes
    apt derive `Dir::State::status = $PREFIX/var/lib/dpkg/status`. It never reads
    the system `/var/lib/dpkg/status`.
-3. **RPATH.** apt is installed with `RPATH=$PREFIX/lib` so it loads our
-   `libapt-pkg.so.7.0`, not the system's library of the same name.
+3. **RPATH.** apt is built with `RUNPATH=$ORIGIN/../lib:$ORIGIN/../..`, so
+   from `.sl/apt/bin` (and `.sl/apt/lib/apt/methods`) it loads our
+   `libapt-pkg.so.7.0` in `.sl/apt/lib`, not the system's library of the
+   same name, wherever the prefix is.
 4. **GCC 16 fixes** (`apt-dpkg/patches/apt/0008-gcc16-fixes.patch`): `<cstdint>`
    for `uint8_t`, and a `RAMFS_MAGIC` fallback.
 5. **dpkg without root checks.** `apt-dpkg/patches/dpkg/0001-no-superuser-check.patch`
@@ -200,13 +210,13 @@ installed packages directly. To do it by hand:
 ```sh
 export PATH="$HOME/.local/sbin:$HOME/.local/bin:$HOME/.local/usr/bin:$PATH"
 apt-get update
-sl-install -y <package>          # installs into ~/.sudo-less/usr, ~/.sudo-less/lib, ...
+sl-install -y <package>          # installs into ~/.sudo-less/usr, ~/.sudo-less/etc, ...
 sl-dpkg -l                       # our database, not the system's
 ```
 
-apt and dpkg are in `$PREFIX/lib/sudo-less/bin`, off `PATH`; the `sl-*`
-commands (`tools/sl.sh`) run them with `APT_CONFIG` set.
-apt calls `$PREFIX/lib/sudo-less/bin/dpkg`, a wrapper that runs dpkg in the prefix view
+apt and dpkg are in `$PREFIX/.sl/apt/bin` and `.sl/dpkg/bin`, off `PATH`;
+the `sl-*` commands (`tools/sl.sh`) run them with `APT_CONFIG` set.
+apt calls `$PREFIX/.sl/dpkg/bin/dpkg`, a wrapper that runs dpkg in the prefix view
 ([`view.md`](view.md)), via `$PREFIX/etc/apt/apt.conf.d/00local-prefix`.
 
 ## Caveats
@@ -220,12 +230,11 @@ apt calls `$PREFIX/lib/sudo-less/bin/dpkg`, a wrapper that runs dpkg in the pref
   `ldconfig`) still fail, and a failing one can wedge the prefix. Good for
   leaf tools; not for system-level packages (do **not** install `libc6` this
   way). See [our own changes](#beyond-termuxs-patches-our-own-changes).
-- **No PATH shadowing:** the builds install into `$PREFIX/bin`, and
-  `tools/install.sh` moves every `apt*`, `dpkg*`, `update-alternatives` and
-  `start-stop-daemon` to `$PREFIX/lib/sudo-less/bin`, so the bare names stay
-  the system's. apt still finds its libraries there (its RUNPATH has
-  `$ORIGIN/../..`, which is `$PREFIX/lib`), and `lib/sudo-less/share` links
-  to `$PREFIX/share` for `dpkg-maintscript-helper`'s `../share/dpkg`.
+- **No PATH shadowing:** the builds install into `$PREFIX/bin`, `lib` and
+  `share`, and `tools/install.sh` moves apt into `$PREFIX/.sl/apt` and
+  dpkg into `.sl/dpkg`, so the bare names stay the system's. Each keeps
+  its shape: apt's `bin/` next to its `lib/`, and `dpkg-maintscript-helper`
+  finds `../share/dpkg` next to itself.
   Maintainer scripts get the prefix's dpkg first from `DPkg::Path`, or, when
   dpkg is run by hand, from the wrapper, which puts its own directory first
   on `PATH`.

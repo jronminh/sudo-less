@@ -83,7 +83,7 @@ An empty cell means nothing has been found there yet.
 
 | problem | cell | what solves it | where |
 |---|---|---|---|
-| the prefix's programs are not on `PATH` | done | `$PREFIX/bin` and `$PREFIX/usr/bin` on `PATH`, for shells and the desktop session | `scripts/setup/install-shell-path.sh`, `install-session-env.sh` |
+| the prefix's programs are not on `PATH` | done | `$PREFIX/.sl/bin` and `$PREFIX/usr/bin` on `PATH`, for shells and the desktop session | `scripts/setup/install-shell-path.sh`, `install-session-env.sh` |
 | a program looks for its files at `/usr/...`, `/etc/...`, `/opt/...` (compiled-in paths, an interpreter's module path, a library only in the prefix, an alternatives link, a shebang naming an interpreter only in the prefix) | done | `prefix-wrap` gives it a script in `$PREFIX/bin` that runs it in the shared run view; every other program runs directly | [`view.md`](view.md#how-programs-get-there) |
 | a program of another architecture (i386) needs its loader, `/lib/ld-linux.so.2`, which only the prefix has, and `ldd` does not read it | done | `prefix-wrap` reads the program's loader and runs it in the run view, where the prefix's loader is at `/lib` (`pv:i386` ran, 2026-09-25) | `tools/prefix-wrap.sh` |
 | a disk mounted after the run view started is not in it | done | the run view receives the host's mounts (`--propagation slave`) | [`view.md`](view.md#host-mounts) |

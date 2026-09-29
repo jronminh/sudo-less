@@ -23,19 +23,19 @@
 # a dpkg run apt did not make (apt-dpkg/dpkg-wrapper.sh).
 set -eu
 
-# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# The prefix: the one this tool is installed in ($PREFIX/.sl/lib),
 # else $PREFIX, else ~/.sudo-less.
 case $(readlink -f -- "${BASH_SOURCE[0]}") in
-  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+  */.sl/lib/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/.sl/lib/*} ;;
 esac
 : "${PREFIX:=$HOME/.sudo-less}"
 INFO=$PREFIX/var/lib/dpkg/info
 ALTS=$PREFIX/var/lib/dpkg/alternatives
-STATE=$PREFIX/.sudo-less
+STATE=$PREFIX/.sl/state
 STAMP=$STATE/integrate.stamp
 HERE=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")
 
-tool() {  # installed as lib/sudo-less/NAME, in the repo as tools/NAME.sh
+tool() {  # installed as .sl/lib/NAME, in the repo as tools/NAME.sh
   if [ -x "$HERE/$1" ]; then echo "$HERE/$1"; else echo "$HERE/$1.sh"; fi
 }
 
@@ -52,10 +52,9 @@ for f in "$INFO"/*.list "$ALTS"/*; do
 done
 
 # dpkg puts .desktop files in $PREFIX/usr/share/applications (on
-# XDG_DATA_DIRS, scripts/setup/install-session-env.sh); $PREFIX/share is
-# ~/.local/share, the user's own launchers.
+# XDG_DATA_DIRS, scripts/setup/install-session-env.sh).
 if command -v update-desktop-database >/dev/null 2>&1; then
-  for d in "$PREFIX/usr/share/applications" "$PREFIX/share/applications"; do
+  for d in "$PREFIX/usr/share/applications"; do
     [ ! -d "$d" ] || update-desktop-database "$d" >/dev/null 2>&1 || :
   done
 fi

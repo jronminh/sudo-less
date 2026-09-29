@@ -43,8 +43,8 @@ MAXPROG=${MAXPROG:-6}
 
 clean_work() {
   if [ -d "$W" ]; then
-    [ ! -x "$W/pfx/lib/sudo-less/prefix-view" ] ||
-      PREFIX=$W/pfx "$W/pfx/lib/sudo-less/prefix-view" --stop 2>/dev/null
+    [ ! -x "$W/pfx/.sl/lib/prefix-view" ] ||
+      PREFIX=$W/pfx "$W/pfx/.sl/lib/prefix-view" --stop 2>/dev/null
     chmod -R u+rwx "$W" 2>/dev/null
     rm -rf "$W"
   fi
@@ -56,7 +56,7 @@ fresh_prefix() {
   clean_work
   mkdir -p "$W/pfx" "$W/home"
   tar -C "$BASE" --exclude=./var/lib/apt/lists --exclude=./var/cache/apt \
-      --exclude=./.sudo-less/view/work -cf - . | tar -C "$W/pfx" -xf -
+      --exclude=./.sl/state/view/work -cf - . | tar -C "$W/pfx" -xf -
   mkdir -p "$W/pfx/var/lib/apt/lists" "$W/pfx/var/cache/apt"
   grep -rlF -- "$BASE" "$W/pfx/etc" "$W/pfx/share/sudo-less" 2>/dev/null |
     xargs -r sed -i "s|$BASE|$W/pfx|g"
@@ -134,7 +134,7 @@ survey_one() {
   (
     export PREFIX=$W/pfx HOME=$W/home
     export APT_CONFIG=$PREFIX/etc/apt/apt.conf.d/00local-prefix
-    export PATH=$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:/usr/local/bin:/usr/bin:/bin
+    export PATH=$PREFIX/.sl/sbin:$PREFIX/.sl/bin:$PREFIX/usr/bin:/usr/local/bin:/usr/bin:/bin
     unset DPKG_ADMINDIR
     headless
     timeout 1800 apt-get install -y --no-install-recommends \
@@ -143,7 +143,7 @@ survey_one() {
   ) >"$log" 2>&1
   local rc=$?
   if [ $rc = 0 ] &&
-     PREFIX=$W/pfx "$W/pfx/lib/sudo-less/bin/dpkg-query" -W -f '${db:Status-Abbrev}' "$pkg" 2>/dev/null |
+     PREFIX=$W/pfx "$W/pfx/.sl/dpkg/bin/dpkg-query" -W -f '${db:Status-Abbrev}' "$pkg" 2>/dev/null |
        grep -q '^ii'; then
     inst=ok
   else
@@ -161,13 +161,13 @@ survey_one() {
       if [ -f "$W/pfx/bin/$p" ] || [ -f "$W/pfx/sbin/$p" ]; then how=view; else how=direct; fi
       r=$(
         export PREFIX=$W/pfx HOME=$W/home
-        export PATH=$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PREFIX/usr/games:/usr/local/bin:/usr/bin:/bin
+        export PATH=$PREFIX/.sl/sbin:$PREFIX/.sl/bin:$PREFIX/usr/bin:$PREFIX/usr/games:/usr/local/bin:/usr/bin:/bin
         headless
         echo "=== $p ($how)" >>"$log"
         r=$(try_program "$p")
         cat "$W/run.out" >>"$log"
         if [ "$how" = direct ] && [ "$r" = fail ]; then
-          r2=$(try_program "$PREFIX/lib/sudo-less/prefix-view" --run "$p")
+          r2=$(try_program "$PREFIX/.sl/lib/prefix-view" --run "$p")
           echo "=== $p (retry in the run view: $r2)" >>"$log"
           cat "$W/run.out" >>"$log"
           [ "$r2" != ok ] || r=miss
@@ -176,7 +176,7 @@ survey_one() {
       )
       progs+="${progs:+,}$p:$how:$r"
       case $r in ok) ok=$((ok + 1)) ;; fail|miss) bad=$((bad + 1)) ;; *) unt=$((unt + 1)) ;; esac
-    done < <(PREFIX=$W/pfx "$W/pfx/lib/sudo-less/bin/dpkg-query" -L "$pkg" 2>/dev/null |
+    done < <(PREFIX=$W/pfx "$W/pfx/.sl/dpkg/bin/dpkg-query" -L "$pkg" 2>/dev/null |
                grep -E '^/(usr/)?(s?bin|games)/[^/]+$')
     if [ $((ok + bad + unt)) -eq 0 ]; then run=none
     elif [ $bad -eq 0 ] && [ $ok -gt 0 ]; then run=ok

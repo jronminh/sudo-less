@@ -39,5 +39,5 @@ log "installing runtime config into $PREFIX"
 PREFIX="$PREFIX" "$REPO/scripts/setup/install-config.sh"
 
 log "done."
-log "  export PATH=\"$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:\$PATH\""
+log "  export PATH=\"$PREFIX/.sl/sbin:$PREFIX/.sl/bin:$PREFIX/usr/bin:\$PATH\""
 log "  sl-update && sl-install -y <pkg>"

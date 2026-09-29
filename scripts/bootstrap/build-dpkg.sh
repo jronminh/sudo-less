@@ -18,9 +18,9 @@
 #     --prefix; the dpkg-maintscript-helper finds its data next to itself
 #     wherever the prefix is (apt-dpkg/patches/dpkg/0100-maintscript-helper-datadir.patch).
 #   * The programs that touch the database or the installed tree move to
-#     $PREFIX/lib/sudo-less/dpkg; $PREFIX/lib/sudo-less/bin gets a wrapper
-#     for each that enters the install view (apt-dpkg/dpkg-wrapper.sh), and
-#     the rest of dpkg's programs, off PATH (tools/install.sh).
+#     $PREFIX/.sl/dpkg/real; $PREFIX/.sl/dpkg/bin gets a wrapper for each
+#     that enters the install view (apt-dpkg/dpkg-wrapper.sh), and the rest
+#     of dpkg's programs, off PATH (tools/install.sh).
 source "$(dirname "$0")/../common.sh"
 
 fetch "$DPKG_URL" "dpkg-$DPKG_VER.tar.gz"
@@ -56,8 +56,14 @@ log "installing into $PREFIX"
 STAGE="$SRC/dpkg-stage"
 rm -rf "$STAGE"
 make install DESTDIR="$STAGE" >/dev/null
-mkdir -p "$PREFIX"
-cp -a "$STAGE$PREFIX/." "$PREFIX/"
+# Only what runs: the programs and dpkg's data (not the headers, libdpkg.a,
+# the Perl modules, man pages or translations). tools/install.sh moves them
+# into $PREFIX/.sl/dpkg.
+mkdir -p "$PREFIX/share"
+for d in bin sbin; do
+  [ ! -d "$STAGE$PREFIX/$d" ] || { mkdir -p "$PREFIX/$d"; cp -a "$STAGE$PREFIX/$d/." "$PREFIX/$d/"; }
+done
+cp -a "$STAGE$PREFIX/share/dpkg" "$PREFIX/share/"
 for d in etc var; do
   [ -d "$STAGE/$d" ] || continue
   mkdir -p "$PREFIX/$d"
@@ -65,14 +71,14 @@ for d in etc var; do
 done
 
 VIEW_TOOLS="dpkg dpkg-query dpkg-divert dpkg-statoverride dpkg-trigger update-alternatives"
-L="$PREFIX/lib/sudo-less"
-mkdir -p "$L/dpkg"
+L="$PREFIX/.sl/dpkg"
+mkdir -p "$L/real"
 for t in $VIEW_TOOLS; do
   for b in bin sbin; do
     [ -f "$PREFIX/$b/$t" ] || continue
-    mv -f "$PREFIX/$b/$t" "$L/dpkg/$t"
+    mv -f "$PREFIX/$b/$t" "$L/real/$t"
   done
-  [ -x "$L/dpkg/$t" ] || die "dpkg did not install $t"
+  [ -x "$L/real/$t" ] || die "dpkg did not install $t"
 done
 # The wrappers in $L/bin, and the tools they use.
 PREFIX=$PREFIX bash "$REPO/tools/install.sh"

@@ -52,13 +52,13 @@
 # user namespaces (admin/enable-userspace.sh) and overlayfs (kernel >= 5.11).
 set -eu
 
-# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# The prefix: the one this tool is installed in ($PREFIX/.sl/lib),
 # else $PREFIX, else ~/.sudo-less.
 case $(readlink -f -- "${BASH_SOURCE[0]}") in
-  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+  */.sl/lib/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/.sl/lib/*} ;;
 esac
 : "${PREFIX:=$HOME/.sudo-less}"
-STATE=$PREFIX/.sudo-less/view
+STATE=$PREFIX/.sl/state/view
 RUNPID=$STATE/run.pid
 MARK=sudo-less-run-view   # the run view's holder: "$MARK infinity"
 
@@ -102,7 +102,7 @@ need() {
 
 # The directories the files of a .deb go in.
 deb_dirs() {
-  local deb=$PREFIX/lib/sudo-less/bin/dpkg-deb
+  local deb=$PREFIX/.sl/dpkg/bin/dpkg-deb
   [ -x "$deb" ] || deb=dpkg-deb
   "$deb" --fsys-tarfile "$1" | tar -t | sed -n 's|^\./|/|; s|/[^/]*/*$||p'
 }
@@ -228,7 +228,7 @@ if [ "${1-}" != --inner ]; then
       --property=PrivateTmp=yes --property=InaccessiblePaths=-/media
       --property=InaccessiblePaths=-/mnt)
     for d in usr etc var opt; do SANDBOX+=("--property=ReadWritePaths=$PREFIX/$d"); done
-    for d in bin sbin lib/sudo-less; do
+    for d in .sl/bin .sl/sbin .sl/lib .sl/apt .sl/dpkg; do
       [ ! -d "$PREFIX/$d" ] || SANDBOX+=("--property=BindReadOnlyPaths=$PREFIX/$d")
     done
     while IFS= read -r f; do

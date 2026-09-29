@@ -2,7 +2,7 @@
 
 A **view** is a private mount namespace where the prefix is overlaid on the
 host's system directories (`tools/prefix-view.sh`, installed as
-`$PREFIX/lib/sudo-less/prefix-view`). In a view:
+`$PREFIX/.sl/lib/prefix-view`). In a view:
 
 - the host's files show through, and every write lands in the prefix
   (`$PREFIX/usr`, `$PREFIX/etc`, ...), never on the host;
@@ -69,10 +69,10 @@ a whole distribution without root, use rootless podman or distrobox.
 
 ## How dpkg gets there
 
-`$PREFIX/lib/sudo-less/bin/dpkg` (and `dpkg-query`, `dpkg-divert`, `dpkg-statoverride`,
+`$PREFIX/.sl/dpkg/bin/dpkg` (and `dpkg-query`, `dpkg-divert`, `dpkg-statoverride`,
 `dpkg-trigger`, `update-alternatives`) is a wrapper
 (`apt-dpkg/dpkg-wrapper.sh`) that runs the real program from
-`$PREFIX/lib/sudo-less/dpkg` inside the install view. Inside the install
+`$PREFIX/.sl/dpkg/real` inside the install view. Inside the install
 view (`SUDO_LESS_VIEW=private`) it runs it directly. Queries that only read
 the database (`dpkg -l`, `-L`, `-S`, `-s`, `--print-foreign-architectures`,
 `dpkg-query`) skip the view and get `--admindir=$PREFIX/var/lib/dpkg`, which
@@ -106,19 +106,19 @@ Directories many packages share (`/usr/bin`, `/usr/share/locale`, the
 library directory, ...) do not count. `prefix-wrap --check PROG...` prints
 the decision and the evidence without changing anything.
 
-Such a program gets a script of the same name in `$PREFIX/bin` (`$PREFIX/sbin`
-for an `sbin` program), which comes before `$PREFIX/usr/bin` on `PATH`:
+Such a program gets a script of the same name in `$PREFIX/.sl/bin`
+(`.sl/sbin` for an `sbin` program), which comes before `$PREFIX/usr/bin` on `PATH`:
 
 ```sh
 #!/bin/sh
 # sudo-less view wrapper (prefix-wrap); regenerated, do not edit
-exec $PREFIX/lib/sudo-less/prefix-view --run /usr/bin/ranger "$@"
+exec $PREFIX/.sl/lib/prefix-view --run /usr/bin/ranger "$@"
 ```
 
 The scripts each package got are recorded in
-`$PREFIX/var/lib/sudo-less/wrappers/<package>` (`alternatives=<name>` for an
-alternative), so they are removed with the package. A file in `$PREFIX/bin`
-without that marker line (apt, the dpkg wrappers) is never touched.
+`$PREFIX/.sl/state/db/wrappers/<package>` (`alternatives=<name>` for an
+alternative), so they are removed with the package. A file in `$PREFIX/.sl/bin`
+without that marker line (the sl-* commands) is never touched.
 `prefix-wrap --all` redoes every package.
 
 Every other program runs directly from `$PREFIX/usr/bin`, with no view:
@@ -277,4 +277,4 @@ view never reach the host.
 and log, the `prefix-wrap` stamp, each running view's overlay work
 directories (`work/<pid>`, removed by the next view once that process has
 exited) and a mount point for the view's temporary skeletons.
-`$PREFIX/var/lib/sudo-less/wrappers/` records the scripts each package got.
+`$PREFIX/.sl/state/db/wrappers/` records the scripts each package got.

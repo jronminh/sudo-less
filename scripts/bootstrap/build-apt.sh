@@ -14,7 +14,9 @@
 #     @TERMUX_PREFIX@/tmp -> /tmp, and only apt's own etc/apt -> $PREFIX.
 #   * CMAKE_INSTALL_FULL_LOCALSTATEDIR=$PREFIX/var makes dpkg status resolve to
 #     $PREFIX/var/lib/dpkg/status (isolated from the system db).
-#   * RPATH=$PREFIX/lib so our libapt-pkg.so.6.0 wins over the system .7.0.
+#   * RPATH $ORIGIN/../lib so our libapt-pkg wins over the system's; the
+#     programs and libraries end up in $PREFIX/.sl/apt/{bin,lib}
+#     (tools/install.sh moves them there).
 source "$(dirname "$0")/../common.sh"
 
 fetch "$APT_URL" "apt-$APT_VER.tar.xz"
@@ -34,7 +36,7 @@ mapfile -t files < <(grep -rl '@TERMUX_PREFIX@' \
 sed -i "s|@TERMUX_PREFIX@/bin/|/usr/bin/|g" "${files[@]}"
 sed -i "s|@TERMUX_PREFIX@/tmp|/tmp|g" "${files[@]}"
 # DPkg::Path must keep the system PATH (plus our bin) for maintainer scripts
-sed -i "s|\"@TERMUX_PREFIX@/bin\"|\"$PREFIX/lib/sudo-less/bin:$PREFIX/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"|" apt-pkg/init.cc
+sed -i "s|\"@TERMUX_PREFIX@/bin\"|\"$PREFIX/.sl/dpkg/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"|" apt-pkg/init.cc
 sed -i "s|@TERMUX_PREFIX@|$PREFIX|g" "${files[@]}"
 if grep -rn '@TERMUX_PREFIX@' "${files[@]}"; then die "unsubstituted @TERMUX_PREFIX@ remains"; fi
 
@@ -58,5 +60,13 @@ cmake -S "$SRC/apt-$APT_VER" -B "$BUILD" \
 log "building"
 make -C "$BUILD" -j"$(nproc)"
 log "installing into $PREFIX"
-make -C "$BUILD" install
+# Only what runs: the programs, libapt and apt's helpers (not the headers or
+# pkg-config files). tools/install.sh moves them into $PREFIX/.sl/apt.
+STAGE="$SRC/apt-stage"
+rm -rf "$STAGE"
+make -C "$BUILD" install DESTDIR="$STAGE" >/dev/null
+mkdir -p "$PREFIX/bin" "$PREFIX/lib"
+cp -a "$STAGE$PREFIX/bin/." "$PREFIX/bin/"
+cp -a "$STAGE$PREFIX"/lib/libapt-pkg.so* "$STAGE$PREFIX"/lib/libapt-private.so* "$STAGE$PREFIX/lib/apt" "$PREFIX/lib/"
+[ ! -d "$STAGE$PREFIX/etc" ] || { mkdir -p "$PREFIX/etc"; cp -an "$STAGE$PREFIX/etc/." "$PREFIX/etc/"; }
 log "apt installed: $PREFIX/bin/apt ($("$PREFIX/bin/apt" --version | head -1))"

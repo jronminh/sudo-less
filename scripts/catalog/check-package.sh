@@ -46,9 +46,9 @@ done
 [ $# -gt 0 ] || { echo "usage: $0 [--meta] [--runtime] PKG..." >&2; exit 2; }
 
 export APT_CONFIG="$PREFIX/etc/apt/apt.conf.d/00local-prefix"
-APT="$PREFIX/lib/sudo-less/bin/apt-get"
-APT_CACHE="$PREFIX/lib/sudo-less/bin/apt-cache"
-DPKG_DEB="$(command -v dpkg-deb || echo "$PREFIX/lib/sudo-less/bin/dpkg-deb")"
+APT="$PREFIX/.sl/apt/bin/apt-get"
+APT_CACHE="$PREFIX/.sl/apt/bin/apt-cache"
+DPKG_DEB="$(command -v dpkg-deb || echo "$PREFIX/.sl/dpkg/bin/dpkg-deb")"
 ARCHIVES="$PREFIX/var/cache/apt/archives"
 
 # --- signals -----------------------------------------------------------------

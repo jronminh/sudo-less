@@ -6,4 +6,4 @@
 // hands them to each step.
 //
 // Never fails an apt transaction.
-DPkg::Post-Invoke:: "PREFIX=@PREFIX@ @PREFIX@/lib/sudo-less/prefix-integrate || true";
+DPkg::Post-Invoke:: "PREFIX=@PREFIX@ @PREFIX@/.sl/lib/prefix-integrate || true";

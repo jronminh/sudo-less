@@ -125,7 +125,7 @@ sl-uninstall          # says what goes
 sl-uninstall --yes    # stops the services, removes the links, the PATH block and ~/.sudo-less
 ```
 
-Your settings (`~/.config/sudo-less`, a link to `~/.sudo-less/config`)
+Your settings (`~/.config/sudo-less`, a link to `~/.sudo-less/.sl/config`)
 go with it: copy them first to keep them. What the services kept in
 `~/.local/state` and `~/.cache` stays, like any program's.
 
@@ -257,9 +257,15 @@ that needs the view, and a user unit for each service. Your copy keeps its own p
 the system's, and treats everything already on the system as already installed —
 so it only fetches what you actually ask for. Neither program is a fork.
 
+In `~/.sudo-less`, `usr`, `etc`, `var` and `opt` are what packages
+install, and all the view lays over the host. sudo-less itself (apt,
+dpkg, the tools, the `sl-*` commands, your settings, its records) is in
+one hidden folder, `.sl`, which no view shows as a system path and a
+package's install scripts cannot write.
+
 The system's own `apt` and `dpkg` are untouched, and they keep their names:
 `apt` and `dpkg` in your shell are always the system's (`sudo apt` updates
-the OS). Your copies live off `PATH`, in `~/.sudo-less/lib/sudo-less/bin`, and
+the OS). Your copies live off `PATH`, in `~/.sudo-less/.sl/apt` and `.sl/dpkg`, and
 the `sl-*` commands run them: `sl-install`, `sl-remove`, `sl-list`,
 `sl-help` for the rest, and `sl-apt` / `sl-dpkg` for anything else. Each
 points apt at the prefix's config for its own run only.

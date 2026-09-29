@@ -64,7 +64,7 @@ log "from:    $URL"
 
 if [ "$DRY" = 1 ]; then
   log "dry run — would fetch, verify sha256, unpack into $PREFIX, then run:"
-  printf '    %s/share/sudo-less/scripts/setup/install-config.sh\n' "$PREFIX"
+  printf '    %s/.sl/repo/scripts/setup/install-config.sh\n' "$PREFIX"
   exit 0
 fi
 
@@ -106,7 +106,9 @@ log "unpacking into $PREFIX"
 mkdir -p "$PREFIX"
 tar -C "$PREFIX" -xzf "$TMP/$ASSET"
 
-SETUP="$PREFIX/share/sudo-less/scripts/setup/install-config.sh"
+SETUP="$PREFIX/.sl/repo/scripts/setup/install-config.sh"
+# releases before 2026-10 have it in share/sudo-less
+[ -x "$SETUP" ] || SETUP="$PREFIX/share/sudo-less/scripts/setup/install-config.sh"
 [ -x "$SETUP" ] || die "unpacked tree is missing $SETUP (bad artifact?)"
 
 log "configuring"

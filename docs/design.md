@@ -49,7 +49,7 @@ adding a file, not editing a script.
 | **views** | where dpkg runs, and the programs that look for their files at `/usr`, `/etc`, `/opt` | [`view.md`](view.md) |
 | **problem map** | every obstacle, by when it bites (install, run) and who can fix it (sudo-less, the admin once, nobody) | [`problems.md`](problems.md) |
 | **ecosystems** | what each language needs; per-language parts plug into the stages when one is needed (none today) | [`ecosystems.md`](ecosystems.md) |
-| **state** | `$PREFIX/var/lib/sudo-less/`: per package, its scope, mechanism and the wrappers it got, so everything can be explained and removed cleanly | — |
+| **state** | `$PREFIX/.sl/state/db/`: per package, its scope, mechanism and the wrappers it got, so everything can be explained and removed cleanly | — |
 | **admin step** | one-time enablement: unprivileged user namespaces, `~/.local/bin` on `PATH` (`admin/enable-userspace.sh`) | [`../admin/`](../admin/) |
 
 What the user sees:

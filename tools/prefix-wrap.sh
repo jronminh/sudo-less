@@ -11,8 +11,8 @@
 #
 # dpkg installs into the prefix view, so a program lands in $PREFIX/usr/bin
 # (on PATH) but may still look for its files at /usr/..., /etc/... or /opt/...
-# Such a program gets a small script of the same name in $PREFIX/bin (or
-# $PREFIX/sbin), ahead of $PREFIX/usr/bin on PATH, that runs it in the run
+# Such a program gets a small script of the same name in $PREFIX/.sl/bin
+# (or .sl/sbin), ahead of $PREFIX/usr/bin on PATH, that runs it in the run
 # view (prefix-view --run). Every other program runs directly from
 # $PREFIX/usr/bin, with no view at all.
 #
@@ -31,16 +31,16 @@
 # which the next --run rebuilds on the new files.
 set -eu
 
-# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# The prefix: the one this tool is installed in ($PREFIX/.sl/lib),
 # else $PREFIX, else ~/.sudo-less.
 case $(readlink -f -- "${BASH_SOURCE[0]}") in
-  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+  */.sl/lib/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/.sl/lib/*} ;;
 esac
 : "${PREFIX:=$HOME/.sudo-less}"
 INFO=$PREFIX/var/lib/dpkg/info
 ALTS=$PREFIX/var/lib/dpkg/alternatives
-DB=$PREFIX/var/lib/sudo-less/wrappers   # per package (or alternatives=NAME): its scripts
-VIEW=$PREFIX/lib/sudo-less/prefix-view
+DB=$PREFIX/.sl/state/db/wrappers   # per package (or alternatives=NAME): its scripts
+VIEW=$PREFIX/.sl/lib/prefix-view
 TAG='# sudo-less view wrapper (prefix-wrap); regenerated, do not edit'
 
 # Directories many packages share, which the prefix has files in as soon as
@@ -145,7 +145,7 @@ programs() {
 }
 
 wrapper_path() {
-  case $1 in */sbin/*) echo "$PREFIX/sbin/${1##*/}" ;; *) echo "$PREFIX/bin/${1##*/}" ;; esac
+  case $1 in */sbin/*) echo "$PREFIX/.sl/sbin/${1##*/}" ;; *) echo "$PREFIX/.sl/bin/${1##*/}" ;; esac
 }
 
 if [ "${1:-}" = --check ]; then
@@ -161,7 +161,7 @@ if [ "${1:-}" = --check ]; then
 fi
 
 if [ "${1:-}" = --all ]; then set -- "$INFO"/*.list "$ALTS"/*; fi
-mkdir -p "$DB" "$PREFIX/bin" "$PREFIX/sbin"
+mkdir -p "$DB" "$PREFIX/.sl/bin" "$PREFIX/.sl/sbin"
 changed=
 
 # Packages that are gone: remove their scripts.

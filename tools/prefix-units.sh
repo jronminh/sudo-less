@@ -53,7 +53,7 @@
 #              shell and desktop find code to run: the package picks the
 #              unit's name). Only you loosen a sandbox:
 #              ~/.config/sudo-less/sandbox/UNIT, a link to
-#              $PREFIX/config/sandbox (tools/prefix-sandbox.sh).
+#              $PREFIX/.sl/config/sandbox (tools/prefix-sandbox.sh).
 #   paths      paths systemd itself reads (EnvironmentFile=, PIDFile=,
 #              Condition*=) get their $PREFIX copy when there is one, and
 #              /run/X is %t/sudo-less/run/X; in a system unit %t, %S, %C,
@@ -80,17 +80,17 @@
 set -eu
 
 [ "${SUDO_LESS_UNITS:-}" != off ] || exit 0
-# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# The prefix: the one this tool is installed in ($PREFIX/.sl/lib),
 # else $PREFIX, else ~/.sudo-less.
 case $(readlink -f -- "${BASH_SOURCE[0]}") in
-  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+  */.sl/lib/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/.sl/lib/*} ;;
 esac
 : "${PREFIX:=$HOME/.sudo-less}"
 INFO=$PREFIX/var/lib/dpkg/info
-DB=$PREFIX/var/lib/sudo-less/units      # per package: the units it got
-ENABLED=$PREFIX/var/lib/sudo-less/units-enabled   # a file per unit enabled here
-VIEW=$PREFIX/lib/sudo-less/prefix-view
-UNITS=$PREFIX/.sudo-less/units                    # the translated units
+DB=$PREFIX/.sl/state/db/units      # per package: the units it got
+ENABLED=$PREFIX/.sl/state/db/units-enabled   # a file per unit enabled here
+VIEW=$PREFIX/.sl/lib/prefix-view
+UNITS=$PREFIX/.sl/state/units                    # the translated units
 LINKS=${XDG_DATA_HOME:-$HOME/.local/share}/systemd/user   # a link to each
 TAG='# sudo-less user unit (prefix-units); regenerated, do not edit'
 SBXMARK='# sudo-less sandbox: '   # a directive for prefix-sandbox (--sandbox-from)
@@ -491,7 +491,7 @@ translate() {
 unit_files() {
   grep -E '^(/usr)?/lib/systemd/(system|user)/[^/]+\.(service|socket|timer|path)$' "$1" 2>/dev/null |
   while IFS= read -r f; do
-    f=/usr${f#/usr}   # /lib is /usr/lib (merged /usr); $PREFIX/lib is sudo-less's
+    f=/usr${f#/usr}   # /lib is /usr/lib (merged /usr); $PREFIX/.sl is sudo-less's
     [ -f "$PREFIX$f" ] || continue
     case $f in
       */system/*)
@@ -523,10 +523,11 @@ sc() { [ -z "$USERMGR" ] || systemctl --user "$@" 2>&1 | sed 's/^/prefix-units: 
 reload=
 start=() restart=()
 
-# $LINKS/NAME is ours if it is the link to $UNITS/NAME, or a unit an
-# earlier version wrote there (it has the tag).
+# $LINKS/NAME is ours if it is a link into the prefix (to $UNITS/NAME, or
+# where an earlier version kept it), or a unit an earlier version wrote
+# there (it has the tag).
 ours() {
-  [ "$(readlink "$LINKS/$1" 2>/dev/null)" = "$UNITS/$1" ] ||
+  case $(readlink "$LINKS/$1" 2>/dev/null) in "$PREFIX"/*) return 0 ;; esac
     { [ -f "$LINKS/$1" ] && [ ! -L "$LINKS/$1" ] && grep -qxF "$TAG" "$LINKS/$1" 2>/dev/null; }
 }
 

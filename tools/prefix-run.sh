@@ -141,8 +141,8 @@ build_cmd() {
       CMD+=(--dev-bind /dev /dev --proc /proc --bind /tmp /tmp
             --bind "$HOME" "$HOME" --chdir "$PWD"
             --setenv HOME "$HOME"
-            --setenv PATH "$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
-            --setenv XDG_DATA_DIRS "$PREFIX/usr/share:$PREFIX/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}")
+            --setenv PATH "$PREFIX/.sl/sbin:$PREFIX/.sl/bin:$PREFIX/usr/bin:$PATH"
+            --setenv XDG_DATA_DIRS "$PREFIX/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}")
       if [ "$GUI" -eq 1 ]; then gui_cmd; fi
       ;;
     overlay-native)
@@ -162,8 +162,8 @@ for d in usr etc; do
     -o "lowerdir=$PREFIX/$d:/$d,upperdir=$ovl/up-$d,workdir=$ovl/wk-$d" "/$d"
 done
 cd "$SL_PWD"
-export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
-export XDG_DATA_DIRS="$PREFIX/usr/share:$PREFIX/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export PATH="$PREFIX/.sl/sbin:$PREFIX/.sl/bin:$PREFIX/usr/bin:$PATH"
+export XDG_DATA_DIRS="$PREFIX/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 exec unshare -U --map-user="$SL_UID" --map-group="$SL_GID" -- "$@"'
       native_prefix_ok
       CMD=(env PREFIX="$PREFIX" SL_PWD="$PWD" SL_UID="$(id -u)" SL_GID="$(id -g)")
@@ -183,9 +183,9 @@ fi
 
 case "$MODE_RESOLVED" in
   env)
-    export LD_LIBRARY_PATH="$PREFIX/usr/lib:$PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-    export XDG_DATA_DIRS="$PREFIX/usr/share:$PREFIX/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
-    export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
+    export LD_LIBRARY_PATH="$PREFIX/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export XDG_DATA_DIRS="$PREFIX/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+    export PATH="$PREFIX/.sl/sbin:$PREFIX/.sl/bin:$PREFIX/usr/bin:$PATH"
     export PKG_CONFIG_PATH="$PREFIX/usr/lib/pkgconfig:$PREFIX/usr/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
     if [ "$PRINT" -eq 1 ]; then
       print_cmd env "PATH=$PREFIX/usr/bin:$PATH" "XDG_DATA_DIRS=$XDG_DATA_DIRS" "$@"

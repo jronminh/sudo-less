@@ -43,7 +43,7 @@ Two things broke a Python package installed into the prefix (issue #5):
 **In the view:** the real `py3compile` works, because `/usr/lib/python3` is
 the prefix's tree there. Verified 2026-09-24 by reinstalling `ranger` with
 no shim on `PATH`: all 81 `.pyc` files were built. A Python program is run
-in the run view (its `$PREFIX/bin` script, [`view.md`](view.md#how-programs-get-there)),
+in the run view (its `$PREFIX/.sl/bin` script, [`view.md`](view.md#how-programs-get-there)),
 where it finds its modules without the `.pth`: `ranger` works as typed.
 Running the system `python3` by hand on a prefix module still needs
 `PYTHONPATH`.

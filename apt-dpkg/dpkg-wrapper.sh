@@ -1,8 +1,8 @@
 #!/bin/sh
-# Installed by tools/install.sh as $PREFIX/lib/sudo-less/bin/dpkg,
+# Installed by tools/install.sh as $PREFIX/.sl/dpkg/bin/dpkg,
 # dpkg-query, dpkg-divert, dpkg-statoverride, dpkg-trigger and
 # update-alternatives (off PATH: `dpkg` is the system's, sl-dpkg is this):
-# runs the real one (in $PREFIX/lib/sudo-less/dpkg) inside the prefix view,
+# runs the real one (in $PREFIX/.sl/dpkg/real) inside the prefix view,
 # where it has root "/" and admin dir /var/lib/dpkg, like Debian's
 # (docs/view.md).
 #
@@ -13,12 +13,12 @@
 # prefix's admin dir instead. In the run view anything else is refused:
 # the install view cannot be built inside it.
 self=$(readlink -f "$0")
-P=${self%/lib/sudo-less/bin/*}
+P=${self%/.sl/dpkg/bin/*}
 n=${0##*/}
 # Maintainer scripts call dpkg, dpkg-query and update-alternatives by name:
 # they must get these wrappers, not the system's.
 case :$PATH: in *":${self%/*}:"*) ;; *) PATH=${self%/*}:$PATH; export PATH ;; esac
-real=$P/lib/sudo-less/dpkg/$n
+real=$P/.sl/dpkg/real/$n
 
 # In a private view already (the install view, or a service's): run it.
 [ "${SUDO_LESS_VIEW:-}" != private ] || exec "$real" "$@"
@@ -65,10 +65,10 @@ fi
 # alternatives, it runs here.
 integrate=
 case $n in dpkg|update-alternatives) [ -n "${DPKG_FRONTEND_LOCKED:-}" ] || integrate=1 ;; esac
-if [ -z "$integrate" ] || [ ! -x "$P/lib/sudo-less/prefix-integrate" ]; then
-  PREFIX=$P PREFIX_VIEW_DEBS=$debs exec "$P/lib/sudo-less/prefix-view" "$real" "$@"
+if [ -z "$integrate" ] || [ ! -x "$P/.sl/lib/prefix-integrate" ]; then
+  PREFIX=$P PREFIX_VIEW_DEBS=$debs exec "$P/.sl/lib/prefix-view" "$real" "$@"
 fi
 rc=0
-PREFIX=$P PREFIX_VIEW_DEBS=$debs "$P/lib/sudo-less/prefix-view" "$real" "$@" || rc=$?
-PREFIX=$P "$P/lib/sudo-less/prefix-integrate" || :
+PREFIX=$P PREFIX_VIEW_DEBS=$debs "$P/.sl/lib/prefix-view" "$real" "$@" || rc=$?
+PREFIX=$P "$P/.sl/lib/prefix-integrate" || :
 exit $rc

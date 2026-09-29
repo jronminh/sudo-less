@@ -4,4 +4,4 @@
 // modules, ...). Nothing is unpacked, so a package that cannot work never
 // half-installs and wedges the prefix (tools/prefix-check.sh,
 // docs/standard.md). SUDO_LESS_CHECK=off skips it.
-DPkg::Pre-Install-Pkgs:: "PREFIX=@PREFIX@ @PREFIX@/lib/sudo-less/prefix-check";
+DPkg::Pre-Install-Pkgs:: "PREFIX=@PREFIX@ @PREFIX@/.sl/lib/prefix-check";

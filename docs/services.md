@@ -43,7 +43,7 @@ sudo-less.
 ## Translation
 
 `prefix-units` turns each unit of a changed package, system or user, into
-a user unit in the prefix (`$PREFIX/var/lib/sudo-less/user-units`), with a
+a user unit in the prefix (`$PREFIX/.sl/state/units`), with a
 link to it in `~/.local/share/systemd/user`, where the user manager looks,
 tagged
 `# sudo-less user unit (prefix-units); regenerated, do not edit`:
@@ -111,7 +111,7 @@ Only you loosen or tighten a unit's sandbox, in
 `~/.config/sudo-less/sandbox/mini-httpd.service`): a line `off` turns it
 off, any other line is one more directive (`ReadWritePaths=/var/www`,
 `ProtectHome=read-only`). `~/.config/sudo-less` is a link to
-`~/.sudo-less/config`. A package cannot write there: while it installs it
+`~/.sudo-less/.sl/config`. A package cannot write there: while it installs it
 sees only the prefix's `usr`, `etc`, `var` and `opt`, and while its
 services run your home is hidden.
 
@@ -126,7 +126,7 @@ services run your home is hidden.
   come in a later dpkg run than the unit files (`dpkg --unpack` by hand, or
   apt with `Pre-Depends`), so every package's units are checked on each
   run, and a marker per unit enabled
-  (`$PREFIX/var/lib/sudo-less/units-enabled`) keeps a unit you disabled
+  (`$PREFIX/.sl/state/db/units-enabled`) keeps a unit you disabled
   from being enabled again.
 - **upgrade:** a unit whose translation changed is rewritten and
   restarted if it is running.

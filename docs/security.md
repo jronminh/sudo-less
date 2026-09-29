@@ -48,7 +48,8 @@ on top (`tools/prefix-view.sh`, `tools/prefix-sandbox.sh`):
   steps.
 - **Your home hidden** (`ProtectHome=yes`), but for the prefix's `/usr`,
   `/etc`, `/var`, `/opt` (writable) and sudo-less's own tools
-  (`$PREFIX/bin`, `sbin`, `lib/sudo-less`, read-only). A `.deb` from outside
+  (`$PREFIX/.sl/bin`, `sbin`, `lib`, `apt`, `dpkg`, read-only; not
+  `.sl/config` or `.sl/state`). A `.deb` from outside
   the prefix (`sl-dpkg -i ~/Downloads/foo.deb`) is bound in, read-only; the
   dpkg wrapper makes relative paths absolute, since the view starts in `/`.
 - **A private `/tmp`**, and `/media` and `/mnt` out of reach.
@@ -111,10 +112,10 @@ How it holds ([`view.md`](view.md#the-sandbox) has the mechanics):
   without the sandbox (a socket's `ExecStartPre=`). The environment the
   unit sets is not read. Only you loosen a sandbox, in
   `~/.config/sudo-less/sandbox/UNIT` (a link to
-  `~/.sudo-less/config/sandbox`), where a package cannot write: the
-  install view shows a package only the prefix's `usr`, `etc`, `var` and
-  `opt`. So are the units sudo-less generates and the session and shell
-  settings (`~/.sudo-less/.sudo-less/units`, `.../session`): a package
+  `~/.sudo-less/.sl/config/sandbox`), where a package cannot write: the
+  install view lets a package write only the prefix's `usr`, `etc`, `var`
+  and `opt`. So are the units sudo-less generates, its records, and the
+  session and shell settings (`~/.sudo-less/.sl/state`): a package
   that could rewrite them would get around its sandbox, or run in your
   shell.
   Measured with a unit that tried all of these at once: `ProtectHome=no`,

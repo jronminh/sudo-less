@@ -7,7 +7,7 @@
 # lines: prefix-units writes a service's sandbox into its user unit that
 # way, so that what the package wrote reaches this script as data, never
 # through systemd's parsing of an Exec line (issue #38). Then your own
-# settings for that unit, from $PREFIX/config/sandbox/UNIT (UNIT is
+# settings for that unit, from $PREFIX/.sl/config/sandbox/UNIT (UNIT is
 # FILE's name): "off" on a line turns the sandbox off, any other line is
 # one more DIRECTIVE=VALUE (~/.config/sudo-less links there). A package
 # cannot write there: the install view shows it only the prefix's usr, etc,
@@ -53,14 +53,14 @@
 # stops that is RestrictNamespaces=), User=, DynamicUser=.
 set -eu
 
-# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# The prefix: the one this tool is installed in ($PREFIX/.sl/lib),
 # else $PREFIX, else ~/.sudo-less.
 case $(readlink -f -- "${BASH_SOURCE[0]}") in
-  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+  */.sl/lib/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/.sl/lib/*} ;;
 esac
 : "${PREFIX:=$HOME/.sudo-less}"
 SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
-SCRATCH=$PREFIX/.sudo-less/sandbox
+SCRATCH=$PREFIX/.sl/state/sandbox
 PATH_CMD=$PATH
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 umask 022
@@ -115,7 +115,7 @@ done
 [ $# -gt 0 ] || [ -n "$CHECK" ] || usage
 
 if [ -n "$FROM" ]; then
-  f=$PREFIX/config/sandbox/${FROM##*/}
+  f=$PREFIX/.sl/config/sandbox/${FROM##*/}
   if [ -f "$f" ]; then
     while IFS= read -r l; do
       case $l in

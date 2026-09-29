@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The sl-* commands: sudo-less's package commands, named so they cannot be
 # mistaken for the system's apt and dpkg. tools/install.sh installs this one
-# file as $PREFIX/bin/sl-install, sl-remove, ... and it reads what to do from
+# file as $PREFIX/.sl/bin/sl-install, sl-remove, ... and it reads what to do from
 # the name it was run by.
 #
 #   sl-install PKG...    install into the prefix       (apt install)
@@ -21,19 +21,19 @@
 #   sl-dpkg ARG...       the prefix's dpkg, as is
 #   sl-uninstall [--yes] remove sudo-less: say what goes, and with --yes
 #                        remove it (the prefix, the links into it, the
-#                        PATH block), your settings in config/ with it
+#                        PATH block), your settings (.sl/config) with it
 #
 # Each one points apt at the prefix's own config (APT_CONFIG) for its own
 # run only. docs/design.md.
 set -eu
 
 self=$(readlink -f "$0")
-P=${self%/bin/*}
+P=${self%/.sl/bin/*}
 SL_ENV_APT_CONFIG=${APT_CONFIG:-}   # for sl-status: set by the caller's shell?
 export APT_CONFIG=$P/etc/apt/apt.conf.d/00local-prefix
-B=$P/lib/sudo-less/bin    # the prefix's apt and dpkg, off PATH
-apt=$B/apt
-dpkg=$B/dpkg
+apt=$P/.sl/apt/bin/apt     # the prefix's apt and dpkg, off PATH
+dpkg=$P/.sl/dpkg/bin/dpkg
+query=$P/.sl/dpkg/bin/dpkg-query
 
 usage() { sed -n '6,24p' "$self" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
@@ -47,9 +47,9 @@ status() {
 
   echo "prefix     $P"
   echo "apt        $("$apt" --version 2>/dev/null | head -1)"
-  echo "dpkg       $("$B/dpkg-query" --version 2>/dev/null | sed -n '1s/.*version \([^ ]*\).*/\1/p')"
-  mine=$("$B/dpkg-query" -W -f '${Status}\n' 2>/dev/null | grep -c '^install ok installed$' || :)
-  held=$("$B/dpkg-query" -W -f '${Status}\n' 2>/dev/null | grep -c '^hold ok installed$' || :)
+  echo "dpkg       $("$query" --version 2>/dev/null | sed -n '1s/.*version \([^ ]*\).*/\1/p')"
+  mine=$("$query" -W -f '${Status}\n' 2>/dev/null | grep -c '^install ok installed$' || :)
+  held=$("$query" -W -f '${Status}\n' 2>/dev/null | grep -c '^hold ok installed$' || :)
   echo "packages   $mine yours (sl-list), $held the system's (seeded, on hold)"
   echo "size       $(du -sh "$P/usr" 2>/dev/null | cut -f1) in usr/, $(du -sh "$P/var/cache/apt" 2>/dev/null | cut -f1) of downloads (sl-apt clean)"
   stamp=$(find "$P/var/lib/apt/lists" -maxdepth 1 -name '*Packages*' -printf '%TY-%Tm-%Td %TH:%TM\n' 2>/dev/null | sort | tail -1)
@@ -64,10 +64,10 @@ status() {
       *)      ok "\`$f\` is the system's ($(command -v "$f"))" ;;
     esac
   done
-  case :$PATH: in *":$P/bin:"*) f=1 ;; *) f= ;; esac
+  case :$PATH: in *":$P/.sl/bin:"*) f=1 ;; *) f= ;; esac
   case :$PATH: in *":$P/usr/bin:"*) ;; *) f= ;; esac
-  if [ -n "$f" ]; then ok "PATH has $P/bin and $P/usr/bin"
-  else fail "PATH lacks $P/bin or $P/usr/bin: open a new login shell"
+  if [ -n "$f" ]; then ok "PATH has $P/.sl/bin and $P/usr/bin"
+  else fail "PATH lacks $P/.sl/bin or $P/usr/bin: open a new login shell"
   fi
   if [ -n "${SL_ENV_APT_CONFIG:-}" ]; then
     warn "APT_CONFIG is set in this shell, so the system's apt reads the prefix's config: open a new terminal"
@@ -77,7 +77,7 @@ status() {
   if unshare -Ur true 2>/dev/null; then ok "unprivileged user namespaces work"
   else fail "no unprivileged user namespaces: the admin runs admin/enable-userspace.sh once"
   fi
-  if PREFIX=$P "$P/lib/sudo-less/prefix-view" --run true 2>/dev/null; then ok "the run view starts"
+  if PREFIX=$P "$P/.sl/lib/prefix-view" --run true 2>/dev/null; then ok "the run view starts"
   else fail "the run view does not start (sl-shell true shows why)"
   fi
   if command -v sqv >/dev/null; then ok "sqv found: sl-update verifies signatures"
@@ -133,8 +133,8 @@ uninstall() {
   echo "  the prefix       $P ($(du -sh "$P" 2>/dev/null | cut -f1))"
   outside_links | sed 's/^/  link             /'
   rc_files | sed 's/^/  PATH block in    /'
-  [ -z "$(ls -A "$P/config" 2>/dev/null)" ] ||
-    echo "  your settings in $P/config (copy them first to keep them)"
+  [ -z "$(ls -A "$P/.sl/config" 2>/dev/null)" ] ||
+    echo "  your settings in $P/.sl/config (copy them first to keep them)"
   [ -n "$yes" ] || exit 0
 
   # Listed now: one link can point to another (the enable link to the run
@@ -149,7 +149,7 @@ uninstall() {
       systemctl --user disable --now "$u" 2>/dev/null || :
     done
   fi
-  PREFIX=$P "$P/lib/sudo-less/prefix-view" --stop 2>/dev/null || :
+  PREFIX=$P "$P/.sl/lib/prefix-view" --stop 2>/dev/null || :
   printf '%s\n' "$links" | while IFS= read -r l; do [ -z "$l" ] || rm -f -- "$l"; done
   for rc in $(rc_files); do
     # the block, and the blank line install-shell-path.sh put before it
@@ -176,14 +176,14 @@ case $n in
   sl-list)
     # Seeded packages (the system's, lock-seeded.sh) are on hold: yours are
     # the ones selected for install.
-    "$B/dpkg-query" -W -f '${Status}\t${Package}\t${Version}\n' "$@" |
+    "$query" -W -f '${Status}\t${Package}\t${Version}\n' "$@" |
       awk -F '\t' '$1 == "install ok installed" { printf "%-32s %s\n", $2, $3 }' ;;
   sl-status) status ;;
   sl-uninstall) uninstall "$@" ;;
   sl-shell)
     [ $# -gt 0 ] || set -- "${SHELL:-/bin/bash}"
     [ -n "${SUDO_LESS_VIEW:-}" ] || echo "sl-shell: in the run view; exit to leave" >&2
-    PREFIX=$P exec "$P/lib/sudo-less/prefix-view" --run "$@" ;;
+    PREFIX=$P exec "$P/.sl/lib/prefix-view" --run "$@" ;;
   sl-apt)  exec "$apt" "$@" ;;
   sl-dpkg) exec "$dpkg" "$@" ;;
   *) case ${1:-} in -h|--help|'') usage 0 ;; *) usage 2 ;; esac ;;

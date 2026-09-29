@@ -20,13 +20,13 @@
 set -eu
 
 [ "${SUDO_LESS_CHECK:-}" != off ] || exit 0
-# The prefix: the one this tool is installed in ($PREFIX/lib/sudo-less),
+# The prefix: the one this tool is installed in ($PREFIX/.sl/lib),
 # else $PREFIX, else ~/.sudo-less.
 case $(readlink -f -- "${BASH_SOURCE[0]}") in
-  */lib/sudo-less/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/lib/sudo-less/*} ;;
+  */.sl/lib/*) PREFIX=$(readlink -f -- "${BASH_SOURCE[0]}"); PREFIX=${PREFIX%/.sl/lib/*} ;;
 esac
 : "${PREFIX:=$HOME/.sudo-less}"
-DEB=$PREFIX/lib/sudo-less/bin/dpkg-deb
+DEB=$PREFIX/.sl/dpkg/bin/dpkg-deb
 [ -x "$DEB" ] || DEB=dpkg-deb
 
 # kind<TAB>where<TAB>extended regex<TAB>reason. where: script (the maintainer

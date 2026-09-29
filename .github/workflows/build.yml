@@ -85,11 +85,11 @@ jobs:
             export PREFIX=/home/smoke/.sudo-less
             rm -rf "$PREFIX"; mkdir -p "$PREFIX"
             tar -C "$PREFIX" -xzf /tmp/art.tar.gz
-            PREFIX="$PREFIX" bash "$PREFIX/share/sudo-less/scripts/setup/install-config.sh" --no-shell
+            PREFIX="$PREFIX" bash "$PREFIX/.sl/repo/scripts/setup/install-config.sh" --no-shell
             # test against the pinned baseline suite, not the repo sid default
             printf "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian trixie main\n" \
               > "$PREFIX/etc/apt/sources.list"
-            export PATH="$PREFIX/sbin:$PREFIX/bin:$PREFIX/usr/bin:$PATH"
+            export PATH="$PREFIX/.sl/sbin:$PREFIX/.sl/bin:$PREFIX/usr/bin:$PATH"
             # apt and dpkg are off PATH: `apt-get` is the system's
             [ "$(command -v apt-get)" = /usr/bin/apt-get ]
             sl-update

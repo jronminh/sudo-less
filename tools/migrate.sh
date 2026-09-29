@@ -27,13 +27,18 @@ TO=$(readlink -m "${TO:-$HOME/.sudo-less}")
 [ "$FROM" != "$TO" ] || die "FROM and TO are the same: $FROM"
 STEP=${1:-plan}; shift || :
 
-# The old prefix's apt and dpkg: off PATH (since 8bd1569), or in bin before.
-FB=$FROM/lib/sudo-less/bin
-[ -x "$FB/apt-get" ] || FB=$FROM/bin
-[ -x "$FB/apt-get" ] || die "no sudo-less apt in $FROM (FROM=...)"
-from_apt() { local c=$1; shift; APT_CONFIG=$FROM/etc/apt/apt.conf.d/00local-prefix "$FB/$c" "$@"; }
-from_q() { "$FB/dpkg-query" --admindir="$FROM/var/lib/dpkg" "$@"; }
-TB=$TO/lib/sudo-less/bin
+# The old prefix's apt and dpkg: in .sl (since 2026-10), in lib/sudo-less/bin
+# (8bd1569), or in bin before.
+FA= FD=
+for d in "$FROM/.sl/apt/bin:$FROM/.sl/dpkg/bin" "$FROM/lib/sudo-less/bin:$FROM/lib/sudo-less/bin" \
+         "$FROM/bin:$FROM/bin"; do
+  [ -x "${d%%:*}/apt-get" ] || continue
+  FA=${d%%:*} FD=${d#*:}; break
+done
+[ -n "$FA" ] || die "no sudo-less apt in $FROM (FROM=...)"
+from_apt() { local c=$1; shift; APT_CONFIG=$FROM/etc/apt/apt.conf.d/00local-prefix "$FA/$c" "$@"; }
+from_q() { "$FD/dpkg-query" --admindir="$FROM/var/lib/dpkg" "$@"; }
+TD=$TO/.sl/dpkg/bin
 
 # The packages you installed (not on hold) and chose (apt's manual mark):
 # their dependencies come with them.
@@ -62,7 +67,7 @@ changed_conffiles() ( set +e +o pipefail
 # (once `install` has made them), or ones an earlier version wrote in place.
 state_dirs() ( set +e +o pipefail
   local d
-  for d in "$FROM"/.sudo-less/units/* "$TO"/.sudo-less/units/* \
+  for d in "$FROM"/.sudo-less/units/* "$FROM"/.sl/state/units/* "$TO"/.sl/state/units/* \
            "${XDG_DATA_HOME:-$HOME/.local/share}"/systemd/user/*; do
     [ -f "$d" ] || continue
     grep -qF '# sudo-less user unit' "$d" 2>/dev/null || continue
@@ -76,7 +81,7 @@ manual_alternatives() ( set +e +o pipefail
   local f
   for f in "$FROM"/var/lib/dpkg/alternatives/*; do
     [ -f "$f" ] && [ "$(head -1 "$f")" = manual ] || continue
-    echo "${f##*/} $(PREFIX=$FROM "$FB/update-alternatives" --query "${f##*/}" 2>/dev/null | sed -n 's/^Value: //p')"
+    echo "${f##*/} $(PREFIX=$FROM "$FD/update-alternatives" --query "${f##*/}" 2>/dev/null | sed -n 's/^Value: //p')"
   done
 )
 
@@ -85,7 +90,7 @@ manual_alternatives() ( set +e +o pipefail
 # yourself) stays.
 old_files() ( set +e +o pipefail
   local f
-  for f in usr etc var .sudo-less lib/sudo-less lib/apt lib/dpkg lib/libdpkg.a \
+  for f in usr etc var .sl .sudo-less lib/sudo-less lib/apt lib/dpkg lib/libdpkg.a \
            lib/libdpkg.la lib/pkgconfig/apt-pkg.pc lib/pkgconfig/libdpkg.pc \
            include/apt-pkg include/dpkg libexec/dpkg share/dpkg share/sudo-less \
            share/perl5/Dpkg share/perl5/Dpkg.pm share/doc/dpkg \
@@ -128,7 +133,7 @@ old_files() ( set +e +o pipefail
     # units too (share/systemd/user)
     t=$(readlink -m "$f")
     case $t in
-      "$FROM"/usr/*|"$FROM"/etc/*|"$FROM"/var/*|"$FROM"/lib/sudo-less/*|"$FROM"/.sudo-less/*) echo "$f" ;;
+      "$FROM"/usr/*|"$FROM"/etc/*|"$FROM"/var/*|"$FROM"/lib/sudo-less/*|"$FROM"/.sudo-less/*|"$FROM"/.sl/*) echo "$f" ;;
       "$FROM"/*) ! grep -qsF '# sudo-less user unit' "$t" || echo "$f" ;;
     esac
   done
@@ -138,7 +143,7 @@ old_files() ( set +e +o pipefail
 case $STEP in
 plan)
   echo "from  $FROM"
-  echo "to    $TO$([ ! -x "$TO/bin/sl-status" ] || echo ' (already set up)')"
+  echo "to    $TO$([ ! -x "$TO/.sl/bin/sl-status" ] || echo ' (already set up)')"
   echo
   echo "install: copy apt and dpkg from $FROM, set up $TO, carry the apt sources, and install again:"
   mine | tr '\n' ' ' | fold -s -w 76 | sed 's/^/  /'; echo
@@ -155,8 +160,12 @@ plan)
 
 install)
   mkdir -p "$TO"
-  # apt and dpkg: the programs (tools/install.sh moves them off PATH), the
-  # real dpkg behind its wrappers, apt's libraries and methods, dpkg's data.
+  # apt and dpkg: the programs, the real dpkg behind its wrappers, apt's
+  # libraries and methods, dpkg's data. Copied as the old prefix has them;
+  # tools/install.sh (from install-config.sh) moves them into .sl.
+  if [ -d "$FROM/.sl/apt" ]; then
+    mkdir -p "$TO/.sl"; cp -a "$FROM/.sl/apt" "$FROM/.sl/dpkg" "$TO/.sl/"
+  else
   for d in bin sbin lib/sudo-less/bin; do
     [ -d "$FROM/$d" ] || continue
     for f in "$FROM/$d"/*; do
@@ -169,6 +178,7 @@ install)
   cp -a "$FROM/lib/sudo-less/dpkg" "$TO/lib/sudo-less/"
   cp -a "$FROM/lib/apt" "$FROM"/lib/libapt-pkg.so* "$FROM"/lib/libapt-private.so* "$TO/lib/"
   [ ! -d "$FROM/share/dpkg" ] || cp -a "$FROM/share/dpkg" "$TO/share/"
+  fi
   log "copied apt and dpkg from $FROM"
 
   PREFIX=$TO bash "$REPO/scripts/setup/install-config.sh" ${NO_SHELL:+--no-shell}
@@ -178,16 +188,16 @@ install)
   done
   [ ! -f "$FROM/var/lib/dpkg/arch" ] || cp -a "$FROM/var/lib/dpkg/arch" "$TO/var/lib/dpkg/"
 
-  "$TO/bin/sl-update"
+  "$TO/.sl/bin/sl-update"
   pkgs=${PKGS:-$(mine | tr '\n' ' ')}
   log "installing: $pkgs"
   # Services are enabled, and started by `carry`, once their state is here.
   export SUDO_LESS_UNITS=nostart
   # shellcheck disable=SC2086
-  if ! "$TO/bin/sl-install" -y $pkgs; then
+  if ! "$TO/.sl/bin/sl-install" -y $pkgs; then
     log "together they failed; one at a time:"
     failed=
-    for p in $pkgs; do "$TO/bin/sl-install" -y "$p" || failed="$failed $p"; done
+    for p in $pkgs; do "$TO/.sl/bin/sl-install" -y "$p" || failed="$failed $p"; done
     [ -z "$failed" ] || log "not installed:$failed (sl-status, and: sl-install PKG to see why)"
   fi
   log "next: tools/migrate.sh carry"
@@ -195,8 +205,8 @@ install)
   ;;
 
 carry)
-  [ -x "$TO/bin/sl-status" ] || die "$TO is not set up: tools/migrate.sh install"
-  units=$(ls "$TO/var/lib/sudo-less/units-enabled" 2>/dev/null | tr '\n' ' ')
+  [ -x "$TO/.sl/bin/sl-status" ] || die "$TO is not set up: tools/migrate.sh install"
+  units=$(ls "$TO/.sl/state/db/units-enabled" 2>/dev/null | tr '\n' ' ')
   usermgr=
   systemctl --user show-environment >/dev/null 2>&1 && usermgr=1
   if [ -n "$units" ] && [ -n "$usermgr" ]; then
@@ -218,7 +228,7 @@ carry)
   done
   manual_alternatives | while read -r name value; do
     [ -n "$value" ] || continue
-    "$TB/update-alternatives" --set "$name" "$value" && log "alternative $name: $value"
+    "$TD/update-alternatives" --set "$name" "$value" && log "alternative $name: $value"
   done
   if [ -n "$units" ] && [ -n "$usermgr" ]; then
     systemctl --user daemon-reload
@@ -230,7 +240,7 @@ carry)
   ;;
 
 clean-old)
-  [ -x "$TO/bin/sl-status" ] || die "$TO is not set up: this would leave you without sudo-less"
+  [ -x "$TO/.sl/bin/sl-status" ] || die "$TO is not set up: this would leave you without sudo-less"
   list=$(old_files)
   if [ "${1:-}" != --yes ]; then
     printf '%s\n' "$list"
@@ -238,7 +248,9 @@ clean-old)
     echo "$(printf '%s\n' "$list" | grep -c .) paths; tools/migrate.sh clean-old --yes removes them"
     exit 0
   fi
-  PREFIX=$FROM "$FROM/lib/sudo-less/prefix-view" --stop 2>/dev/null || :
+  for f in "$FROM/.sl/lib/prefix-view" "$FROM/lib/sudo-less/prefix-view"; do
+    [ ! -x "$f" ] || PREFIX=$FROM "$f" --stop 2>/dev/null || :
+  done
   printf '%s\n' "$list" | while IFS= read -r f; do
     [ -n "$f" ] || continue
     [ ! -d "$f" ] || [ -L "$f" ] || chmod -R u+w "$f" 2>/dev/null || :

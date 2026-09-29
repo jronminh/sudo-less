@@ -23,29 +23,29 @@ OUT="${OUT:-$REPO/dist}"
 ASSET="sudo-less-apt-dpkg-${APT_VER}-${DPKG_VER}-${DEB_ARCH}.tar.gz"
 
 log "packaging $PREFIX -> $OUT/$ASSET"
-for d in bin sbin lib; do
+for d in .sl/apt/bin .sl/dpkg/bin .sl/dpkg/real; do
   [ -d "$PREFIX/$d" ] || die "$PREFIX/$d missing — build apt/dpkg first"
 done
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
-# 1. the built apt/dpkg runtime
-for d in bin sbin lib; do
-  cp -a "$PREFIX/$d" "$STAGE/$d"
+# 1. the built apt/dpkg runtime: all of it is in .sl (tools/install.sh)
+mkdir -p "$STAGE/.sl"
+for d in apt dpkg; do
+  cp -a "$PREFIX/.sl/$d" "$STAGE/.sl/$d"
 done
 
-# 2. the in-repo runtime files install-config.sh needs to configure it
-mkdir -p "$STAGE/share/sudo-less"
-# tools/: the tools tools/install.sh installs into lib/sudo-less (it lists
-# them; apt-dpkg/install.sh calls it), and prefix-run.sh (for packages apt
-# cannot install)
+# 2. the in-repo runtime files install-config.sh needs to configure it, in
+#    .sl/repo: tools/ (the tools tools/install.sh installs into .sl/lib, it
+#    lists them; apt-dpkg/install.sh calls it), and prefix-run.sh (for
+#    packages apt cannot install)
+mkdir -p "$STAGE/.sl/repo/scripts"
 for d in apt-dpkg tools; do
-  cp -a "$REPO/$d" "$STAGE/share/sudo-less/$d"
+  cp -a "$REPO/$d" "$STAGE/.sl/repo/$d"
 done
-mkdir -p "$STAGE/share/sudo-less/scripts"
-cp -a "$REPO/scripts/common.sh" "$STAGE/share/sudo-less/scripts/common.sh"
-cp -a "$REPO/scripts/setup"     "$STAGE/share/sudo-less/scripts/setup"
+cp -a "$REPO/scripts/common.sh" "$STAGE/.sl/repo/scripts/common.sh"
+cp -a "$REPO/scripts/setup"     "$STAGE/.sl/repo/scripts/setup"
 
 # 3. never ship generated state: bootstrap regenerates the config and re-seeds
 #    the dpkg db from the *target* system, so a stale status would be wrong.

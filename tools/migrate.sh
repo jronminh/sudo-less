@@ -62,7 +62,7 @@ changed_conffiles() ( set +e +o pipefail
 # (once `install` has made them), or ones an earlier version wrote in place.
 state_dirs() ( set +e +o pipefail
   local d
-  for d in "$FROM"/var/lib/sudo-less/user-units/* "$TO"/var/lib/sudo-less/user-units/* \
+  for d in "$FROM"/.sudo-less/units/* "$TO"/.sudo-less/units/* \
            "${XDG_DATA_HOME:-$HOME/.local/share}"/systemd/user/*; do
     [ -f "$d" ] || continue
     grep -qF '# sudo-less user unit' "$d" 2>/dev/null || continue

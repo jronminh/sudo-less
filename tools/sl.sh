@@ -21,7 +21,7 @@
 #   sl-dpkg ARG...       the prefix's dpkg, as is
 #   sl-uninstall [--yes] remove sudo-less: say what goes, and with --yes
 #                        remove it (the prefix, the links into it, the
-#                        PATH block); ~/.config/sudo-less, yours, stays
+#                        PATH block), your settings in config/ with it
 #
 # Each one points apt at the prefix's own config (APT_CONFIG) for its own
 # run only. docs/design.md.
@@ -98,16 +98,20 @@ status() {
 }
 
 # The links outside the prefix that point into it, one per line: the
-# session's (environment.d, the run view's unit) and the services' units
-# (prefix-units, and the links `systemctl --user enable` made to them).
+# session's (environment.d, the run view's unit), ~/.config/sudo-less (your
+# settings) and the services' units (prefix-units, and the links
+# `systemctl --user enable` made to them).
 CONF=${XDG_CONFIG_HOME:-$HOME/.config}
 LINKDIRS="$CONF/environment.d $CONF/systemd/user ${XDG_DATA_HOME:-$HOME/.local/share}/systemd/user"
 outside_links() {
   local d l
-  for d in $LINKDIRS; do
-    [ -d "$d" ] || continue
-    find "$d" -maxdepth 2 -type l -print 2>/dev/null
-  done | while IFS= read -r l; do
+  {
+    [ ! -L "$CONF/sudo-less" ] || echo "$CONF/sudo-less"
+    for d in $LINKDIRS; do
+      [ -d "$d" ] || continue
+      find "$d" -maxdepth 2 -type l -print 2>/dev/null
+    done
+  } | while IFS= read -r l; do
     case $(readlink -m -- "$l") in "$P"/*) printf '%s\n' "$l" ;; esac
   done
 }
@@ -129,7 +133,8 @@ uninstall() {
   echo "  the prefix       $P ($(du -sh "$P" 2>/dev/null | cut -f1))"
   outside_links | sed 's/^/  link             /'
   rc_files | sed 's/^/  PATH block in    /'
-  [ ! -d "$CONF/sudo-less" ] || echo "  (kept: $CONF/sudo-less, your own settings)"
+  [ -z "$(ls -A "$P/config" 2>/dev/null)" ] ||
+    echo "  your settings in $P/config (copy them first to keep them)"
   [ -n "$yes" ] || exit 0
 
   # Listed now: one link can point to another (the enable link to the run

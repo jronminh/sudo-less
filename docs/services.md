@@ -110,8 +110,10 @@ Only you loosen or tighten a unit's sandbox, in
 `~/.config/sudo-less/sandbox/UNIT` (for example
 `~/.config/sudo-less/sandbox/mini-httpd.service`): a line `off` turns it
 off, any other line is one more directive (`ReadWritePaths=/var/www`,
-`ProtectHome=read-only`). A package cannot write there: your home is
-hidden from it while it installs and while its services run.
+`ProtectHome=read-only`). `~/.config/sudo-less` is a link to
+`~/.sudo-less/config`. A package cannot write there: while it installs it
+sees only the prefix's `usr`, `etc`, `var` and `opt`, and while its
+services run your home is hidden.
 
 ## Lifecycle
 

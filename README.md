@@ -114,17 +114,20 @@ build yourself.
 
 Your system is never touched, so there is nothing to undo there. In your
 home, everything of sudo-less's is in `~/.sudo-less`; outside it there are
-only links into it (the services' units, the session's environment and the
-run view's unit, under `~/.config` and `~/.local/share/systemd/user`) and
-the `# >>> sudo-less PATH >>>` block in `~/.bashrc` and `~/.profile`.
+only links into it (the services' units, the session's environment, the
+run view's unit and `~/.config/sudo-less`, under `~/.config` and
+`~/.local/share/systemd/user`) and one line in `~/.bashrc` and
+`~/.profile`, marked `# >>> sudo-less PATH >>>`, that reads the prefix's
+shell settings if they are there.
 
 ```sh
 sl-uninstall          # says what goes
 sl-uninstall --yes    # stops the services, removes the links, the PATH block and ~/.sudo-less
 ```
 
-Your own settings in `~/.config/sudo-less/` stay, and so does what the
-services kept in `~/.local/state` and `~/.cache`, like any program's.
+Your settings (`~/.config/sudo-less`, a link to `~/.sudo-less/config`)
+go with it: copy them first to keep them. What the services kept in
+`~/.local/state` and `~/.cache` stays, like any program's.
 
 ### From `~/.local` (before 2026-10)
 

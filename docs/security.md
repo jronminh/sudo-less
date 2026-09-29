@@ -110,7 +110,13 @@ How it holds ([`view.md`](view.md#the-sandbox) has the mechanics):
   dropped, and so is a command outside `[Service]`, which would run
   without the sandbox (a socket's `ExecStartPre=`). The environment the
   unit sets is not read. Only you loosen a sandbox, in
-  `~/.config/sudo-less/sandbox/UNIT`, where a package cannot write.
+  `~/.config/sudo-less/sandbox/UNIT` (a link to
+  `~/.sudo-less/config/sandbox`), where a package cannot write: the
+  install view shows a package only the prefix's `usr`, `etc`, `var` and
+  `opt`. So are the units sudo-less generates and the session and shell
+  settings (`~/.sudo-less/.sudo-less/units`, `.../session`): a package
+  that could rewrite them would get around its sandbox, or run in your
+  shell.
   Measured with a unit that tried all of these at once: `ProtectHome=no`,
   `ProtectSystem=no`, `PrivateTmp=no`, `NoNewPrivileges=no`,
   `Environment=SUDO_LESS_SANDBOX=off`, `ReadWritePaths=` into `$HOME`, its

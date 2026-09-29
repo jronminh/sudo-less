@@ -6,9 +6,12 @@
 #
 # Writes ~/.config/environment.d/50-sudo-less.conf, which systemd --user reads
 # when the session starts, and a user unit that starts the run view at login.
-# Both are files in the prefix ($PREFIX/var/lib/sudo-less/session), with a
-# link to each where systemd looks. Values are literal (no shell expansion),
-# so the prefix is baked in. Re-login (restart the session) to apply.
+# Both are files in the prefix ($PREFIX/.sudo-less/session, where a
+# package's install scripts cannot write), with a link to each where
+# systemd looks. ~/.config/sudo-less becomes a link to $PREFIX/config, your
+# own settings (the services' sandboxes: tools/prefix-sandbox.sh). Values
+# are literal (no shell expansion), so the prefix is baked in. Re-login
+# (restart the session) to apply.
 #
 # Without this, `.desktop` files installed to $PREFIX/usr/share/applications
 # are never scanned: Phosh discovers launchers via $XDG_DATA_DIRS. This covers
@@ -18,7 +21,7 @@
 set -euo pipefail
 source "$(dirname "$0")/../common.sh"
 
-S=$PREFIX/var/lib/sudo-less/session
+S=$PREFIX/.sudo-less/session
 CONF=${XDG_CONFIG_HOME:-$HOME/.config}
 mkdir -p "$S" "$CONF/environment.d" "$CONF/systemd/user/default.target.wants"
 
@@ -58,4 +61,14 @@ put "$CONF/systemd/user/sudo-less-run-view.service" "$S/sudo-less-run-view.servi
 ln -sfn ../sudo-less-run-view.service \
   "$CONF/systemd/user/default.target.wants/sudo-less-run-view.service"
 log "the run view starts at next login"
+
+# Your settings: in the prefix, and found where settings usually are. An
+# earlier version kept them in ~/.config/sudo-less itself: they move in.
+mkdir -p "$PREFIX/config"
+if [ -d "$CONF/sudo-less" ] && [ ! -L "$CONF/sudo-less" ]; then
+  cp -a "$CONF/sudo-less/." "$PREFIX/config/"
+  rm -rf "$CONF/sudo-less"
+  log "moved $CONF/sudo-less into $PREFIX/config"
+fi
+put "$CONF/sudo-less" "$PREFIX/config"
 log "re-login (restart the session) for Phosh/GNOME to pick it up"

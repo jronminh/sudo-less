@@ -12,7 +12,8 @@
 # /usr/lib/systemd/system/*.service runs as User=redis, after
 # network.target, wanted by multi-user.target. In the prefix they land in
 # $PREFIX/usr/lib/systemd/..., where no manager looks. This translates each
-# unit (system or user) into a user unit in $UNITS, in the prefix, with a
+# unit (system or user) into a user unit in $UNITS, in the prefix (where a
+# package's install scripts cannot write: not usr, etc, var or opt), with a
 # link to it in $LINKS, a directory the user manager reads (systemd.unit(5),
 # "User Unit Search Path"), so nothing of sudo-less's but the link is
 # outside the prefix:
@@ -51,7 +52,8 @@
 #              /run and /var (not ~/.config or ~/.local/share, where your
 #              shell and desktop find code to run: the package picks the
 #              unit's name). Only you loosen a sandbox:
-#              ~/.config/sudo-less/sandbox/UNIT (tools/prefix-sandbox.sh).
+#              ~/.config/sudo-less/sandbox/UNIT, a link to
+#              $PREFIX/config/sandbox (tools/prefix-sandbox.sh).
 #   paths      paths systemd itself reads (EnvironmentFile=, PIDFile=,
 #              Condition*=) get their $PREFIX copy when there is one, and
 #              /run/X is %t/sudo-less/run/X; in a system unit %t, %S, %C,
@@ -88,7 +90,7 @@ INFO=$PREFIX/var/lib/dpkg/info
 DB=$PREFIX/var/lib/sudo-less/units      # per package: the units it got
 ENABLED=$PREFIX/var/lib/sudo-less/units-enabled   # a file per unit enabled here
 VIEW=$PREFIX/lib/sudo-less/prefix-view
-UNITS=$PREFIX/var/lib/sudo-less/user-units         # the translated units
+UNITS=$PREFIX/.sudo-less/units                    # the translated units
 LINKS=${XDG_DATA_HOME:-$HOME/.local/share}/systemd/user   # a link to each
 TAG='# sudo-less user unit (prefix-units); regenerated, do not edit'
 SBXMARK='# sudo-less sandbox: '   # a directive for prefix-sandbox (--sandbox-from)

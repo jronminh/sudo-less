@@ -7,10 +7,11 @@
 # lines: prefix-units writes a service's sandbox into its user unit that
 # way, so that what the package wrote reaches this script as data, never
 # through systemd's parsing of an Exec line (issue #38). Then your own
-# settings for that unit, from ~/.config/sudo-less/sandbox/UNIT (UNIT is
+# settings for that unit, from $PREFIX/config/sandbox/UNIT (UNIT is
 # FILE's name): "off" on a line turns the sandbox off, any other line is
-# one more DIRECTIVE=VALUE. A package cannot write there: the install view
-# and the service sandbox hide your home.
+# one more DIRECTIVE=VALUE (~/.config/sudo-less links there). A package
+# cannot write there: the install view shows it only the prefix's usr, etc,
+# var and opt, and the service sandbox hides your home.
 #
 # The directives are systemd.exec(5)'s, with their meaning there:
 #
@@ -114,7 +115,7 @@ done
 [ $# -gt 0 ] || [ -n "$CHECK" ] || usage
 
 if [ -n "$FROM" ]; then
-  f=${XDG_CONFIG_HOME:-$HOME/.config}/sudo-less/sandbox/${FROM##*/}
+  f=$PREFIX/config/sandbox/${FROM##*/}
   if [ -f "$f" ]; then
     while IFS= read -r l; do
       case $l in

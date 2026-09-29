@@ -22,6 +22,9 @@
 #   sl-uninstall [--yes] remove sudo-less: say what goes, and with --yes
 #                        remove it (the prefix, the links into it, the
 #                        PATH block), your settings (.sl/config) with it
+#   sl-reseed            refresh what the prefix thinks the system has
+#                        (run after the host installs or removes packages),
+#                        keeping the packages you installed yourself
 #
 # Each one points apt at the prefix's own config (APT_CONFIG) for its own
 # run only. docs/design.md.
@@ -35,7 +38,7 @@ apt=$P/.sl/apt/bin/apt     # the prefix's apt and dpkg, off PATH
 dpkg=$P/.sl/dpkg/bin/dpkg
 query=$P/.sl/dpkg/bin/dpkg-query
 
-usage() { sed -n '6,24p' "$self" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '6,27p' "$self" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 # sl-status: facts about the prefix, then checks. A check says ok, warn
 # (works, but worth knowing) or FAIL (something sudo-less needs is broken).
@@ -186,5 +189,10 @@ case $n in
     PREFIX=$P exec "$P/.sl/lib/prefix-view" --run "$@" ;;
   sl-apt)  exec "$apt" "$@" ;;
   sl-dpkg) exec "$dpkg" "$@" ;;
+  sl-reseed)
+    SETUP=$P/.sl/repo/scripts/setup/install-config.sh
+    [ -x "$SETUP" ] || SETUP=$P/.sl/repo/apt-dpkg/install.sh   # older releases had no separate entrypoint
+    [ -x "$SETUP" ] || { echo "sl-reseed: no $SETUP (built from source, not the release tarball?)" >&2; exit 1; }
+    PREFIX=$P exec bash "$SETUP" --reseed --no-shell ;;
   *) case ${1:-} in -h|--help|'') usage 0 ;; *) usage 2 ;; esac ;;
 esac

@@ -92,7 +92,7 @@ against: [`survey-2026-09.md`](survey-2026-09.md).
 | part | status |
 |---|---|
 | apt/dpkg port, prebuilt, `bootstrap.sh` | works; the three bugs a new account hit are fixed, and a fresh account was verified with the release build (criterion 1) |
-| stage 1 sync | manual: `lock-seeded.sh --reseed` |
+| stage 1 sync | manual: `sl-reseed` |
 | stage 2 classify | `prefix-check` is hooked (`DPkg::Pre-Install-Pkgs`): it refuses a package that creates a system user or group, or installs kernel modules or into `/boot`, before dpkg runs; `check-package.sh` is not merged into it yet |
 | stage 3 install | dpkg runs in the install view, with an empty `/run` so maintainer scripts cannot reach the host's services; no shims needed so far (the view made `py3compile`'s unnecessary) |
 | stage 4 integrate | `prefix-integrate`, once after apt's dpkg runs: launchers (the desktop database); `prefix-wrap` gives programs that need the view a script that runs them in the shared run view, and the rest run directly ([`view.md`](view.md#how-programs-get-there)); `prefix-units` runs the packages' systemd units as user units, sandboxed ([`services.md`](services.md)) |

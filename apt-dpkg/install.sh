@@ -76,6 +76,32 @@ if ! command -v sqv >/dev/null; then
 fi
 
 STATUS="$PREFIX/var/lib/dpkg/status"
+mkdir -p "$PREFIX/.sl/state"
+MINE="$PREFIX/.sl/state/reseed-mine.status"
+rm -f "$MINE"
+if [ "$RESEED" = 1 ] && [ -s "$STATUS" ]; then
+  # A reseed replaces the *seeded* (system) entries with the host's current
+  # ones, so a package the host removed (or never had there) stops being
+  # reported as installed — that is the point of reseeding. But the status
+  # file is one flat list, with no tag telling "seeded" from "yours" apart,
+  # so a plain `cp` over it would just as well drop every package you
+  # installed into the prefix yourself (#30: "--reseed drops packages").
+  # Tell them apart the same way lock-seeded.sh does: yours are the ones
+  # NOT on hold (seeded packages are held after every run, below) — pull
+  # their stanzas out first, to add back once the host's copy is in place.
+  DPKG="$PREFIX/.sl/dpkg/bin/dpkg"
+  [ -x "$DPKG" ] ||
+    die "reseed: no dpkg at $DPKG (a broken prefix?); refusing, to avoid dropping your packages blind"
+  NAMES="$PREFIX/.sl/state/reseed-mine.pkgs"
+  "$DPKG" --admindir="$PREFIX/var/lib/dpkg" --get-selections |
+    awk '$2 != "hold" { sub(/:.*$/, "", $1); print $1 }' > "$NAMES"
+  awk -v f="$NAMES" '
+    BEGIN { while ((getline p < f) > 0) want[p] = 1 }
+    /^Package: / { keep = ($2 in want) }
+    keep { print }
+  ' "$STATUS" > "$MINE"
+  rm -f "$NAMES"
+fi
 if [ "$RESEED" = 1 ] || [ ! -s "$STATUS" ]; then
   log "seeding dpkg status from /var/lib/dpkg/status"
   cp /var/lib/dpkg/status "$STATUS"
@@ -85,6 +111,24 @@ if [ "$RESEED" = 1 ] || [ ! -s "$STATUS" ]; then
   cp -n /var/lib/dpkg/info/*.md5sums "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
   cp -n /var/lib/dpkg/info/*.conffiles "$PREFIX/var/lib/dpkg/info/" 2>/dev/null || true
 fi
+if [ -s "$MINE" ]; then
+  # Add the preserved stanzas back, skipping any package the host's fresh
+  # copy already has (its entry there is the newer one).
+  ADD="$PREFIX/.sl/state/reseed-add.status"
+  awk -v f="$STATUS" '
+    BEGIN { while ((getline l < f) > 0) if (l ~ /^Package: /) { split(l, a, " "); have[a[2]] = 1 } }
+    /^Package: / { keep = !($2 in have) }
+    keep { print }
+  ' "$MINE" > "$ADD"
+  if [ -s "$ADD" ]; then
+    n=$(grep -c '^Package: ' "$ADD")
+    printf '\n' >> "$STATUS"
+    cat "$ADD" >> "$STATUS"
+    log "reseed: kept $n of your own packages"
+  fi
+  rm -f "$ADD"
+fi
+rm -f "$MINE"
 # In the view the host's /etc/alternatives shows through, so the prefix's
 # database starts with the host's alternatives.
 cp -n /var/lib/dpkg/alternatives/* "$PREFIX/var/lib/dpkg/alternatives/" 2>/dev/null || true

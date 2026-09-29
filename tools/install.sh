@@ -39,7 +39,7 @@ TOOLS='prefix-view prefix-sandbox prefix-integrate prefix-wrap prefix-units pref
 # $S/dpkg/real (build-dpkg.sh puts it there), $S/dpkg/bin/NAME the wrapper.
 DPKG_TOOLS='dpkg dpkg-query dpkg-divert dpkg-statoverride dpkg-trigger update-alternatives'
 # The sl-* commands: tools/sl.sh, as $S/bin/sl-NAME.
-SL='install remove purge autoremove update upgrade search show list status shell apt dpkg uninstall help'
+SL='install remove purge autoremove update upgrade search show list status shell apt dpkg uninstall reseed help'
 # apt-dpkg/config/apt.conf.d/NAME.in, with @PREFIX@ filled in.
 HOOKS='02integrate 03check'
 # What earlier versions installed and nothing uses any more.

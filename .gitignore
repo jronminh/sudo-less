@@ -1,0 +1,9 @@
+/src/
+build-apt/
+/dist/
+*.tar.gz
+*.tar.xz
+*.log
+*.done
+CLAUDE.local.md
+todo.local.md

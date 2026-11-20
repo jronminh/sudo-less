@@ -1,0 +1,35 @@
+# Build dependencies for apt 3.3.3 and dpkg 1.23.11.
+# Derived from both projects' debian/control Build-Depends, plus the autotools
+# we need because dpkg is built from a git archive (no pre-generated configure).
+# One package per line; blank lines and # comments ignored.
+build-essential
+cmake
+triehash
+ninja-build
+gettext
+po4a
+xsltproc
+docbook-xsl
+docbook-xml
+libtool
+autoconf
+automake
+autopoint
+pkg-config
+dpkg-dev
+fakeroot
+libssl-dev
+sqv
+liblz4-dev
+liblzma-dev
+libbz2-dev
+zlib1g-dev
+libzstd-dev
+libxxhash-dev
+libdb-dev
+libseccomp-dev
+libmd-dev
+libudev-dev
+libsystemd-dev
+libperl-dev
+libncurses-dev

@@ -1,0 +1,145 @@
+name: build-and-release
+
+# Build the patched apt/dpkg on a Debian trixie container (the pinned
+# baseline), smoke-test the packaged artifact as an unprivileged user, and
+# publish it as a release. Free on public repos; also the test bed for
+# docs/release.md.
+#
+#   - manual:  Actions -> build-and-release -> Run workflow (optionally a tag)
+#   - tags:    pushing a v* tag builds and releases automatically
+#
+# Builds amd64 and arm64 in parallel (both free for public repos).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v2.8.1-1.22.6). Empty = auto."
+        required: false
+        default: ""
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: debian:trixie
+      # dpkg runs in a user namespace (docs/view.md); the default seccomp
+      # profile forbids creating one
+      options: --privileged
+    timeout-minutes: 120
+    steps:
+      - name: prepare the container
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates curl gpgv
+          # the admin's one-time step (admin/enable-userspace.sh): Ubuntu
+          # runners restrict unprivileged user namespaces with AppArmor
+          echo 0 > /proc/sys/kernel/apparmor_restrict_unprivileged_userns || true
+          # the view overlays the prefix on /usr, /etc, ...; the container's
+          # root is itself an overlay, which overlayfs refuses as an upper
+          # layer, so the build and smoke prefixes live on tmpfs
+          mkdir -p /root/.local
+          mount -t tmpfs tmpfs /root/.local
+          mount -t tmpfs tmpfs /home
+
+      - uses: actions/checkout@v4
+
+      - name: build apt/dpkg against the trixie baseline
+        env:
+          PREFIX: /root/.local
+        run: ./scripts/env/build-on-host.sh
+
+      - name: package the release artifact
+        env:
+          PREFIX: /root/.local
+          SUITE: trixie
+        run: ./scripts/bootstrap/package-prebuilt.sh
+
+      - name: smoke test - install the artifact as a normal user
+        run: |
+          set -eux
+          # the userspace apt refuses to run as root on purpose, so test as a
+          # real unprivileged user -- the actual use case
+          id smoke >/dev/null 2>&1 || useradd -m -s /bin/bash smoke
+          cp dist/sudo-less-apt-dpkg-*.tar.gz /tmp/art.tar.gz
+          chmod 0644 /tmp/art.tar.gz
+          su smoke -s /bin/bash -c '
+            set -eux
+            export PREFIX="$HOME/.sudo-less"
+            rm -rf "$PREFIX"; mkdir -p "$PREFIX"
+            tar -C "$PREFIX" -xzf /tmp/art.tar.gz
+            PREFIX="$PREFIX" bash "$PREFIX/.sl/repo/scripts/setup/install-config.sh" --no-shell
+            # test against the pinned baseline suite, not the repo sid default
+            printf "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian trixie main\n" \
+              > "$PREFIX/etc/apt/sources.list"
+            export PATH="$PREFIX/.sl/sbin:$PREFIX/.sl/bin:$PREFIX/usr/bin:$PATH"
+            # The system apt-get must still resolve on PATH.
+            [ "$(command -v apt-get)" = /usr/bin/apt-get ]
+            sl-update
+            sl-install -y tree
+            "$PREFIX/usr/bin/tree" --version
+          '
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+            dist/*.buildinfo
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: pick a tag
+        id: tag
+        run: |
+          tag="${{ inputs.tag }}"
+          if [ -z "$tag" ]; then
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              tag="${GITHUB_REF_NAME}"
+            else
+              tag="v$(date -u +%Y.%m.%d)-$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "releasing $tag"
+
+      - name: publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eux
+          tag="${{ steps.tag.outputs.tag }}"
+          files=(dist/*.tar.gz dist/*.sha256 dist/*.buildinfo)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            gh release create "$tag" --title "$tag" --generate-notes "${files[@]}"
+          fi

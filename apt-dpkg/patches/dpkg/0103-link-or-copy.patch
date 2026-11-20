@@ -1,0 +1,126 @@
+Origin: sudo-less
+Change: where dpkg hard-links an installed file as a backup (before replacing it, and a conffile's .dpkg-old), it falls back to a copy when the link is not permitted: without root a file owned by another user cannot be hard-linked, and in the prefix view a host file cannot be copied up for one.
+License: GPL-2.0-or-later
+
+diff --git a/lib/dpkg/file.c b/lib/dpkg/file.c
+index 4281d48..82b928b 100644
+--- a/lib/dpkg/file.c
++++ b/lib/dpkg/file.c
+@@ -201,6 +201,65 @@ file_slurp_fd(int fd, const char *filename, struct varbuf *vb,
+ 	return 0;
+ }
+ 
++/**
++ * Hard-link a file, or copy it when it cannot be linked.
++ *
++ * Without root, a file owned by another user cannot be hard-linked
++ * (fs.protected_hardlinks), and on an unprivileged overlayfs a file of the
++ * lower layer owned by an unmapped user cannot be copied up for a link.
++ * A copy is as good as a link for a backup of the old file.
++ *
++ * @param src The file to link.
++ * @param dst The new name, which must not exist.
++ *
++ * @return 0 on success, -1 on error with errno set.
++ */
++int
++file_link_or_copy(const char *src, const char *dst)
++{
++	struct dpkg_error err;
++	struct stat st;
++	int srcfd, dstfd, e;
++
++	if (link(src, dst) == 0)
++		return 0;
++	if (errno != EPERM && errno != EACCES && errno != EXDEV)
++		return -1;
++
++	srcfd = open(src, O_RDONLY);
++	if (srcfd < 0)
++		return -1;
++	if (fstat(srcfd, &st) < 0) {
++		e = errno;
++		close(srcfd);
++		errno = e;
++		return -1;
++	}
++	dstfd = open(dst, O_WRONLY | O_CREAT | O_EXCL, 0600);
++	if (dstfd < 0) {
++		e = errno;
++		close(srcfd);
++		errno = e;
++		return -1;
++	}
++	if (fd_fd_copy(srcfd, dstfd, -1, &err) < 0) {
++		dpkg_error_destroy(&err);
++		close(srcfd);
++		close(dstfd);
++		unlink(dst);
++		errno = EIO;
++		return -1;
++	}
++	close(srcfd);
++	if (fchmod(dstfd, st.st_mode & 0777) < 0 || close(dstfd) < 0) {
++		e = errno;
++		unlink(dst);
++		errno = e;
++		return -1;
++	}
++	return 0;
++}
++
+ int
+ file_slurp(const char *filename, struct varbuf *vb, struct dpkg_error *err)
+ {
+diff --git a/lib/dpkg/file.h b/lib/dpkg/file.h
+index 195d5ab..f996439 100644
+--- a/lib/dpkg/file.h
++++ b/lib/dpkg/file.h
+@@ -66,6 +66,9 @@ file_is_exec(const char *filename);
+ void
+ file_copy_perms(const char *src, const char *dst);
+ 
++int
++file_link_or_copy(const char *src, const char *dst);
++
+ int
+ file_slurp(const char *filename, struct varbuf *vb, struct dpkg_error *err);
+ 
+diff --git a/lib/dpkg/libdpkg.map b/lib/dpkg/libdpkg.map
+index 539a1ad..2b1d6f4 100644
+--- a/lib/dpkg/libdpkg.map
++++ b/lib/dpkg/libdpkg.map
+@@ -196,6 +196,7 @@ LIBDPKG_PRIVATE {
+ 	file_canonicalize;
+ 	file_is_exec;
+ 	file_copy_perms;
++	file_link_or_copy;
+ 	file_show;
+ 	file_slurp;
+ 
+diff --git a/src/main/archives.c b/src/main/archives.c
+index b3cb432..3f73b46 100644
+--- a/src/main/archives.c
++++ b/src/main/archives.c
+@@ -1189,7 +1189,7 @@ tarobject(struct tar_archive *tar, struct tar_entry *ti)
+ 			                         stab.st_mode);
+ 		} else {
+ 			debug(dbg_eachfiledetail, "tarobject nondirectory, 'link' backup");
+-			if (link(fnamevb.buf, fnametmpvb.buf))
++			if (file_link_or_copy(fnamevb.buf, fnametmpvb.buf))
+ 				ohshite(_("cannot make backup link of '%s' before installing new version"),
+ 				        ti->name);
+ 		}
+diff --git a/src/main/configure.c b/src/main/configure.c
+index b869bea..19ee1b0 100644
+--- a/src/main/configure.c
++++ b/src/main/configure.c
+@@ -507,7 +507,7 @@ deferred_configure_conffile(struct pkginfo *pkg, struct conffile *conff)
+ 			        pkg_name(pkg, pnaw_nonambig), cdr_old.buf,
+ 			        strerror(errno));
+ 		if (!(what & CFOF_USER_DEL))
+-			if (link(cdr.buf, cdr_old.buf))
++			if (file_link_or_copy(cdr.buf, cdr_old.buf))
+ 				warning(_("%s: cannot link '%s' to '%s': %s"),
+ 				        pkg_name(pkg, pnaw_nonambig),
+ 				        cdr.buf,
